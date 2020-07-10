@@ -1,0 +1,14 @@
+[package]
+name = "canon_derive"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+
+[dependencies]
+proc-macro2 = "1.0.10"
+quote = "1.0.3"
+syn = { version = "1.0.17" }
+canon = { path = ".." }
+
+[lib]
+proc-macro = true

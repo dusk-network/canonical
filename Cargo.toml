@@ -1,0 +1,8 @@
+[package]
+name = "canon"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+
+[dev-dependencies]
+canon_derive = { path = "./derive" }
