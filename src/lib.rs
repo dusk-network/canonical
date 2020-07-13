@@ -1,5 +1,8 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
+mod handle;
 mod implementations;
+
+pub use handle::Handle;
 
 #[derive(Debug)]
 pub struct InvalidEncoding;
@@ -44,9 +47,39 @@ pub trait Source {
 
 pub trait Store<'a> {
     type Ident;
-    type Sink: Sink;
+    type Sink: Sink<Ident = Self::Ident>;
     type Source: Source;
+    type Error: From<InvalidEncoding>;
 
     fn sink(&'a mut self) -> Self::Sink;
     fn source(&'a self, id: &Self::Ident) -> Option<Self::Source>;
+
+    fn put<T: Canon>(&'a mut self, t: &mut T) -> Self::Ident {
+        let mut sink = self.sink();
+        t.write(&mut sink);
+        sink.fin()
+    }
+
+    fn get<T: Canon>(
+        &'a mut self,
+        id: &Self::Ident,
+    ) -> Result<Option<T>, Self::Error> {
+        self.source(id)
+            .map(|ref mut source| T::read(source).map_err(Into::into))
+            .transpose()
+    }
+}
+
+/// Hack to allow the derive macro to assume stores are `Canon`
+#[doc(hidden)]
+impl<'a, S> Canon for S
+where
+    S: Store<'a>,
+{
+    fn write(&self, _sink: &mut impl Sink) {
+        unimplemented!()
+    }
+    fn read(_source: &mut impl Source) -> Result<Self, InvalidEncoding> {
+        unimplemented!()
+    }
 }

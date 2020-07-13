@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use canon::{Canon, Sink, Source, Store};
+use canon::{Canon, InvalidEncoding, Sink, Source, Store};
 
 #[derive(Default)]
 pub struct ToyStore(HashMap<u64, Vec<u8>>);
@@ -56,6 +56,7 @@ impl<'a> Store<'a> for ToyStore {
     type Ident = u64;
     type Sink = ToySink<'a>;
     type Source = ToySource<'a>;
+    type Error = InvalidEncoding;
 
     fn sink(&'a mut self) -> ToySink<'a> {
         ToySink {
