@@ -4,10 +4,27 @@ mod implementations;
 
 pub use handle::Handle;
 
+pub trait ConstantLength {
+    const LEN: usize;
+}
+
+pub trait EncodedLength {
+    fn encoded_length(&self) -> usize;
+}
+
+impl<T> EncodedLength for T
+where
+    T: ConstantLength,
+{
+    fn encoded_length(&self) -> usize {
+        Self::LEN
+    }
+}
+
 #[derive(Debug)]
 pub struct InvalidEncoding;
 
-pub trait Canon: Sized {
+pub trait Canon: Sized + EncodedLength {
     fn write(&self, sink: &mut impl Sink);
     fn read(source: &mut impl Source) -> Result<Self, InvalidEncoding>;
 }
@@ -15,16 +32,16 @@ pub trait Canon: Sized {
 pub trait Sink {
     /// Type used as key for the sink
     type Ident;
+    type Error;
 
-    /// Request n bytes from the Sink to be written with the value.
-    /// Can be called multiple times, each time yielding consecutive byte slices
-    fn request_bytes(&mut self, num_bytes: usize) -> &mut [u8];
+    /// Request bytes to be written.
+    fn request_bytes(&mut self, n: usize) -> &mut [u8];
 
     /// Copy from the address into the sink
     fn provide_bytes(&mut self, bytes: &[u8]);
 
     /// Write the value and return the corresponding Ident
-    fn fin(self) -> Self::Ident;
+    fn fin(self) -> Result<Self::Ident, Self::Error>;
 
     fn recur<T>(&self, _t: &T) -> Self::Ident
     where
@@ -46,16 +63,21 @@ pub trait Source {
 }
 
 pub trait Store<'a> {
-    type Ident;
-    type Sink: Sink<Ident = Self::Ident>;
+    type Ident: ConstantLength;
+    type Sink: Sink<Ident = Self::Ident, Error = Self::Error>;
     type Source: Source;
     type Error: From<InvalidEncoding>;
 
-    fn sink(&'a mut self) -> Self::Sink;
+    fn sink(&'a mut self, capacity: usize) -> Self::Sink;
     fn source(&'a self, id: &Self::Ident) -> Option<Self::Source>;
 
-    fn put<T: Canon>(&'a mut self, t: &mut T) -> Self::Ident {
-        let mut sink = self.sink();
+    fn put<T: Canon>(
+        &'a mut self,
+        t: &mut T,
+    ) -> Result<Self::Ident, Self::Error> {
+        let e_len = t.encoded_length();
+
+        let mut sink = self.sink(e_len);
         t.write(&mut sink);
         sink.fin()
     }
@@ -82,4 +104,13 @@ where
     fn read(_source: &mut impl Source) -> Result<Self, InvalidEncoding> {
         unimplemented!()
     }
+}
+
+/// Hack to allow the derive macro to assume stores are `Canon`
+#[doc(hidden)]
+impl<'a, S> ConstantLength for S
+where
+    S: Store<'a>,
+{
+    const LEN: usize = 0;
 }

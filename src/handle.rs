@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 mod handle {
-    use crate::{Canon, InvalidEncoding, Sink, Source};
+    use crate::{Canon, ConstantLength, InvalidEncoding, Sink, Source};
 
     use std::rc::Rc;
 
@@ -11,7 +11,10 @@ mod handle {
         Inline(S::Ident),
     }
 
-    impl<T, S> Canon for Handle<T, S> {
+    impl<T, S> Canon for Handle<T, S>
+    where
+        S: for<'a> Store<'a>,
+    {
         fn write(&self, _sink: &mut impl Sink) {
             unimplemented!()
         }
@@ -19,6 +22,10 @@ mod handle {
         fn read(_source: &mut impl Source) -> Result<Self, InvalidEncoding> {
             unimplemented!()
         }
+    }
+
+    impl<T, S> ConstantLength for Handle<T, S> {
+        const LEN: usize = S::Ident + 1;
     }
 
     impl<T, S> Handle<T, S> {
@@ -30,7 +37,7 @@ mod handle {
 
 #[cfg(not(feature = "std"))]
 mod handle {
-    use crate::{Canon, InvalidEncoding, Sink, Source};
+    use crate::{Canon, ConstantLength, InvalidEncoding, Sink, Source, Store};
 
     use core::marker::PhantomData;
 
@@ -40,7 +47,10 @@ mod handle {
         Inline(PhantomData<T>),
     }
 
-    impl<T, S> Canon for Handle<T, S> {
+    impl<T, S> Canon for Handle<T, S>
+    where
+        S: for<'a> Store<'a>,
+    {
         fn write(&self, _sink: &mut impl Sink) {
             unimplemented!()
         }
@@ -48,6 +58,13 @@ mod handle {
         fn read(_source: &mut impl Source) -> Result<Self, InvalidEncoding> {
             unimplemented!()
         }
+    }
+
+    impl<T, S> ConstantLength for Handle<T, S>
+    where
+        S: for<'a> Store<'a>,
+    {
+        const LEN: usize = S::Ident::LEN + 1;
     }
 
     impl<T, S> Handle<T, S> {

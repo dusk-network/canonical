@@ -1,4 +1,4 @@
-use crate::{Canon, InvalidEncoding, Sink, Source};
+use crate::{Canon, ConstantLength, InvalidEncoding, Sink, Source};
 
 impl Canon for u8 {
     fn write(&self, sink: &mut impl Sink) {
@@ -8,6 +8,10 @@ impl Canon for u8 {
     fn read(source: &mut impl Source) -> Result<Self, InvalidEncoding> {
         Ok(source.request_bytes(1)[0])
     }
+}
+
+impl ConstantLength for u8 {
+    const LEN: usize = 1;
 }
 
 impl Canon for u64 {
@@ -20,4 +24,8 @@ impl Canon for u64 {
         bytes.copy_from_slice(source.request_bytes(8));
         Ok(u64::from_be_bytes(bytes))
     }
+}
+
+impl ConstantLength for u64 {
+    const LEN: usize = 8;
 }
