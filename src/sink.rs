@@ -12,7 +12,7 @@ pub trait Sink {
     where
         T: Canon,
     {
-        unimplemented!()
+        unimplemented!("recur")
     }
 
     #[allow(unused)]
@@ -20,6 +20,7 @@ pub trait Sink {
     where
         T: Canon,
     {
+        unimplemented!("replace self")
     }
 
     fn fin(self) -> Result<Self::Ident, Self::Error>;

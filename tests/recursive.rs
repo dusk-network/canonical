@@ -1,62 +1,87 @@
-// use canon::{Handle, InvalidEncoding, Store};
-// use canon_derive::Canon;
+use canon_derive::Canon;
+use canonical::{Canon, Handle, Store};
 
-// mod toy_store;
-// use toy_store::ToyStore;
+mod toy_store;
+use toy_store::ToyStore;
 
-// #[derive(Canon, Debug)]
-// enum Stack<T, S>
-// where
-//     S: for<'a> Store<'a>,
-// {
-//     Empty,
-//     Node { value: T, prev: Handle<Self, S> },
-// }
+use std::mem;
 
-// impl<T, S> Stack<T, S>
-// where
-//     S: for<'a> Store<'a>,
-// {
-//     fn new() -> Self {
-//         Stack::Empty
-//     }
+#[derive(Canon)]
+enum Stack<T, S>
+where
+    S: Store,
+{
+    Empty,
+    Node { value: T, prev: Handle<Self, S> },
+}
 
-//     fn push(&mut self, t: T) -> Result<(), <S as Store>::Error> {
-//         match self {
-//             Stack::Empty => {
-//                 *self = Stack::Node {
-//                     value: t,
-//                     prev: Handle::new(Stack::Empty),
-//                 };
-//                 unimplemented!();
-//             }
-//             _ => unimplemented!(),
-//         }
-//     }
+impl<T, S> Stack<T, S>
+where
+    S: Store,
+    T: Canon,
+{
+    fn new() -> Self {
+        Stack::Empty
+    }
 
-//     fn pop(&mut self) -> Result<Option<T>, <S as Store>::Error> {
-//         match self {
-//             Stack::Empty => Ok(None),
-//             Stack::Node { value: _, prev: _ } => {
-//                 unimplemented!()
-//                 //*self = prev.into();
-//                 //Ok(Some(value))
-//             }
-//         }
-//     }
-// }
+    fn push(&mut self, t: T) -> Result<(), <S as Store>::Error> {
+        let root = mem::replace(self, Stack::Empty);
+        *self = Stack::Node {
+            value: t,
+            prev: Handle::new(root),
+        };
+        Ok(())
+    }
 
-// #[test]
-// fn linked_list() {
-//     let mut store = ToyStore::new();
+    fn pop(&mut self) -> Result<Option<T>, <S as Store>::Error> {
+        let root = mem::replace(self, Stack::Empty);
+        match root {
+            Stack::Empty => Ok(None),
+            Stack::Node { value, prev } => {
+                *self = prev.resolve()?;
+                Ok(Some(value))
+            }
+        }
+    }
+}
 
-//     let mut list = Stack::<_, ToyStore>::new();
+#[test]
+fn trivial() {
+    let mut store = ToyStore::new();
 
-//     list.push(8u64).unwrap();
+    let mut list = Stack::<_, ToyStore>::new();
 
-//     let id = store.put(&mut list).unwrap();
+    list.push(8u64).unwrap();
 
-//     let mut restored = store.get::<Stack<u64, ToyStore>>(&id).unwrap().unwrap();
+    let id = store.put(&mut list).unwrap();
 
-//     assert_eq!(restored.pop().unwrap(), Some(8))
-// }
+    let mut restored = store.get::<Stack<u64, ToyStore>>(&id).unwrap().unwrap();
+
+    assert_eq!(restored.pop().unwrap(), Some(8))
+}
+
+#[test]
+fn multiple() {
+    type Int = u8;
+
+    let n: Int = 4;
+
+    let mut store = ToyStore::new();
+
+    let mut list = Stack::<_, ToyStore>::new();
+
+    for i in 0..n {
+        list.push(i).unwrap();
+    }
+
+    let id = store.put(&mut list).unwrap();
+
+    let mut restored = store.get::<Stack<Int, ToyStore>>(&id).unwrap().unwrap();
+
+    for i in 0..n {
+        let i = n - i - 1;
+        assert_eq!(restored.pop().unwrap(), Some(i))
+    }
+
+    assert_eq!(restored.pop().unwrap(), None)
+}

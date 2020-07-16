@@ -15,7 +15,7 @@ const FIELD_NAMES: [&str; 16] = [
 fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param.bounds.push(parse_quote!(canon::Canon));
+            type_param.bounds.push(parse_quote!(canonical::Canon));
         }
     }
     generics
@@ -51,7 +51,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let length = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     quote_spanned! { f.span() =>
-                                     + self.#name.encoded_length()
+                                     + self.#name.encoded_len()
                     }
                 });
 
@@ -79,7 +79,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let length = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let i = Literal::usize_unsuffixed(i);
                     quote_spanned! { f.span() =>
-                                     + self.#i.encoded_length()
+                                     + self.#i.encoded_len()
                     }
                 });
 
@@ -139,7 +139,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             fields.unnamed.iter().enumerate().map(|(i, f)| {
                                 let ident =
                                     Ident::new(FIELD_NAMES[i], f.span());
-                                quote_spanned! { f.span() => + #ident . encoded_length() }
+                                quote_spanned! { f.span() => + #ident . encoded_len() }
                             });
 
                         let fields_bind2 = fields_bind.clone();
@@ -181,7 +181,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let fields_lengths =
                             fields.named.iter().map(|f| {
                                 let ident = &f.ident;
-                                quote_spanned! { f.span() => + #ident . encoded_length() }
+                                quote_spanned! { f.span() => + #ident . encoded_len() }
                             });
 
                         let fields_bind2 = fields_bind.clone();
@@ -210,7 +210,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let tag = u8::read(source)?;
                     match tag {
                         #( #reads )*
-                        _ => Err(canon::InvalidEncoding)
+                        _ => Err(canonical::InvalidEncoding)
                     }
                 },
                 quote! {
@@ -229,19 +229,19 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let output = quote! {
-        impl #impl_generics canon::Canon for #name #ty_generics #where_clause {
-            fn write(&self, sink: &mut impl canon::Sink) {
+        impl #impl_generics canonical::Canon for #name #ty_generics #where_clause {
+            fn write(&self, sink: &mut impl canonical::Sink) {
                 #write
             }
 
-            fn read(source: &mut impl canon::Source)
-                    -> Result<Self, canon::InvalidEncoding> {
+            fn read(source: &mut impl canonical::Source)
+                    -> Result<Self, canonical::InvalidEncoding> {
                 #read
             }
         }
 
-        impl #impl_generics canon::EncodedLength for #name #ty_generics #where_clause {
-            fn encoded_length(&self) -> usize {
+        impl #impl_generics canonical::EncodedLength for #name #ty_generics #where_clause {
+            fn encoded_len(&self) -> usize {
                 0 #length
             }
         }

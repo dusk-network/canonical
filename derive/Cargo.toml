@@ -8,7 +8,7 @@ edition = "2018"
 proc-macro2 = "1.0.10"
 quote = "1.0.3"
 syn = { version = "1.0.17" }
-canon = { path = ".." }
+canonical = { path = ".." }
 
 [lib]
 proc-macro = true

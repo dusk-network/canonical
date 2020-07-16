@@ -1,5 +1,5 @@
-use canon::{Canon, Store};
 use canon_derive::Canon;
+use canonical::{Canon, Store};
 
 mod toy_store;
 use toy_store::ToyStore;
