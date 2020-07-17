@@ -3,16 +3,20 @@ use crate::{
 };
 use core::marker::PhantomData;
 
+/// The `Handle` type can be thought of as a host-allocating version of `Box`
 #[derive(Debug)]
 pub enum Handle<T, S: Store> {
-    // Values stored inline in serialized form
+    /// Value stored inline in serialized form
     Inline {
-        // We are re-using the ident as a byte storage and access it through
-        // `AsRef<[u8]>` and `AsMut<[u8]>` from the associated trait bound.
+        /// We are re-using the ident as a byte storage and access it through
+        /// `AsRef<[u8]>` and `AsMut<[u8]>` from the associated trait bound.
         bytes: S::Ident,
+        /// The length of the encoded value
         len: u8,
+        #[doc(hidden)]
         _marker: PhantomData<T>,
     },
+    /// Value is host-allocated with an identifier
     Ident(S::Ident),
 }
 
@@ -58,6 +62,7 @@ where
     T: Canon,
     S: Store,
 {
+    /// Construct a new `Handle` from value `t`
     pub fn new(mut t: T) -> Result<Self, S::Error> {
         // can we inline the value?
         let len = t.encoded_len();
@@ -74,6 +79,7 @@ where
         }
     }
 
+    /// Returns the value behind the `Handle`
     pub fn resolve(&self) -> Result<T, S::Error> {
         match self {
             Handle::Inline { bytes, len, .. } => {

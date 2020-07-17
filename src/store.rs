@@ -6,20 +6,31 @@ pub trait Ident: ConstantLength + Default + AsRef<[u8]> + AsMut<[u8]> {}
 impl<T> Ident for T where T: ConstantLength + Default + AsRef<[u8]> + AsMut<[u8]>
 {}
 
+/// Trait to implement writing bytes to an underlying storage
 pub trait Sink {
+    /// Request n bytes to be written
     fn write_bytes(&mut self, n: usize) -> &mut [u8];
+    /// Copy bytes from a slice into the `Sink`
     fn copy_bytes(&mut self, bytes: &[u8]);
 }
 
+/// Trait to implement reading bytes from an underlying storage
 pub trait Source {
+    /// Request n bytes from the sink to be read
     fn read_bytes(&mut self, n: usize) -> &[u8];
 }
 
+/// The main trait for storing data, in the case of a wasm environment,
+/// this is generally implemented with host calls
 pub trait Store {
+    /// The identifier used for allocations
     type Ident: Ident;
+    /// The error the store can emit
     type Error: From<CanonError>;
 
+    /// Put a value into storage, returning an identifier
     fn put<T: Canon>(t: &mut T) -> Result<Self::Ident, Self::Error>;
+    /// Get a value from storag, given an identifier
     fn get<T: Canon>(id: &Self::Ident) -> Result<T, Self::Error>;
 }
 

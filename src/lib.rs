@@ -1,5 +1,7 @@
-// #![cfg_attr(not(feature = "std"), no_std)]
+//! Canonical, a no_std, host-allocating serialization library
+#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(incomplete_features)]
+#![warn(missing_docs)]
 #![feature(const_generics)]
 mod canon;
 mod handle;
