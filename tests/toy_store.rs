@@ -2,9 +2,10 @@ use std::collections::hash_map::{DefaultHasher, HashMap};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use lazy_static::lazy_static;
 use parking_lot::RwLock;
 
-use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
+use canonical::{Canon, CanonError, Sink, Source, Store};
 
 #[derive(Default, Debug)]
 struct ToyStoreInner {
@@ -12,38 +13,34 @@ struct ToyStoreInner {
     head: usize,
 }
 
+lazy_static! {
+    /// This is an example for using doc comment attributes
+    static ref STATE: Arc<RwLock<ToyStoreInner>> = Default::default();
+}
+
 #[derive(Default, Debug, Clone)]
-pub struct ToyStore(Arc<RwLock<ToyStoreInner>>);
+pub struct ToyStore;
 
 struct ToySink<'a> {
-    store: ToyStore,
     bytes: &'a mut [u8],
     offset: usize,
 }
 
 struct ToySource<'a> {
-    store: ToyStore,
     bytes: &'a [u8],
     offset: usize,
 }
 
-impl ToyStore {
-    pub fn new() -> ToyStore {
-        ToyStore::default()
-    }
-}
-
 impl Store for ToyStore {
     type Ident = [u8; 8];
-    type Error = InvalidEncoding;
+    type Error = CanonError;
 
-    fn put<T: Canon>(&mut self, t: &mut T) -> Result<Self::Ident, Self::Error> {
+    fn put<T: Canon>(t: &mut T) -> Result<Self::Ident, Self::Error> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
 
         let mut sink = ToySink {
-            store: self.clone(),
             bytes: &mut bytes[..],
             offset: 0,
         };
@@ -54,29 +51,22 @@ impl Store for ToyStore {
         bytes[..].hash(&mut hasher);
 
         let hash = hasher.finish().to_be_bytes();
-        self.0.write().map.insert(hash, bytes);
+
+        STATE.write().map.insert(hash, bytes);
 
         Ok(hash)
     }
 
-    fn get<T: Canon>(
-        &mut self,
-        id: &Self::Ident,
-    ) -> Result<Option<T>, Self::Error> {
-        let store = self.clone();
-        self.0
+    fn get<T: Canon>(id: &Self::Ident) -> Result<T, Self::Error> {
+        STATE
             .read()
             .map
             .get(id)
             .map(|bytes| {
-                let mut source = ToySource {
-                    store,
-                    bytes,
-                    offset: 0,
-                };
+                let mut source = ToySource { bytes, offset: 0 };
                 T::read(&mut source)
             })
-            .transpose()
+            .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 }
 
@@ -90,10 +80,6 @@ impl<'a> Sink for ToySink<'a> {
     fn copy_bytes(&mut self, bytes: &[u8]) {
         let ofs = self.offset;
         self.offset += bytes.len();
-
-        println!("copy bytes {:?}", bytes);
-        println!("self bytes {:?}", self.bytes);
-
         self.bytes[ofs..self.offset].clone_from_slice(bytes)
     }
 }

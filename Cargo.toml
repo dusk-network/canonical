@@ -1,9 +1,10 @@
 [package]
 name = "canonical"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [dev-dependencies]
-canon_derive = { path = "./derive" }
+canonical_derive = { path = "./derive" }
 parking_lot = "*"
+lazy_static = "*"

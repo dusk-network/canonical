@@ -210,7 +210,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let tag = u8::read(source)?;
                     match tag {
                         #( #reads )*
-                        _ => Err(canonical::InvalidEncoding)
+                        _ => Err(canonical::CanonError::InvalidData)
                     }
                 },
                 quote! {
@@ -235,7 +235,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
 
             fn read(source: &mut impl canonical::Source)
-                    -> Result<Self, canonical::InvalidEncoding> {
+                    -> Result<Self, canonical::CanonError> {
                 #read
             }
         }

@@ -1,10 +1,11 @@
 use crate::{
-    Canon, ConstantLength, EncodedLength, InvalidEncoding, Sink, Source, Store,
+    Canon, CanonError, ConstantLength, EncodedLength, Sink, Source, Store,
 };
 use core::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum Handle<T, S: Store> {
+    // Values stored inline in serialized form
     Inline {
         // We are re-using the ident as a byte storage and access it through
         // `AsRef<[u8]>` and `AsMut<[u8]>` from the associated trait bound.
@@ -12,10 +13,7 @@ pub enum Handle<T, S: Store> {
         len: u8,
         _marker: PhantomData<T>,
     },
-    Ident {
-        ident: S::Ident,
-        store: S,
-    },
+    Ident(S::Ident),
 }
 
 impl<T, S> Canon for Handle<T, S>
@@ -28,11 +26,14 @@ where
                 len.write(sink);
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize])
             }
-            _ => unimplemented!("non-inlined write"),
+            Handle::Ident(ident) => {
+                0u8.write(sink);
+                sink.copy_bytes(&ident.as_ref());
+            }
         }
     }
 
-    fn read(source: &mut impl Source) -> Result<Self, InvalidEncoding> {
+    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
         let len = u8::read(source)?;
         if len > 0 {
             let mut bytes = S::Ident::default();
@@ -44,7 +45,10 @@ where
                 _marker: PhantomData,
             })
         } else {
-            unimplemented!("non-inlined read")
+            let mut ident = S::Ident::default();
+            let bytes = source.read_bytes(S::Ident::LEN);
+            ident.as_mut().copy_from_slice(bytes);
+            Ok(Handle::Ident(ident))
         }
     }
 }
@@ -54,19 +58,19 @@ where
     T: Canon,
     S: Store,
 {
-    pub fn new(t: T) -> Self {
+    pub fn new(mut t: T) -> Result<Self, S::Error> {
         // can we inline the value?
         let len = t.encoded_len();
         if len <= S::Ident::LEN {
             let mut buffer = S::Ident::default();
             t.write(&mut buffer.as_mut());
-            Handle::Inline {
+            Ok(Handle::Inline {
                 bytes: buffer,
                 len: len as u8,
                 _marker: PhantomData,
-            }
+            })
         } else {
-            unimplemented!("aaah")
+            Ok(Handle::Ident(S::put(&mut t)?))
         }
     }
 
@@ -76,7 +80,7 @@ where
                 T::read(&mut &bytes.as_ref()[0..*len as usize])
                     .map_err(Into::into)
             }
-            Handle::Ident { .. } => unimplemented!(),
+            Handle::Ident(ident) => S::get(ident),
         }
     }
 }
@@ -91,7 +95,7 @@ where
                 // length of inline value plus 1 byte tag
                 *len as usize + 1
             }
-            _ => unimplemented!(),
+            Handle::Ident(_) => S::Ident::LEN + 1,
         }
     }
 }

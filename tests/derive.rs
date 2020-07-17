@@ -1,5 +1,5 @@
-use canon_derive::Canon;
 use canonical::{Canon, Store};
+use canonical_derive::Canon;
 
 mod toy_store;
 use toy_store::ToyStore;
@@ -60,16 +60,8 @@ struct MonsterStruct<T> {
 }
 
 fn serialize_deserialize<T: Canon + std::fmt::Debug + PartialEq>(mut t: T) {
-    let mut store = ToyStore::new();
-
-    println!("encoding {:?}", &t);
-
-    let id = store.put(&mut t).unwrap();
-
-    println!("store {:?}", &store);
-
-    let restored = store.get::<T>(&id).unwrap().unwrap();
-
+    let id = ToyStore::put(&mut t).unwrap();
+    let restored = ToyStore::get::<T>(&id).unwrap();
     assert_eq!(t, restored);
 }
 

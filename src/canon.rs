@@ -1,11 +1,14 @@
 use crate::store::{Sink, Source};
 
 #[derive(Debug)]
-pub struct InvalidEncoding;
+pub enum CanonError {
+    InvalidData,
+    MissingValue,
+}
 
 pub trait Canon: Sized + EncodedLength {
     fn write(&self, sink: &mut impl Sink);
-    fn read(store: &mut impl Source) -> Result<Self, InvalidEncoding>;
+    fn read(store: &mut impl Source) -> Result<Self, CanonError>;
 }
 
 pub trait ConstantLength {

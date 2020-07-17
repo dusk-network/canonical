@@ -1,4 +1,4 @@
-use crate::canon::{Canon, ConstantLength, InvalidEncoding};
+use crate::canon::{Canon, CanonError, ConstantLength};
 
 /// Restrictions on types acting as identifiers
 pub trait Ident: ConstantLength + Default + AsRef<[u8]> + AsMut<[u8]> {}
@@ -17,13 +17,10 @@ pub trait Source {
 
 pub trait Store {
     type Ident: Ident;
-    type Error: From<InvalidEncoding>;
+    type Error: From<CanonError>;
 
-    fn put<T: Canon>(&mut self, t: &mut T) -> Result<Self::Ident, Self::Error>;
-    fn get<T: Canon>(
-        &mut self,
-        id: &Self::Ident,
-    ) -> Result<Option<T>, Self::Error>;
+    fn put<T: Canon>(t: &mut T) -> Result<Self::Ident, Self::Error>;
+    fn get<T: Canon>(id: &Self::Ident) -> Result<T, Self::Error>;
 }
 
 /// Hack to allow the derive macro to assume stores are `Canon`
@@ -36,7 +33,7 @@ where
         unimplemented!("Stores are not Canon, hack to aid in deriving")
     }
 
-    fn read(_: &mut impl Source) -> Result<Self, InvalidEncoding> {
+    fn read(_: &mut impl Source) -> Result<Self, CanonError> {
         unimplemented!("Stores are not Canon, hack to aid in deriving")
     }
 }
