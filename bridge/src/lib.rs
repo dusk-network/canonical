@@ -1,6 +1,7 @@
 #![no_std]
+#![feature(lang_items)]
+
 use core::marker::PhantomData;
-use core::panic::PanicInfo;
 
 use canonical::{Canon, CanonError, Ident, Sink, Source, Store};
 
@@ -63,7 +64,7 @@ where
         }
     }
 
-    fn get<T: Canon>(id: &Self::Ident) -> Result<T, Self::Error> {
+    fn get<T: Canon>(_id: &Self::Ident) -> Result<T, Self::Error> {
         loop {}
     }
 }
@@ -73,7 +74,14 @@ extern "C" {
     pub fn b_get(buffer: &mut u8);
 }
 
-#[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
-    loop {}
+mod no_std {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    fn panic(_: &PanicInfo) -> ! {
+        loop {}
+    }
+
+    #[lang = "eh_personality"]
+    extern "C" fn eh_personality() {}
 }

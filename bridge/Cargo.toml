@@ -6,9 +6,3 @@ edition = "2018"
 
 [dependencies]
 canonical = { path = ".." }
-
-[profile.release]
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = 'abort'
