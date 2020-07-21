@@ -60,9 +60,9 @@ fn trivial() {
 
 #[test]
 fn multiple() {
-    type Int = u8;
+    type Int = u16;
 
-    let n: Int = 4;
+    let n: Int = 16;
 
     let mut list = Stack::<_, ToyStore>::new();
 

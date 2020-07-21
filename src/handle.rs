@@ -1,6 +1,4 @@
-use crate::{
-    Canon, CanonError, ConstantLength, EncodedLength, Sink, Source, Store,
-};
+use crate::{Canon, CanonError, Sink, Source, Store};
 use core::marker::PhantomData;
 
 /// The `Handle` type can be thought of as a host-allocating version of `Box`
@@ -50,9 +48,19 @@ where
             })
         } else {
             let mut ident = S::Ident::default();
-            let bytes = source.read_bytes(S::Ident::LEN);
+            let bytes = source.read_bytes(ident.as_ref().len());
             ident.as_mut().copy_from_slice(bytes);
             Ok(Handle::Ident(ident))
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        match self {
+            Handle::Inline { len, .. } => {
+                // length of tag + inline value
+                1 + *len as usize
+            }
+            Handle::Ident(id) => 1 + id.as_ref().len(),
         }
     }
 }
@@ -64,10 +72,10 @@ where
 {
     /// Construct a new `Handle` from value `t`
     pub fn new(mut t: T) -> Result<Self, S::Error> {
-        // can we inline the value?
+        let mut buffer = S::Ident::default();
         let len = t.encoded_len();
-        if len <= S::Ident::LEN {
-            let mut buffer = S::Ident::default();
+        // can we inline the value?
+        if len <= buffer.as_ref().len() {
             t.write(&mut buffer.as_mut());
             Ok(Handle::Inline {
                 bytes: buffer,
@@ -87,21 +95,6 @@ where
                     .map_err(Into::into)
             }
             Handle::Ident(ident) => S::get(ident),
-        }
-    }
-}
-
-impl<T, S> EncodedLength for Handle<T, S>
-where
-    S: Store,
-{
-    fn encoded_len(&self) -> usize {
-        match self {
-            Handle::Inline { len, .. } => {
-                // length of inline value plus 1 byte tag
-                *len as usize + 1
-            }
-            Handle::Ident(_) => S::Ident::LEN + 1,
         }
     }
 }

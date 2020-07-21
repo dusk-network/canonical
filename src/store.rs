@@ -1,10 +1,8 @@
-use crate::canon::{Canon, CanonError, ConstantLength};
+use crate::canon::{Canon, CanonError};
 
 /// Restrictions on types acting as identifiers
-pub trait Ident: ConstantLength + Default + AsRef<[u8]> + AsMut<[u8]> {}
-
-impl<T> Ident for T where T: ConstantLength + Default + AsRef<[u8]> + AsMut<[u8]>
-{}
+pub trait Ident: Default + AsRef<[u8]> + AsMut<[u8]> {}
+impl<T> Ident for T where T: Default + AsRef<[u8]> + AsMut<[u8]> {}
 
 /// Trait to implement writing bytes to an underlying storage
 pub trait Sink {
@@ -20,7 +18,7 @@ pub trait Source {
     fn read_bytes(&mut self, n: usize) -> &[u8];
 }
 
-/// The main trait for storing data, in the case of a wasm environment,
+/// The main trait for storing/transmitting data, in the case of a wasm environment,
 /// this is generally implemented with host calls
 pub trait Store {
     /// The identifier used for allocations
@@ -47,14 +45,10 @@ where
     fn read(_: &mut impl Source) -> Result<Self, CanonError> {
         unimplemented!("Stores are not Canon, hack to aid in deriving")
     }
-}
 
-#[doc(hidden)]
-impl<S> ConstantLength for S
-where
-    S: Store,
-{
-    const LEN: usize = 0;
+    fn encoded_len(&self) -> usize {
+        unimplemented!("Stores are not Canon, hack to aid in deriving")
+    }
 }
 
 impl Sink for &mut [u8] {
@@ -76,7 +70,7 @@ impl Sink for &mut [u8] {
 
 impl Source for &[u8] {
     fn read_bytes(&mut self, n: usize) -> &[u8] {
-        let slice = core::mem::replace(self, &mut []);
+        let slice = core::mem::replace(self, &[]);
         let (a, b) = slice.split_at(n);
         *self = b;
         a

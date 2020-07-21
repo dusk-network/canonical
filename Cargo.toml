@@ -8,3 +8,9 @@ edition = "2018"
 canonical_derive = { path = "./derive" }
 parking_lot = "*"
 lazy_static = "*"
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = 'abort'

@@ -12,7 +12,7 @@ struct A {
 
 #[derive(Canon, PartialEq, Debug)]
 struct A2 {
-    a: u8,
+    a: (),
     b: u8,
 }
 
@@ -33,14 +33,15 @@ enum E {
 
 #[derive(Canon, PartialEq, Debug)]
 enum F {
-    A(u64, u64),
+    A(u64, [u64; 5]),
     B(u8),
+    C(Result<u32, u32>),
 }
 
 #[derive(Canon, PartialEq, Debug)]
 enum G {
     A { alice: u64, bob: u8 },
-    B(u64),
+    B(Option<u32>),
     C,
 }
 
@@ -68,16 +69,19 @@ fn serialize_deserialize<T: Canon + std::fmt::Debug + PartialEq>(mut t: T) {
 #[test]
 fn derives() {
     serialize_deserialize(A { a: 37, b: 77 });
-    serialize_deserialize(A2 { a: 37, b: 77 });
+    serialize_deserialize(A2 { a: (), b: 77 });
     serialize_deserialize(B(37, 22));
     serialize_deserialize(C(22));
     serialize_deserialize(D);
     serialize_deserialize(E::A);
     serialize_deserialize(E::B);
-    serialize_deserialize(F::A(73, 3));
+    serialize_deserialize(F::A(73, [0, 1, 2, 3, 4]));
     serialize_deserialize(F::B(22));
+    serialize_deserialize(F::C(Ok(3213)));
+    serialize_deserialize(F::C(Err(3213)));
     serialize_deserialize(G::A { alice: 73, bob: 3 });
-    serialize_deserialize(G::B(73));
+    serialize_deserialize(G::B(Some(73)));
+    serialize_deserialize(G::B(None));
     serialize_deserialize(H(73u8));
     serialize_deserialize(H(73u64));
     serialize_deserialize(H(E::B));
@@ -89,7 +93,7 @@ fn derives() {
         c: C(22),
         d: D,
         e: E::A,
-        f: F::A(73, 3),
+        f: F::A(73, [0, 1, 4, 3, 4]),
         g: G::A { alice: 73, bob: 3 },
         h: H(E::B),
     });
