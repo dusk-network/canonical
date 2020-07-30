@@ -4,31 +4,19 @@ use crate::canon::Canon;
 use crate::store::Store;
 
 /// A snapshot of a host-alloctated value.
-pub struct Snapshot<T: ?Sized, S: Store>(S::Ident, PhantomData<T>);
-
-/// Trait to make a snapshot from a `Canon` value.
-pub trait Snap {
-    /// Make a snapshot in store `S` of the value.
-    fn snapshot<S: Store>(&mut self) -> Result<Snapshot<Self, S>, S::Error>;
-}
-
-impl<T> Snap for T
-where
-    T: Canon,
-{
-    fn snapshot<S: Store>(&mut self) -> Result<Snapshot<Self, S>, S::Error> {
-        let id = S::put(self)?;
-        Ok(Snapshot(id, PhantomData))
-    }
+pub struct Snapshot<T: ?Sized, S: Store> {
+    id: S::Ident,
+    store: S,
+    _marker: PhantomData<T>,
 }
 
 impl<T, S> Snapshot<T, S>
 where
     S: Store,
-    T: Canon,
+    T: Canon<S>,
 {
     /// Extracts the value from the snapshot
     pub fn restore(&self) -> Result<T, S::Error> {
-        S::get::<T>(&self.0)
+        self.store.get::<T>(&self.id)
     }
 }

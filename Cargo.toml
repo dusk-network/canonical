@@ -6,8 +6,12 @@ edition = "2018"
 
 [dev-dependencies]
 canonical_derive = { path = "./derive" }
-parking_lot = "*"
-lazy_static = "*"
+canonical_host = { path = "./host" }
+
+[features]
+default = []
+host = []
+
 
 [profile.release]
 opt-level = 'z'

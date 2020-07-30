@@ -1,8 +1,6 @@
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
-
-mod toy_store;
-use toy_store::ToyStore;
+use canonical_host::MemStore;
 
 #[derive(Canon, PartialEq, Debug)]
 struct A {
@@ -60,9 +58,12 @@ struct MonsterStruct<T> {
     h: H<T>,
 }
 
-fn serialize_deserialize<T: Canon + std::fmt::Debug + PartialEq>(mut t: T) {
-    let id = ToyStore::put(&mut t).unwrap();
-    let restored = ToyStore::get::<T>(&id).unwrap();
+fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
+    mut t: T,
+) {
+    let mut store = MemStore::new();
+    let id = store.put(&mut t).unwrap();
+    let restored = store.get::<T>(&id).unwrap();
     assert_eq!(t, restored);
 }
 

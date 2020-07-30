@@ -2,12 +2,12 @@ use crate::{Canon, CanonError, Sink, Source};
 
 macro_rules! number {
     ($number:ty, $size:expr) => {
-        impl Canon for $number {
-            fn write(&self, sink: &mut impl Sink) {
+        impl<S> Canon<S> for $number {
+            fn write(&mut self, sink: &mut impl Sink) {
                 sink.copy_bytes(&self.to_be_bytes());
             }
 
-            fn read(source: &mut impl Source) -> Result<Self, CanonError> {
+            fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
                 let mut bytes = [0u8; $size];
                 bytes.copy_from_slice(source.read_bytes($size));
                 Ok(<$number>::from_be_bytes(bytes))
@@ -35,17 +35,17 @@ number!(i64, 8);
 number!(u128, 16);
 number!(i128, 16);
 
-impl<T, const N: usize> Canon for [T; N]
+impl<T, S, const N: usize> Canon<S> for [T; N]
 where
-    T: Canon + Default + Copy,
+    T: Canon<S> + Default + Copy,
 {
-    fn write(&self, sink: &mut impl Sink) {
+    fn write(&mut self, sink: &mut impl Sink) {
         for i in 0..N {
             self[i].write(sink)
         }
     }
 
-    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         let mut array = [T::default(); N];
         for i in 0..N {
             array[i] = T::read(source)?;
@@ -62,11 +62,11 @@ where
     }
 }
 
-impl<T> Canon for Option<T>
+impl<T, S> Canon<S> for Option<T>
 where
-    T: Canon,
+    T: Canon<S>,
 {
-    fn write(&self, sink: &mut impl Sink) {
+    fn write(&mut self, sink: &mut impl Sink) {
         match self {
             None => sink.copy_bytes(&[0]),
             Some(t) => {
@@ -76,7 +76,7 @@ where
         }
     }
 
-    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         match source.read_bytes(1) {
             [0] => Ok(None),
             [1] => Ok(Some(T::read(source)?)),
@@ -92,12 +92,12 @@ where
     }
 }
 
-impl<T, E> Canon for Result<T, E>
+impl<T, E, S> Canon<S> for Result<T, E>
 where
-    T: Canon,
-    E: Canon,
+    T: Canon<S>,
+    E: Canon<S>,
 {
-    fn write(&self, sink: &mut impl Sink) {
+    fn write(&mut self, sink: &mut impl Sink) {
         match self {
             Ok(t) => {
                 sink.copy_bytes(&[0]);
@@ -110,7 +110,7 @@ where
         }
     }
 
-    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         match source.read_bytes(1) {
             [0] => Ok(Ok(T::read(source)?)),
             [1] => Ok(Err(E::read(source)?)),
@@ -126,10 +126,10 @@ where
     }
 }
 
-impl Canon for () {
-    fn write(&self, _: &mut impl Sink) {}
+impl<S> Canon<S> for () {
+    fn write(&mut self, _: &mut impl Sink) {}
 
-    fn read(_: &mut impl Source) -> Result<Self, CanonError> {
+    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError> {
         Ok(())
     }
 

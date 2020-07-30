@@ -3,13 +3,16 @@
 #![allow(incomplete_features)]
 #![warn(missing_docs)]
 #![feature(const_generics)]
+mod bridge;
 mod canon;
-mod handle;
+
+mod handle_bridge;
+
 mod implementations;
 mod snapshot;
 mod store;
 
 pub use canon::{Canon, CanonError};
-pub use handle::Handle;
-pub use snapshot::{Snap, Snapshot};
+pub use handle_bridge::Handle;
+pub use snapshot::Snapshot;
 pub use store::{Ident, Sink, Source, Store};

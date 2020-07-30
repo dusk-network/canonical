@@ -1,16 +1,11 @@
-use canonical::{Canon, Handle, Snap, Store};
+use canonical::{Canon, Handle, Store};
 use canonical_derive::Canon;
-
-mod toy_store;
-use toy_store::ToyStore;
+use canonical_host::MemStore;
 
 use std::mem;
 
 #[derive(Canon)]
-enum Stack<T, S>
-where
-    S: Store,
-{
+enum Stack<T, S: Store> {
     Empty,
     Node { value: T, prev: Handle<Self, S> },
 }
@@ -18,7 +13,7 @@ where
 impl<T, S> Stack<T, S>
 where
     S: Store,
-    T: Canon,
+    T: Canon<S>,
 {
     fn new() -> Self {
         Stack::Empty
@@ -47,11 +42,13 @@ where
 
 #[test]
 fn trivial() {
-    let mut list = Stack::<_, ToyStore>::new();
+    let mut store = MemStore::new();
+
+    let mut list = Stack::new();
 
     list.push(8u64).unwrap();
 
-    let snap = list.snapshot::<ToyStore>().unwrap();
+    let snap = store.snapshot(&mut list).unwrap();
 
     let mut restored = snap.restore().unwrap();
 
@@ -60,17 +57,19 @@ fn trivial() {
 
 #[test]
 fn multiple() {
+    let mut store = MemStore::new();
+
     type Int = u16;
 
     let n: Int = 16;
 
-    let mut list = Stack::<_, ToyStore>::new();
+    let mut list = Stack::new();
 
     for i in 0..n {
         list.push(i).unwrap();
     }
 
-    let snap = list.snapshot::<ToyStore>().unwrap();
+    let snap = store.snapshot(&mut list).unwrap();
     let mut restored = snap.restore().unwrap();
 
     for i in 0..n {
