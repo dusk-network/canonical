@@ -8,10 +8,12 @@ edition = "2018"
 canonical_derive = { path = "./derive" }
 canonical_host = { path = "./host" }
 
+[dependencies]
+parking_lot = "*"
+
 [features]
 default = []
-host = []
-
+bridge = []
 
 [profile.release]
 opt-level = 'z'

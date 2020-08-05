@@ -21,9 +21,18 @@ impl MemStore {
     }
 }
 
-struct MemSink<'a> {
-    bytes: &'a mut [u8],
-    offset: usize,
+struct MemSink<S> {
+    bytes: Vec<u8>,
+    store: S,
+}
+
+impl<S: Store> MemSink<S> {
+    fn new(store: &S) -> Self {
+        MemSink {
+            bytes: vec![],
+            store: store.clone(),
+        }
+    }
 }
 
 struct MemSource<'a, S> {
@@ -34,34 +43,27 @@ struct MemSource<'a, S> {
 
 impl Store for MemStore {
     type Ident = [u8; 8];
-    type Error = CanonError;
+    type Error = !;
 
     fn put<T: Canon<Self>>(
-        &mut self,
+        &self,
         t: &mut T,
-    ) -> Result<Self::Ident, Self::Error> {
+    ) -> Result<Self::Ident, CanonError<Self>> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
 
-        let mut sink = MemSink {
-            bytes: &mut bytes[..],
-            offset: 0,
-        };
+        let mut sink = MemSink::new(self);
 
-        t.write(&mut sink);
+        t.write(&mut sink)?;
 
-        let mut hasher = DefaultHasher::new();
-        bytes[..].hash(&mut hasher);
-
-        let hash = hasher.finish().to_be_bytes();
-
-        self.0.write().map.insert(hash, bytes);
-
-        Ok(hash)
+        sink.fin()
     }
 
-    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
+    fn get<T: Canon<Self>>(
+        &self,
+        id: &Self::Ident,
+    ) -> Result<T, CanonError<Self>> {
         self.0
             .read()
             .map
@@ -77,22 +79,38 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 
-    fn singleton() -> Self {
-        unimplemented!()
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
+        let mut hasher = DefaultHasher::new();
+        bytes[..].hash(&mut hasher);
+        let hash = hasher.finish().to_be_bytes();
+
+        self.0.write().map.insert(hash, bytes.into());
+        Ok(hash)
     }
 }
 
-impl<'a> Sink for MemSink<'a> {
+impl<S: Store> Sink<S> for MemSink<S> {
     fn write_bytes(&mut self, n: usize) -> &mut [u8] {
-        let start = self.offset;
-        self.offset += n;
-        &mut self.bytes[start..self.offset]
+        let ofs = self.bytes.len();
+        self.bytes.resize_with(n, || 0);
+        &mut self.bytes[ofs..]
     }
 
     fn copy_bytes(&mut self, bytes: &[u8]) {
-        let ofs = self.offset;
-        self.offset += bytes.len();
-        self.bytes[ofs..self.offset].clone_from_slice(bytes)
+        let ofs = self.bytes.len();
+        self.bytes.resize_with(ofs + bytes.len(), || 0);
+        self.bytes[ofs..].clone_from_slice(bytes)
+    }
+
+    fn recur(&self) -> Self {
+        MemSink {
+            bytes: vec![],
+            store: self.store.clone(),
+        }
+    }
+
+    fn fin(self) -> Result<S::Ident, CanonError<S>> {
+        self.store.put_raw(&self.bytes)
     }
 }
 

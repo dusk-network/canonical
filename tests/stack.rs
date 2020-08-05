@@ -1,10 +1,10 @@
-use canonical::{Canon, Handle, Store};
+use canonical::{Canon, CanonError, Handle, Store, VoidStore};
 use canonical_derive::Canon;
 use canonical_host::MemStore;
 
 use std::mem;
 
-#[derive(Canon)]
+#[derive(Clone, Canon, Debug)]
 enum Stack<T, S: Store> {
     Empty,
     Node { value: T, prev: Handle<Self, S> },
@@ -19,7 +19,7 @@ where
         Stack::Empty
     }
 
-    fn push(&mut self, t: T) -> Result<(), S::Error> {
+    fn push(&mut self, t: T) -> Result<(), CanonError<S>> {
         let root = mem::replace(self, Stack::Empty);
         *self = Stack::Node {
             value: t,
@@ -28,7 +28,7 @@ where
         Ok(())
     }
 
-    fn pop(&mut self) -> Result<Option<T>, <S as Store>::Error> {
+    fn pop(&mut self) -> Result<Option<T>, CanonError<S>> {
         let root = mem::replace(self, Stack::Empty);
         match root {
             Stack::Empty => Ok(None),
@@ -41,27 +41,32 @@ where
 }
 
 #[test]
-fn trivial() {
-    let mut store = MemStore::new();
+fn multiple() {
+    type Int = u64;
 
-    let mut list = Stack::new();
+    let n: Int = 1024;
 
-    list.push(8u64).unwrap();
+    let mut list = Stack::<_, VoidStore>::new();
 
-    let snap = store.snapshot(&mut list).unwrap();
+    for i in 0..n {
+        let _ = list.push(i);
+    }
 
-    let mut restored = snap.restore().unwrap();
+    for i in 0..n {
+        let i = n - i - 1;
+        assert_eq!(list.pop().unwrap(), Some(i))
+    }
 
-    assert_eq!(restored.pop().unwrap(), Some(8))
+    assert_eq!(list.pop().unwrap(), None)
 }
 
 #[test]
-fn multiple() {
-    let mut store = MemStore::new();
+fn multiple_restored() {
+    let store = MemStore::new();
 
-    type Int = u16;
+    type Int = u8;
 
-    let n: Int = 16;
+    let n: Int = 128;
 
     let mut list = Stack::new();
 

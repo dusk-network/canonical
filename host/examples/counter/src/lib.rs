@@ -24,18 +24,18 @@ impl Counter {
 }
 
 impl Counter {
-    pub fn get_value<S>(id: &S::Ident) -> Result<i32, S::Error> {
+    pub fn get_value<S>(id: &S::Ident) -> Result<i32, CanonError<S>> {
         let slf: Self = S::get(id)?;
         Ok(slf._get_value())
     }
 
-    pub fn increment<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), S::Error> {
+    pub fn increment<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), CanonError<S>> {
         let slf: Self = S::get(id)?;
         let ret = slf._increment()
         S::put(slf).map(|id| (id, ret))
     }
 
-    pub fn decrement<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), S::Error> {
+    pub fn decrement<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), CanonError<S>> {
         let slf: Self = S::get(id)?;
         let ret = slf._decrement()
         S::put(slf).map(|id| (id, ret))

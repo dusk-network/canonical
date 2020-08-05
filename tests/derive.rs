@@ -2,51 +2,51 @@ use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use canonical_host::MemStore;
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct A {
     a: u64,
     b: u64,
 }
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct A2 {
     a: (),
     b: u8,
 }
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct B(u64, u64);
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct C(u64);
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct D;
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 enum E {
     A,
     B,
 }
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 enum F {
     A(u64, [u64; 5]),
     B(u8),
     C(Result<u32, u32>),
 }
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 enum G {
     A { alice: u64, bob: u8 },
     B(Option<u32>),
     C,
 }
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct H<T>(T);
 
-#[derive(Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct MonsterStruct<T> {
     a: A,
     b: B,
@@ -61,7 +61,7 @@ struct MonsterStruct<T> {
 fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
     mut t: T,
 ) {
-    let mut store = MemStore::new();
+    let store = MemStore::new();
     let id = store.put(&mut t).unwrap();
     let restored = store.get::<T>(&id).unwrap();
     assert_eq!(t, restored);

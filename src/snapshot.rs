@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::canon::Canon;
+use crate::canon::{Canon, CanonError};
 use crate::store::Store;
 
 /// A snapshot of a host-alloctated value.
@@ -16,7 +16,7 @@ where
     T: Canon<S>,
 {
     /// Extracts the value from the snapshot
-    pub fn restore(&self) -> Result<T, S::Error> {
+    pub fn restore(&self) -> Result<T, CanonError<S>> {
         self.store.get::<T>(&self.id)
     }
 }

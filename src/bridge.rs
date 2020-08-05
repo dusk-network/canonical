@@ -87,6 +87,7 @@ where
         loop {}
     }
 
+    #[cfg(feature = "bridge")]
     fn singleton() -> Self {
         BridgeStore::new()
     }

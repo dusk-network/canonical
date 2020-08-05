@@ -142,7 +142,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let write = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     quote_spanned! { f.span() =>
-                                     Canon::< #__s >::write(&mut self . #name, sink);
+                                     Canon::< #__s >::write(&self . #name, sink) ?;
                     }
                 });
 
@@ -170,7 +170,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let write = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let i = Literal::usize_unsuffixed(i);
                     quote_spanned! { f.span() =>
-                                     Canon::<#__s>::write(&mut self . #i, sink);
+                                     Canon::<#__s>::write(&self . #i, sink) ?;
                     }
                 });
 
@@ -210,7 +210,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     Fields::Unit => {
                         reads.push(quote! { #tag => Ok( #name :: #ident ), });
                         writes.push(
-                            quote! { #name :: #ident => Canon::<#__s>::write(&mut #tag, sink), },
+                            quote! { #name :: #ident => Canon::<#__s>::write(& #tag, sink) ?, },
                         );
                         lengths.push(quote! { #name :: #ident => 1, });
                     }
@@ -230,7 +230,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         let fields_assign = fields.unnamed.iter().enumerate().map(|(i, f)| {
                             let ident = Ident::new(FIELD_NAMES[i], f.span());
-                            quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink); }
+                            quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink)?; }
                         });
 
                         let fields_lengths =
@@ -248,7 +248,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         writes.push(
                             quote! { #name :: #ident ( #( #fields_bind ),* ) =>
-                            { Canon::<#__s>::write(&mut #tag, sink); #( #fields_assign )* } },
+                            { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } },
                         );
 
                         lengths.push(
@@ -273,7 +273,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         let fields_assign = fields.named.iter().map(|f| {
                             let ident = &f.ident;
-                            quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink); }
+                            quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink)?; }
                         });
 
                         let fields_lengths =
@@ -290,7 +290,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         writes.push(
                             quote! { #name :: #ident { #( #fields_bind ),* } =>
-                            { Canon::<#__s>::write(&mut #tag, sink); #( #fields_assign )* } },
+                            { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } },
                         );
 
                         lengths.push(
@@ -328,12 +328,15 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let output = quote! {
         impl #impl_generics canonical::Canon<#__s> for #name #ty_generics #where_clause {
-            fn write(&mut self, sink: &mut impl canonical::Sink) {
+            fn write(&self, sink: &mut impl canonical::Sink < #__s >)
+              -> Result<(), canonical::CanonError< #__s > > {
                 #write
+                ;
+                Ok(())
             }
 
             fn read(source: &mut impl canonical::Source < #__s >)
-                    -> Result<Self, canonical::CanonError> {
+                    -> Result<Self, canonical::CanonError < #__s > > {
                 #read
             }
 
@@ -342,8 +345,6 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     };
-
-    // println!("output:\n{}", output.to_string());
 
     proc_macro::TokenStream::from(output)
 }
