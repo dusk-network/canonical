@@ -4,11 +4,11 @@ use crate::canon::{Canon, CanonError};
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    Default + AsRef<[u8]> + AsMut<[u8]> + Clone + std::fmt::Debug
+    Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
 {
 }
 impl<T> Ident for T where
-    T: Default + AsRef<[u8]> + AsMut<[u8]> + Clone + std::fmt::Debug
+    T: Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
 {
 }
 
@@ -40,11 +40,6 @@ pub trait Store: Clone {
     /// The error the store can emit
     type Error: core::fmt::Debug;
 
-    /// Put a value into storage, returning an identifier
-    fn put<T: Canon<Self>>(
-        &self,
-        t: &mut T,
-    ) -> Result<Self::Ident, CanonError<Self>>;
     /// Get a value from storag, given an identifier
     fn get<T: Canon<Self>>(
         &self,
@@ -55,17 +50,10 @@ pub trait Store: Clone {
     fn snapshot<T: Canon<Self>>(
         &self,
         t: &mut T,
-    ) -> Result<Snapshot<T, Self>, CanonError<Self>> {
-        let id = self.put(t)?;
-        Ok(Snapshot {
-            id,
-            store: self.clone(),
-            _marker: PhantomData,
-        })
-    }
+    ) -> Result<Snapshot<T, Self>, CanonError<Self>>;
 
     /// Store raw bytes in the store
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>>;
+    fn put(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>>;
 
     #[cfg(feature = "bridge")]
     /// Only applicable to the bridge version
@@ -84,6 +72,13 @@ where
     S: Store,
     T: Canon<S>,
 {
+    pub fn new(id: &S::Ident, store: &S) -> Self {
+        Snapshot {
+            id: id.clone(),
+            store: store.clone(),
+            _marker: PhantomData,
+        }
+    }
     /// Extracts the value from the snapshot
     pub fn restore(&self) -> Result<T, CanonError<S>> {
         self.store.get::<T>(&self.id)
@@ -155,13 +150,6 @@ impl Store for VoidStore {
     type Ident = [u8; 0];
     type Error = ();
 
-    fn put<T: Canon<Self>>(
-        &self,
-        _: &mut T,
-    ) -> Result<Self::Ident, CanonError<Self>> {
-        Ok([])
-    }
-
     fn get<T: Canon<Self>>(
         &self,
         _: &Self::Ident,
@@ -169,8 +157,15 @@ impl Store for VoidStore {
         Err(CanonError::MissingValue)
     }
 
-    fn put_raw(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
+    fn put(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
         Ok([])
+    }
+
+    fn snapshot<T: Canon<Self>>(
+        &self,
+        t: &mut T,
+    ) -> Result<Snapshot<T, Self>, CanonError<Self>> {
+        unimplemented!("no snapshot for VoidStore")
     }
 
     #[cfg(feature = "bridge")]

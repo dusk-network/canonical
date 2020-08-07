@@ -19,10 +19,8 @@ mod handle_host;
 pub use handle_host::Handle;
 
 mod implementations;
-mod snapshot;
 mod store;
 
 pub use canon::{Canon, CanonError};
 
-pub use snapshot::Snapshot;
-pub use store::{Ident, Sink, Source, Store, VoidStore};
+pub use store::{Ident, Sink, Snapshot, Source, Store, VoidStore};

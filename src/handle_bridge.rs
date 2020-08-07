@@ -4,7 +4,7 @@ use crate::bridge::BridgeStore;
 use crate::{Canon, CanonError, Sink, Source, Store};
 
 /// The `Handle` type can be thought of as a host-allocating version of `Box`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Handle<T, S: Store> {
     Inline {
         bytes: S::Ident,
@@ -16,9 +16,10 @@ pub enum Handle<T, S: Store> {
 
 impl<T, S> Canon<S> for Handle<T, S>
 where
+    T: Canon<S>,
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink) {
+    fn write(&self, sink: &mut impl Sink<S>) {
         match self {
             Handle::Inline {
                 ref bytes,
@@ -35,7 +36,7 @@ where
         }
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
         let len = u8::read(source)?;
         if len > 0 {
             let mut bytes = S::Ident::default();

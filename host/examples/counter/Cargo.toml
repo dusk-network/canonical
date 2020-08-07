@@ -8,9 +8,8 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-canonical = { path = "../.." }
-canonical_derive = { path = "../../derive" }
-bridge = { path = "../../bridge" }
+canonical = { path = "../../..", features = ["bridge"] }
+canonical_derive = { path = "../../../derive" }
 
 [profile.release]
 opt-level = 'z'

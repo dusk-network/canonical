@@ -62,8 +62,8 @@ fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
     mut t: T,
 ) {
     let store = MemStore::new();
-    let id = store.put(&mut t).unwrap();
-    let restored = store.get::<T>(&id).unwrap();
+    let snap = store.snapshot(&mut t).unwrap();
+    let restored = snap.restore().unwrap();
     assert_eq!(t, restored);
 }
 

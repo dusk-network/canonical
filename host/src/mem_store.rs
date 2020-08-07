@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use canonical::{Canon, CanonError, Sink, Source, Store};
+use canonical::{Canon, CanonError, Sink, Snapshot, Source, Store};
 
 #[derive(Default, Debug)]
 struct MemStoreInner {
@@ -45,10 +45,10 @@ impl Store for MemStore {
     type Ident = [u8; 8];
     type Error = !;
 
-    fn put<T: Canon<Self>>(
+    fn snapshot<T: Canon<Self>>(
         &self,
         t: &mut T,
-    ) -> Result<Self::Ident, CanonError<Self>> {
+    ) -> Result<Snapshot<T, Self>, CanonError<Self>> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
@@ -57,7 +57,9 @@ impl Store for MemStore {
 
         t.write(&mut sink)?;
 
-        sink.fin()
+        let id = sink.fin()?;
+
+        Ok(Snapshot::new(&id, self))
     }
 
     fn get<T: Canon<Self>>(
@@ -79,7 +81,7 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
+    fn put(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
         let mut hasher = DefaultHasher::new();
         bytes[..].hash(&mut hasher);
         let hash = hasher.finish().to_be_bytes();
@@ -110,7 +112,7 @@ impl<S: Store> Sink<S> for MemSink<S> {
     }
 
     fn fin(self) -> Result<S::Ident, CanonError<S>> {
-        self.store.put_raw(&self.bytes)
+        self.store.put(&self.bytes)
     }
 }
 

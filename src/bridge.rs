@@ -25,7 +25,7 @@ struct BridgeSink<'a> {
     offset: usize,
 }
 
-impl<'a> Sink for BridgeSink<'a> {
+impl<'a, S: Store> Sink<S> for BridgeSink<'a> {
     fn write_bytes(&mut self, n: usize) -> &mut [u8] {
         let start = self.offset;
         self.offset += n;
@@ -36,6 +36,21 @@ impl<'a> Sink for BridgeSink<'a> {
         let ofs = self.offset;
         self.offset += bytes.len();
         self.bytes[ofs..self.offset].clone_from_slice(bytes)
+    }
+
+    fn recur(&self) -> Self {
+        let full = core::mem::replace(self.buffer, &[]);
+        let (a, b) = full.split_at_mut(self.offset);
+        self.buffer = a;
+        BridgeSink {
+            bytes: b,
+            offset: 0,
+        }
+    }
+
+    fn fin(self) -> Result<S::Ident, CanonError<S>> {
+        let store = S::singleton();
+        store.put(self.buffer[0..self.offset])
     }
 }
 
@@ -61,12 +76,12 @@ where
     I: Ident,
 {
     type Ident = I;
-    type Error = CanonError;
+    type Error = ();
 
     fn put<T: Canon<Self>>(
-        &mut self,
+        &self,
         t: &mut T,
-    ) -> Result<Self::Ident, Self::Error> {
+    ) -> Result<Self::Ident, CanonError<Self>> {
         unsafe {
             let mut ret = Self::Ident::default();
             let mut sink = BridgeSink {
@@ -83,7 +98,10 @@ where
         }
     }
 
-    fn get<T: Canon<Self>>(&self, _id: &Self::Ident) -> Result<T, Self::Error> {
+    fn get<T: Canon<Self>>(
+        &self,
+        _id: &Self::Ident,
+    ) -> Result<T, CanonError<Self>> {
         loop {}
     }
 
