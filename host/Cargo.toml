@@ -1,0 +1,10 @@
+[package]
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+name = "canonical_host"
+version = "0.1.0"
+
+[dependencies]
+lazy_static = "*"
+parking_lot = "*"
+canonical = { path = ".." }

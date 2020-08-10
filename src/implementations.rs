@@ -1,38 +1,152 @@
-use crate::{Canon, CanonError, ConstantLength, Sink, Source};
+use crate::{Canon, CanonError, Sink, Source, Store};
 
-impl Canon for u8 {
-    fn write(&self, sink: &mut impl Sink) {
-        sink.write_bytes(1)[0] = *self
-    }
+macro_rules! number {
+    ($number:ty, $size:expr) => {
+        impl<S: Store> Canon<S> for $number {
+            fn write(
+                &self,
+                sink: &mut impl Sink<S>,
+            ) -> Result<(), CanonError<S>> {
+                sink.copy_bytes(&self.to_be_bytes());
+                Ok(())
+            }
 
-    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
-        Ok(source.read_bytes(1)[0])
-    }
+            fn read(
+                source: &mut impl Source<S>,
+            ) -> Result<Self, CanonError<S>> {
+                let mut bytes = [0u8; $size];
+                bytes.copy_from_slice(source.read_bytes($size));
+                Ok(<$number>::from_be_bytes(bytes))
+            }
+
+            fn encoded_len(&self) -> usize {
+                $size
+            }
+        }
+    };
 }
 
-impl ConstantLength for u8 {
-    const LEN: usize = 1;
-}
+number!(u8, 1);
+number!(i8, 1);
 
-impl Canon for u64 {
-    fn write(&self, sink: &mut impl Sink) {
-        sink.copy_bytes(&self.to_be_bytes());
-    }
+number!(u16, 2);
+number!(i16, 2);
 
-    fn read(source: &mut impl Source) -> Result<Self, CanonError> {
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(source.read_bytes(8));
-        Ok(u64::from_be_bytes(bytes))
-    }
-}
+number!(u32, 4);
+number!(i32, 4);
 
-impl ConstantLength for u64 {
-    const LEN: usize = 8;
-}
+number!(u64, 8);
+number!(i64, 8);
 
-impl<T, const N: usize> ConstantLength for [T; N]
+number!(u128, 16);
+number!(i128, 16);
+
+impl<T, S, const N: usize> Canon<S> for [T; N]
 where
-    T: ConstantLength,
+    T: Canon<S> + Default + Copy,
+    S: Store,
 {
-    const LEN: usize = N * T::LEN;
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+        for i in 0..N {
+            self[i].write(sink)?;
+        }
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+        let mut array = [T::default(); N];
+        for i in 0..N {
+            array[i] = T::read(source)?;
+        }
+        Ok(array)
+    }
+
+    fn encoded_len(&self) -> usize {
+        let mut len = 0;
+        for i in 0..N {
+            len += self[i].encoded_len();
+        }
+        len
+    }
+}
+
+impl<T, S> Canon<S> for Option<T>
+where
+    T: Canon<S>,
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+        match self {
+            None => sink.copy_bytes(&[0]),
+            Some(t) => {
+                sink.copy_bytes(&[1]);
+                t.write(sink)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+        match source.read_bytes(1) {
+            [0] => Ok(None),
+            [1] => Ok(Some(T::read(source)?)),
+            _ => Err(CanonError::InvalidData),
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        match self {
+            Some(t) => 1 + t.encoded_len(),
+            None => 1,
+        }
+    }
+}
+
+impl<T, E, S> Canon<S> for Result<T, E>
+where
+    T: Canon<S>,
+    E: Canon<S>,
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+        match self {
+            Ok(t) => {
+                sink.copy_bytes(&[0]);
+                t.write(sink)
+            }
+            Err(e) => {
+                sink.copy_bytes(&[1]);
+                e.write(sink)
+            }
+        }
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+        match source.read_bytes(1) {
+            [0] => Ok(Ok(T::read(source)?)),
+            [1] => Ok(Err(E::read(source)?)),
+            _ => Err(CanonError::InvalidData),
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        match self {
+            Ok(t) => 1 + t.encoded_len(),
+            Err(e) => 1 + e.encoded_len(),
+        }
+    }
+}
+
+impl<S: Store> Canon<S> for () {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+        Ok(())
+    }
+
+    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+        Ok(())
+    }
+
+    fn encoded_len(&self) -> usize {
+        0
+    }
 }

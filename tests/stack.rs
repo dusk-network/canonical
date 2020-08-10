@@ -1,16 +1,11 @@
-use canonical::{Canon, Handle, Snap, Store};
+use canonical::{Canon, CanonError, Handle, Store, VoidStore};
 use canonical_derive::Canon;
-
-mod toy_store;
-use toy_store::ToyStore;
+use canonical_host::MemStore;
 
 use std::mem;
 
-#[derive(Canon)]
-enum Stack<T, S>
-where
-    S: Store,
-{
+#[derive(Clone, Canon, Debug)]
+enum Stack<T, S: Store> {
     Empty,
     Node { value: T, prev: Handle<Self, S> },
 }
@@ -18,13 +13,13 @@ where
 impl<T, S> Stack<T, S>
 where
     S: Store,
-    T: Canon,
+    T: Canon<S>,
 {
     fn new() -> Self {
         Stack::Empty
     }
 
-    fn push(&mut self, t: T) -> Result<(), S::Error> {
+    fn push(&mut self, t: T) -> Result<(), CanonError<S>> {
         let root = mem::replace(self, Stack::Empty);
         *self = Stack::Node {
             value: t,
@@ -33,7 +28,7 @@ where
         Ok(())
     }
 
-    fn pop(&mut self) -> Result<Option<T>, <S as Store>::Error> {
+    fn pop(&mut self) -> Result<Option<T>, CanonError<S>> {
         let root = mem::replace(self, Stack::Empty);
         match root {
             Stack::Empty => Ok(None),
@@ -46,31 +41,40 @@ where
 }
 
 #[test]
-fn trivial() {
-    let mut list = Stack::<_, ToyStore>::new();
+fn multiple() {
+    type Int = u64;
 
-    list.push(8u64).unwrap();
+    let n: Int = 1024;
 
-    let snap = list.snapshot::<ToyStore>().unwrap();
+    let mut list = Stack::<_, VoidStore>::new();
 
-    let mut restored = snap.restore().unwrap();
+    for i in 0..n {
+        let _ = list.push(i);
+    }
 
-    assert_eq!(restored.pop().unwrap(), Some(8))
+    for i in 0..n {
+        let i = n - i - 1;
+        assert_eq!(list.pop().unwrap(), Some(i))
+    }
+
+    assert_eq!(list.pop().unwrap(), None)
 }
 
 #[test]
-fn multiple() {
+fn multiple_restored() {
+    let store = MemStore::new();
+
     type Int = u8;
 
-    let n: Int = 4;
+    let n: Int = 128;
 
-    let mut list = Stack::<_, ToyStore>::new();
+    let mut list = Stack::new();
 
     for i in 0..n {
         list.push(i).unwrap();
     }
 
-    let snap = list.snapshot::<ToyStore>().unwrap();
+    let snap = store.snapshot(&mut list).unwrap();
     let mut restored = snap.restore().unwrap();
 
     for i in 0..n {
