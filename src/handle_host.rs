@@ -28,7 +28,10 @@ where
     S: Store,
     T: Canon<S>,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+    fn write(
+        &self,
+        sink: &mut impl Sink<S>,
+    ) -> Result<(), CanonError<S::Error>> {
         match self {
             Handle::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
@@ -55,7 +58,7 @@ where
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
         let len = u8::read(source)?;
         if len > 0 {
             // inlined value
@@ -95,18 +98,33 @@ where
     T: Canon<S>,
 {
     /// Construct a new `Handle` from value `t`
-    pub fn new(t: T) -> Result<Self, CanonError<S>> {
-        Ok(Handle::Value {
+    pub fn new(t: T) -> Self {
+        Handle::Value {
             rc: Rc::new(t),
             cached_ident: RefCell::new(None),
-        })
+        }
     }
 
     /// Returns the value behind the `Handle`
-    pub fn resolve(&self) -> Result<T, CanonError<S>> {
+    pub fn restore(&self) -> Result<T, CanonError<S::Error>> {
         match &self {
             Handle::Value { rc, .. } => Ok((**rc).clone()),
             Handle::Ident { ident, store } => store.get(ident),
         }
+    }
+
+    /// Commits the value to the store
+    pub fn commit(&mut self, store: &S) -> Result<(), CanonError<S::Error>> {
+        match self {
+            Handle::Ident { .. } => (),
+            Handle::Value { rc, cached_ident } => {
+                match *cached_ident.borrow() {
+                    Some(_) => unimplemented!(),
+                    None => (),
+                }
+            }
+        }
+        //unimplemented!()
+        Ok(())
     }
 }

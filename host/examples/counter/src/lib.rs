@@ -1,11 +1,8 @@
-#![no_std]
-
-use bridge::Bridge;
-use canonical::Snap;
+use canonical::{Canon, CanonError, Store};
 use canonical_derive::Canon;
 
-#[derive(Canon)]
-struct Counter {
+#[derive(Clone, Canon)]
+pub struct Counter {
     value: i32,
 }
 
@@ -24,26 +21,37 @@ impl Counter {
 }
 
 impl Counter {
-    pub fn get_value<S>(id: &S::Ident) -> Result<i32, CanonError<S>> {
-        let slf: Self = S::get(id)?;
+    pub fn get_value<S: Store>(
+        store: S,
+        id: &S::Ident,
+    ) -> Result<i32, CanonError<S::Error>> {
+        let slf: Self = store.get(id)?;
         Ok(slf._get_value())
     }
 
-    pub fn increment<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), CanonError<S>> {
-        let slf: Self = S::get(id)?;
-        let ret = slf._increment()
-        S::put(slf).map(|id| (id, ret))
+    pub fn increment<S: Store>(
+        store: S,
+        id: &S::Ident,
+    ) -> Result<(S::Ident, ()), CanonError<S::Error>> {
+        let buffer = S::buffer();
+        let mut slf: Self = store.get(id)?;
+        let ret = slf._increment();
+        let len = Canon::<S>::encoded_len(&ret);
+        let mut slice = &mut buffer[0..len];
+        Canon::<S>::write(&ret, &mut slice)?;
+        store.put(slice).map(|id| (id, ret))
     }
 
-    pub fn decrement<S: Store>(id: &S::Ident) -> Result<(S::Ident, ()), CanonError<S>> {
-        let slf: Self = S::get(id)?;
-        let ret = slf._decrement()
-        S::put(slf).map(|id| (id, ret))
+    pub fn decrement<S: Store>(
+        store: S,
+        id: &S::Ident,
+    ) -> Result<(S::Ident, ()), CanonError<S::Error>> {
+        let buffer = S::buffer();
+        let mut slf: Self = store.get(id)?;
+        let ret = slf._decrement();
+        let len = Canon::<S>::encoded_len(&ret);
+        let mut slice = &mut buffer[0..len];
+        Canon::<S>::write(&ret, &mut slice)?;
+        store.put(slice).map(|id| (id, ret))
     }
-}
-
-#[no_mangle]
-fn it_works() {
-    let mut a = Transaction::Increment;
-    let _snap = a.snapshot::<Bridge<[u8; 32]>>();
 }

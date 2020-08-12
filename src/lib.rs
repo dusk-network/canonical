@@ -23,4 +23,4 @@ mod store;
 
 pub use canon::{Canon, CanonError};
 
-pub use store::{Ident, Sink, Snapshot, Source, Store, VoidStore};
+pub use store::{Ident, Sink, Source, Store, VoidStore};

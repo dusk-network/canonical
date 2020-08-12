@@ -1,4 +1,4 @@
-use canonical::{Canon, Store};
+use canonical::{Canon, Handle};
 use canonical_derive::Canon;
 use canonical_host::MemStore;
 
@@ -59,11 +59,14 @@ struct MonsterStruct<T> {
 }
 
 fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
-    mut t: T,
+    t: T,
 ) {
     let store = MemStore::new();
-    let snap = store.snapshot(&mut t).unwrap();
-    let restored = snap.restore().unwrap();
+    let mut handle = Handle::new(t.clone());
+
+    handle.commit(&store).unwrap();
+
+    let restored = handle.restore().unwrap();
     assert_eq!(t, restored);
 }
 
