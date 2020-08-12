@@ -1,5 +1,3 @@
-use core::marker::PhantomData;
-
 use crate::canon::{Canon, CanonError};
 
 /// Restrictions on types acting as identifiers
@@ -19,9 +17,9 @@ pub trait Sink<S: Store> {
     /// Copy bytes from a slice into the `Sink`
     fn copy_bytes(&mut self, bytes: &[u8]);
     /// Recursively create another sink for storing children
-    fn recur(&self) -> Self;
+    fn recur(&mut self) -> Self;
     /// Finish the sink, store the value, and return the identity
-    fn fin(self) -> Result<S::Ident, CanonError<S>>;
+    fn fin(self) -> Result<S::Ident, CanonError<S::Error>>;
 }
 
 /// Trait to implement reading bytes from an underlying storage
@@ -40,49 +38,23 @@ pub trait Store: Clone {
     /// The error the store can emit
     type Error: core::fmt::Debug;
 
-    /// Get a value from storag, given an identifier
+    /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(
         &self,
         id: &Self::Ident,
-    ) -> Result<T, CanonError<Self>>;
-
-    /// Create a snapshot from a value
-    fn snapshot<T: Canon<Self>>(
-        &self,
-        t: &mut T,
-    ) -> Result<Snapshot<T, Self>, CanonError<Self>>;
+    ) -> Result<T, CanonError<Self::Error>>;
 
     /// Store raw bytes in the store
-    fn put(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>>;
+    fn put(&self, bytes: &[u8])
+        -> Result<Self::Ident, CanonError<Self::Error>>;
 
     #[cfg(feature = "bridge")]
     /// Only applicable to the bridge version
     fn singleton() -> Self;
-}
 
-/// A snapshot of a host-alloctated value.
-pub struct Snapshot<T: ?Sized, S: Store> {
-    id: S::Ident,
-    store: S,
-    _marker: PhantomData<T>,
-}
-
-impl<T, S> Snapshot<T, S>
-where
-    S: Store,
-    T: Canon<S>,
-{
-    pub fn new(id: &S::Ident, store: &S) -> Self {
-        Snapshot {
-            id: id.clone(),
-            store: store.clone(),
-            _marker: PhantomData,
-        }
-    }
-    /// Extracts the value from the snapshot
-    pub fn restore(&self) -> Result<T, CanonError<S>> {
-        self.store.get::<T>(&self.id)
-    }
+    #[cfg(feature = "bridge")]
+    /// Only applicable to the bridge version
+    fn buffer() -> &'static mut [u8];
 }
 
 /// Hack to allow the derive macro to assume stores are `Canon`
@@ -91,11 +63,11 @@ impl<S> Canon<S> for S
 where
     S: Store,
 {
-    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S>> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S::Error>> {
         unimplemented!("Stores are not Canon, hack to aid in deriving")
     }
 
-    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S>> {
+    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
         unimplemented!("Stores are not Canon, hack to aid in deriving")
     }
 
@@ -120,11 +92,11 @@ impl<S: Store> Sink<S> for &mut [u8] {
         a.copy_from_slice(bytes)
     }
 
-    fn recur(&self) -> Self {
+    fn recur(&mut self) -> Self {
         unimplemented!("Non-recursive sink")
     }
 
-    fn fin(self) -> Result<S::Ident, CanonError<S>> {
+    fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
         unimplemented!("Non-recursive sink")
     }
 }
@@ -153,23 +125,21 @@ impl Store for VoidStore {
     fn get<T: Canon<Self>>(
         &self,
         _: &Self::Ident,
-    ) -> Result<T, CanonError<Self>> {
+    ) -> Result<T, CanonError<Self::Error>> {
         Err(CanonError::MissingValue)
     }
 
-    fn put(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
+    fn put(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>> {
         Ok([])
-    }
-
-    fn snapshot<T: Canon<Self>>(
-        &self,
-        t: &mut T,
-    ) -> Result<Snapshot<T, Self>, CanonError<Self>> {
-        unimplemented!("no snapshot for VoidStore")
     }
 
     #[cfg(feature = "bridge")]
     fn singleton() -> Self {
         VoidStore
+    }
+
+    #[cfg(feature = "bridge")]
+    fn buffer() -> &'static mut [u8] {
+        &mut []
     }
 }

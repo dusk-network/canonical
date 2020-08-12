@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use canonical::{Canon, CanonError, Sink, Snapshot, Source, Store};
+use canonical::{Canon, CanonError, Sink, Source, Store};
 
 #[derive(Default, Debug)]
 struct MemStoreInner {
@@ -26,15 +26,6 @@ struct MemSink<S> {
     store: S,
 }
 
-impl<S: Store> MemSink<S> {
-    fn new(store: &S) -> Self {
-        MemSink {
-            bytes: vec![],
-            store: store.clone(),
-        }
-    }
-}
-
 struct MemSource<'a, S> {
     bytes: &'a [u8],
     offset: usize,
@@ -45,27 +36,10 @@ impl Store for MemStore {
     type Ident = [u8; 8];
     type Error = !;
 
-    fn snapshot<T: Canon<Self>>(
-        &self,
-        t: &mut T,
-    ) -> Result<Snapshot<T, Self>, CanonError<Self>> {
-        let len = t.encoded_len();
-        let mut bytes = Vec::with_capacity(len);
-        bytes.resize_with(len, || 0);
-
-        let mut sink = MemSink::new(self);
-
-        t.write(&mut sink)?;
-
-        let id = sink.fin()?;
-
-        Ok(Snapshot::new(&id, self))
-    }
-
     fn get<T: Canon<Self>>(
         &self,
         id: &Self::Ident,
-    ) -> Result<T, CanonError<Self>> {
+    ) -> Result<T, CanonError<Self::Error>> {
         self.0
             .read()
             .map
@@ -81,7 +55,10 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 
-    fn put(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self>> {
+    fn put(
+        &self,
+        bytes: &[u8],
+    ) -> Result<Self::Ident, CanonError<Self::Error>> {
         let mut hasher = DefaultHasher::new();
         bytes[..].hash(&mut hasher);
         let hash = hasher.finish().to_be_bytes();
@@ -104,14 +81,14 @@ impl<S: Store> Sink<S> for MemSink<S> {
         self.bytes[ofs..].clone_from_slice(bytes)
     }
 
-    fn recur(&self) -> Self {
+    fn recur(&mut self) -> Self {
         MemSink {
             bytes: vec![],
             store: self.store.clone(),
         }
     }
 
-    fn fin(self) -> Result<S::Ident, CanonError<S>> {
+    fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
         self.store.put(&self.bytes)
     }
 }
