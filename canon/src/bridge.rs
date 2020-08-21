@@ -1,22 +1,30 @@
 use core::marker::PhantomData;
+use core::panic::PanicInfo;
 
 use crate::canon::{Canon, CanonError};
 use crate::store::{Ident, Sink, Source, Store};
 
 const BUF_SIZE: usize = 1024 * 4;
-static mut BUFFER: [u8; BUF_SIZE] = [0u8; BUF_SIZE];
 
 #[derive(Clone)]
 pub struct BridgeStore<I> {
     _marker: PhantomData<I>,
+    buffer: [u8; BUF_SIZE],
 }
 
-impl<I> BridgeStore<I> {
+impl<I> BridgeStore<I>
+where
+    I: Ident,
+{
     pub fn new() -> Self {
         BridgeStore {
-            // buffer: [0u8; BUF_SIZE],
             _marker: PhantomData,
+            buffer: [0u8; BUF_SIZE],
         }
+    }
+
+    pub fn stash<T: Canon<Self>>(&self, t: T) -> I {
+        unimplemented!()
     }
 }
 
@@ -25,7 +33,10 @@ struct BridgeSink<'a> {
     offset: usize,
 }
 
-impl<'a, S: Store> Sink<S> for BridgeSink<'a> {
+impl<'a, I> Sink<BridgeStore<I>> for BridgeSink<'a>
+where
+    I: Ident,
+{
     fn write_bytes(&mut self, n: usize) -> &mut [u8] {
         let start = self.offset;
         self.offset += n;
@@ -48,8 +59,13 @@ impl<'a, S: Store> Sink<S> for BridgeSink<'a> {
         }
     }
 
-    fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
-        let store = S::singleton();
+    fn fin(
+        self,
+    ) -> Result<
+        <BridgeStore<I> as Store>::Ident,
+        CanonError<<BridgeStore<I> as Store>::Error>,
+    > {
+        let store = BridgeStore::new();
         store.put(&self.bytes[0..self.offset])
     }
 }
@@ -59,7 +75,10 @@ struct BridgeSource<'a> {
     offset: usize,
 }
 
-impl<'a, I> Source<BridgeStore<I>> for BridgeSource<'a> {
+impl<'a, I> Source<BridgeStore<I>> for BridgeSource<'a>
+where
+    I: Ident,
+{
     fn read_bytes(&mut self, n: usize) -> &[u8] {
         let ofs = self.offset;
         self.offset += n;
@@ -95,17 +114,14 @@ where
             Ok(ret)
         }
     }
-
-    fn singleton() -> Self {
-        BridgeStore::new()
-    }
-
-    fn buffer() -> &'static mut [u8] {
-        unsafe { &mut BUFFER }
-    }
 }
 
 extern "C" {
     pub fn b_put(buffer: &u8, len: u32, ret: &mut u8);
     pub fn b_get(buffer: &mut u8);
+}
+
+#[panic_handler]
+fn panic(_: &PanicInfo) -> ! {
+    loop {}
 }

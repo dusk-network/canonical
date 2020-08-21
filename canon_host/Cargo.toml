@@ -7,4 +7,7 @@ version = "0.1.0"
 [dependencies]
 lazy_static = "*"
 parking_lot = "*"
-canonical = { path = ".." }
+canonical = { path = "../canon" }
+
+[dev-dependencies]
+canonical_derive = { path = "../canon_derive" }

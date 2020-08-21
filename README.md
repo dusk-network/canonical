@@ -1,48 +1,57 @@
-# canonical
+# Canonical, the serialization and wasm abi framework
 
-Canonical is a serialization library built for no_std environments where you want to deal with recursive datastructures, such as trees.
+It's split into 4 main crates
 
-Its main component is the `Canon` trait, which specifies that a type can be written into bytes, and also that the length of the written value is known beforehand.
+# Crate structure
 
-This greatly simplifies dealing with environments lacking allocations, and provides a convenient way to pass values across FFI-barriers.
+## canon
 
-# canonical_derive
+The actual trait that is used to serialize/deserialize values to/from bytes.
 
-In order not to have to write all this byte-counting code by hand, canonical includes a derive-macro to implement them for you.
+The trait also provides a way to know how many bytes a value will consume once written, allowing efficient handling of resources and allocations in the host.
+
+## canon_derive
+
+The automatic derivation of `Canon` for structs, and enums.
 
 ```rust
-#[derive(Canon, PartialEq, Debug)]
-struct A2 {
-    a: u8,
-    b: u8,
+use canonical_derive::Canon;
+
+#[derive(Clone, Canon)]
+pub struct Test {
+    hello: i32,
+		world: u32,
 }
 ```
 
-For a more involved example, this is a stack structure from the tests.
+## canon_host
 
-```rust
-#[derive(Canon)]
-enum Stack<T, S>
-where
-    S: Store,
-{
-    Empty,
-    Node { value: T, prev: Handle<Self, S> },
-}
+The plumbing for the host responsible for the wasm host calls. Also contains the MemoryStore ephemeral backend for testing purposes.
+
+## remote_derive
+
+Derivation macros for constructing "remotes", which are logic that is keeping track of it's state and provides. The usual case of a "remote" is a contract with a certain state running queries or transactions.
+
+# General idea
+
+To keep remotes/contracts as simple and small (in bytecode) as possible, the ABI and the serialization format is unified into one. the `Canon` trait. Additionally, the need for an allocator is removed, as values can be stored in the host environment, referenced by their Hashes or similar host-specified identification methods.
+
+This allows for the remote contracts to define their own data layouts and storage features.
+
+# ABI communication
+
+The host communicates with the remotes by queries and transactions.
+
+A query is a call that does not modify any of the contracts state comparable to a `&self` method in rust. Likewise, a transaction corresponds to a `&mut self` method.
+
+The layout of the call (from the host side) is
+
+```
+tag: u8 - which query/transaction is being called
+data: [
+	[u8; *] - self representation in bytes
+	[u8; *] - argument representation in bytes
+]
 ```
 
-The `Handle` type here acts as a `Box`, but is supported in non-allocating code, the trick being that the allocation happens outside, in a special `Store` abstraction.
-
-```rust
-pub trait Store {
-    type Ident: Ident;
-    type Error: From<CanonError>;
-
-    fn put<T: Canon>(t: &mut T) -> Result<Self::Ident, Self::Error>;
-    fn get<T: Canon>(id: &Self::Ident) -> Result<T, Self::Error>;
-}
-```
-
-The `Ident` is a value used to refer to encoded values, this is generally a hash of some sort of the encoded bytes.
-
-In a wasm no_std environment, the `put` and `get` of `Store` can be implemented as a host call, and effectively do the allocations "host-side".
+Since the read out value of `self` in the remote method call has to implement `Canon`, it can calculate where the argument data starts, which removes the need to specify lengths in the ABI data protocol.

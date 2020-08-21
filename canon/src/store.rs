@@ -47,14 +47,6 @@ pub trait Store: Clone {
     /// Store raw bytes in the store
     fn put(&self, bytes: &[u8])
         -> Result<Self::Ident, CanonError<Self::Error>>;
-
-    #[cfg(feature = "bridge")]
-    /// Only applicable to the bridge version
-    fn singleton() -> Self;
-
-    #[cfg(feature = "bridge")]
-    /// Only applicable to the bridge version
-    fn buffer() -> &'static mut [u8];
 }
 
 /// Hack to allow the derive macro to assume stores are `Canon`
@@ -131,15 +123,5 @@ impl Store for VoidStore {
 
     fn put(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>> {
         Ok([])
-    }
-
-    #[cfg(feature = "bridge")]
-    fn singleton() -> Self {
-        VoidStore
-    }
-
-    #[cfg(feature = "bridge")]
-    fn buffer() -> &'static mut [u8] {
-        &mut []
     }
 }

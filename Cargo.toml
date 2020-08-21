@@ -1,22 +1,7 @@
-[package]
-name = "canonical"
-version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
-edition = "2018"
-
-[dev-dependencies]
-canonical_derive = { path = "./derive" }
-canonical_host = { path = "./host" }
-
-[dependencies]
-parking_lot = "*"
-
-[features]
-default = []
-bridge = []
-
-[profile.release]
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = 'abort'
+[workspace]
+members = [
+    "canon",
+    "canon_derive",
+    "canon_host",
+    "remote_derive",						
+]

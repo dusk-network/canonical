@@ -18,6 +18,9 @@ mod handle_host;
 #[cfg(not(feature = "bridge"))]
 pub use handle_host::Handle;
 
+#[cfg(feature = "bridge")]
+pub use bridge::BridgeStore;
+
 mod implementations;
 mod store;
 

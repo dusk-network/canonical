@@ -114,10 +114,10 @@ where
     }
 
     /// Commits the value to the store
-    pub fn commit(&mut self, store: &S) -> Result<(), CanonError<S::Error>> {
+    pub fn commit(&mut self, _store: &S) -> Result<(), CanonError<S::Error>> {
         match self {
             Handle::Ident { .. } => (),
-            Handle::Value { rc, cached_ident } => {
+            Handle::Value { rc: _, cached_ident } => {
                 match *cached_ident.borrow() {
                     Some(_) => unimplemented!(),
                     None => (),

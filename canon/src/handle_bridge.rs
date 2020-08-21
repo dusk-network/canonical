@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
-use crate::{Canon, CanonError, Sink, Source, Store};
+use crate::bridge::BridgeStore;
+use crate::{Canon, CanonError, Ident, Sink, Source, Store};
 
 /// The `Handle` type can be thought of as a host-allocating version of `Box`
 #[derive(Debug, Clone)]
@@ -18,34 +19,36 @@ pub enum Handle<T, S: Store> {
     Ident(S::Ident),
 }
 
-impl<T, S> Canon<S> for Handle<T, S>
+impl<T, I> Canon<BridgeStore<I>> for Handle<T, BridgeStore<I>>
 where
-    T: Canon<S>,
-    S: Store,
+    I: Ident,
+    T: Canon<BridgeStore<I>>,
 {
     fn write(
         &self,
-        sink: &mut impl Sink<S>,
-    ) -> Result<(), CanonError<S::Error>> {
+        sink: &mut impl Sink<BridgeStore<I>>,
+    ) -> Result<(), CanonError<<BridgeStore<I> as Store>::Error>> {
         match self {
             Handle::Inline {
                 ref bytes, ref len, ..
             } => {
-                Canon::<S>::write(&*len, sink)?;
+                Canon::<BridgeStore<I>>::write(&*len, sink)?;
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
             }
             Handle::Ident(ref ident) => {
-                Canon::<S>::write(&0u8, sink)?;
+                Canon::<BridgeStore<I>>::write(&0u8, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+    fn read(
+        source: &mut impl Source<BridgeStore<I>>,
+    ) -> Result<Self, CanonError<<BridgeStore<I> as Store>::Error>> {
         let len = u8::read(source)?;
         if len > 0 {
-            let mut bytes = S::Ident::default();
+            let mut bytes = <BridgeStore<I> as Store>::Ident::default();
             bytes.as_mut()[0..len as usize]
                 .copy_from_slice(source.read_bytes(len as usize));
             Ok(Handle::Inline {
@@ -54,7 +57,7 @@ where
                 _marker: PhantomData,
             })
         } else {
-            let mut ident = S::Ident::default();
+            let mut ident = <BridgeStore<I> as Store>::Ident::default();
             let bytes = source.read_bytes(ident.as_ref().len());
             ident.as_mut().copy_from_slice(bytes);
             Ok(Handle::Ident(ident))
@@ -72,10 +75,10 @@ where
     }
 }
 
-impl<T, S> Handle<T, S>
+impl<T, I> Handle<T, BridgeStore<I>>
 where
-    S: Store,
-    T: Canon<S>,
+    I: Ident,
+    T: Canon<BridgeStore<I>>,
 {
     /// Construct a new `Handle` from value `t`
     pub fn new(t: T) -> Self {
@@ -84,7 +87,7 @@ where
 
         let len = t.encoded_len();
         // can we inline the value?
-        let mut buffer = S::Ident::default();
+        let mut buffer = <BridgeStore<I> as Store>::Ident::default();
         t.write(&mut buffer.as_mut())
             .expect("Put in host should always succeed");
         if len <= buffer.as_ref().len() {
@@ -94,18 +97,16 @@ where
                 _marker: PhantomData,
             }
         } else {
-            let store = S::singleton();
-            let store_buffer = S::buffer();
-            t.write(&mut &mut store_buffer[..]);
-            let id = store
-                .put(&store_buffer[0..len])
-                .expect("Put in host should always succeed");
+            let store = BridgeStore::new();
+            let id = store.stash(t);
             Handle::Ident(id)
         }
     }
 
     /// Restore the value from the handle
-    pub fn restore(&self) -> Result<T, CanonError<S::Error>> {
+    pub fn restore(
+        &self,
+    ) -> Result<T, CanonError<<BridgeStore<I> as Store>::Error>> {
         unimplemented!()
     }
 }
