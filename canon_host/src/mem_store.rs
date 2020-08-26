@@ -55,7 +55,7 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 
-    fn put(
+    fn put_raw(
         &self,
         bytes: &[u8],
     ) -> Result<Self::Ident, CanonError<Self::Error>> {
@@ -65,6 +65,19 @@ impl Store for MemStore {
 
         self.0.write().map.insert(hash, bytes.into());
         Ok(hash)
+    }
+
+    fn put<T: Canon<Self>>(
+        &self,
+        t: &T,
+    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+        let len = t.encoded_len();
+        let mut bytes = Vec::with_capacity(len);
+        unsafe {
+            bytes.set_len(len);
+        }
+        Canon::write(t, &mut &mut bytes[..])?;
+        self.put_raw(&mut bytes[..])
     }
 }
 
@@ -89,7 +102,7 @@ impl<S: Store> Sink<S> for MemSink<S> {
     }
 
     fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
-        self.store.put(&self.bytes)
+        self.store.put_raw(&self.bytes)
     }
 }
 

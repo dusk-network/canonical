@@ -5,6 +5,7 @@ pub trait Ident:
     Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
 {
 }
+
 impl<T> Ident for T where
     T: Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
 {
@@ -44,9 +45,11 @@ pub trait Store: Clone {
         id: &Self::Ident,
     ) -> Result<T, CanonError<Self::Error>>;
 
+    /// Encode a value into the store
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError<Self::Error>>;
+
     /// Store raw bytes in the store
-    fn put(&self, bytes: &[u8])
-        -> Result<Self::Ident, CanonError<Self::Error>>;
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>>;
 }
 
 /// Hack to allow the derive macro to assume stores are `Canon`
@@ -121,7 +124,11 @@ impl Store for VoidStore {
         Err(CanonError::MissingValue)
     }
 
-    fn put(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put<T: Canon<Self>>(&self, _: &T) -> Result<Self::Ident, CanonError<Self::Error>> {
+        Ok([])
+    }
+
+    fn put_raw(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>> {
         Ok([])
     }
 }

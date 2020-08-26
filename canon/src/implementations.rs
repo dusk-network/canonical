@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use crate::{Canon, CanonError, Sink, Source, Store};
 
 macro_rules! number {
@@ -70,6 +72,34 @@ where
             len += self[i].encoded_len();
         }
         len
+    }
+}
+
+impl<S> Canon<S> for bool
+where
+    S: Store,
+{
+    fn write(
+        &self,
+        sink: &mut impl Sink<S>,
+    ) -> Result<(), CanonError<S::Error>> {
+        match self {
+            true => sink.copy_bytes(&[1]),
+            false => sink.copy_bytes(&[0]),
+        }
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+        match source.read_bytes(1) {
+            [0] => Ok(false),
+            [1] => Ok(true),
+            _ => Err(CanonError::InvalidData),
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        1
     }
 }
 
@@ -153,6 +183,20 @@ impl<S: Store> Canon<S> for () {
 
     fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
         Ok(())
+    }
+
+    fn encoded_len(&self) -> usize {
+        0
+    }
+}
+
+impl<S: Store, T> Canon<S> for PhantomData<T> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S::Error>> {
+        Ok(())
+    }
+
+    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+        Ok(PhantomData)
     }
 
     fn encoded_len(&self) -> usize {

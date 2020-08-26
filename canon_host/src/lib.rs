@@ -3,4 +3,4 @@ mod mem_store;
 pub use mem_store::MemStore;
 
 mod remote;
-pub use remote::Remote;
+pub use remote::{Remote, Cast, Query, Transact};
