@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![feature(or_patterns)]
 use proc_macro2::{Ident, Literal};
 use quote::{quote, quote_spanned};
