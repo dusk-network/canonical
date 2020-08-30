@@ -98,7 +98,7 @@ where
 impl<T, S> Handle<T, S>
 where
     S: Store,
-    T: Canon<S>,
+    T: Canon<S> + Clone,
 {
     /// Construct a new `Handle` from value `t`
     pub fn new(t: T) -> Self {
@@ -120,12 +120,13 @@ where
     pub fn commit(&mut self, _store: &S) -> Result<(), CanonError<S::Error>> {
         match self {
             Handle::Ident { .. } => (),
-            Handle::Value { rc: _, cached_ident } => {
-                match *cached_ident.borrow() {
-                    Some(_) => unimplemented!(),
-                    None => (),
-                }
-            }
+            Handle::Value {
+                rc: _,
+                cached_ident,
+            } => match *cached_ident.borrow() {
+                Some(_) => unimplemented!(),
+                None => (),
+            },
         }
         //unimplemented!()
         Ok(())

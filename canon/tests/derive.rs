@@ -61,7 +61,9 @@ struct MonsterStruct<T> {
     h: H<T>,
 }
 
-fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
+fn serialize_deserialize<
+    T: Canon<MemStore> + Clone + std::fmt::Debug + PartialEq,
+>(
     t: T,
 ) {
     let store = MemStore::new();

@@ -17,7 +17,7 @@ pub enum CanonError<E> {
 }
 
 /// Trait to read/write values as bytes
-pub trait Canon<S: Store>: Sized + Clone {
+pub trait Canon<S: Store>: Sized {
     /// Write the value as bytes to a `Sink`
     fn write(
         &self,
