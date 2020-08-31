@@ -10,8 +10,8 @@ pub struct Remote<S: Store> {
 }
 
 impl<S: Store> Remote<S> {
-    pub fn new<C: Canon<S>>(
-        from: C,
+    pub fn new<T: Canon<S>>(
+        from: T,
         store: &S,
     ) -> Result<Self, CanonError<S::Error>> {
         let id = store.put(&from)?;
@@ -21,45 +21,22 @@ impl<S: Store> Remote<S> {
         })
     }
 
-    pub fn cast<T: Canon<S>>(&self) -> Cast<T, S> {
-        Cast {
-            remote: self,
-            value: self.store.get(&self.id),
-        }
+    pub fn query<T: Canon<S>>(&self) -> Result<T, CanonError<S::Error>> {
+        self.store.get(&self.id)
     }
 
-    pub fn cast_mut<T: Canon<S>>(
+    pub fn transact<T: Canon<S>>(
         &mut self,
-    ) -> Result<CastMut<T, S>, CanonError<S::Error>> {
+    ) -> Result<Transaction<T, S>, CanonError<S::Error>> {
         let t = self.store.get(&self.id)?;
-        Ok(CastMut {
+        Ok(Transaction {
             remote: self,
             value: t,
         })
     }
 }
 
-pub struct Cast<'a, T, S>
-where
-    S: Store,
-{
-    remote: &'a Remote<S>,
-    value: Result<T, CanonError<S::Error>>,
-}
-
-impl<'a, T, S> Deref for Cast<'a, T, S>
-where
-    T: Canon<S>,
-    S: Store,
-{
-    type Target = Result<T, CanonError<S::Error>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-pub struct CastMut<'a, T, S>
+pub struct Transaction<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -68,7 +45,7 @@ where
     value: T,
 }
 
-impl<'a, T, S> Deref for CastMut<'a, T, S>
+impl<'a, T, S> Deref for Transaction<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -80,7 +57,7 @@ where
     }
 }
 
-impl<'a, T, S> DerefMut for CastMut<'a, T, S>
+impl<'a, T, S> DerefMut for Transaction<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -90,7 +67,7 @@ where
     }
 }
 
-impl<'a, T, S> CastMut<'a, T, S>
+impl<'a, T, S> Transaction<'a, T, S>
 where
     S: Store,
     T: Canon<S>,

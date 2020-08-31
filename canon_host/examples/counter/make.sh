@@ -1,4 +1,6 @@
 #!/bin/sh
-cargo build --target wasm32-unknown-unknown --release --color=always 2>&1 &&
-wasm-opt -Oz target/wasm32-unknown-unknown/release/counter.wasm -o counter.wasm &&
+xargo build --target wasm32-unknown-unknown --release --features bridge --color=always 2>&1 &&
+
+wasm-opt --strip --strip-producers -Oz ../../../target/wasm32-unknown-unknown/release/counter.wasm -o counter.wasm &&
+		
 stat counter.wasm | head -2

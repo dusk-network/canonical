@@ -2,13 +2,14 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use core::marker::PhantomData;
-use core::panic::PanicInfo;
 
 use crate::canon::{Canon, CanonError};
 use crate::store::{Ident, Sink, Source, Store};
 
+// We set the buffer size to 4kb for now, subject to change.
 const BUF_SIZE: usize = 1024 * 4;
 
+/// Store usable across ffi-boundraries
 #[derive(Clone)]
 pub struct BridgeStore<I> {
     _marker: PhantomData<I>,
@@ -19,15 +20,12 @@ impl<I> BridgeStore<I>
 where
     I: Ident,
 {
+    /// Create a new bridge store
     pub fn new() -> Self {
         BridgeStore {
             _marker: PhantomData,
             buffer: [0u8; BUF_SIZE],
         }
-    }
-
-    pub fn stash<T: Canon<Self>>(&self, t: T) -> I {
-        unimplemented!()
     }
 }
 
@@ -69,7 +67,7 @@ where
         CanonError<<BridgeStore<I> as Store>::Error>,
     > {
         let store = BridgeStore::new();
-        store.put(&self.bytes[0..self.offset])
+        store.put_raw(&self.bytes[0..self.offset])
     }
 }
 
@@ -107,7 +105,7 @@ where
         loop {}
     }
 
-    fn put(
+    fn put_raw(
         &self,
         bytes: &[u8],
     ) -> Result<Self::Ident, CanonError<Self::Error>> {
@@ -117,14 +115,19 @@ where
             Ok(ret)
         }
     }
+
+    fn put<T: Canon<Self>>(
+        &self,
+        _t: &T,
+    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+        unsafe {
+            b_get(&self.buffer[0]);
+            unimplemented!()
+        }
+    }
 }
 
 extern "C" {
     pub fn b_put(buffer: &u8, len: u32, ret: &mut u8);
-    pub fn b_get(buffer: &mut u8);
-}
-
-#[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
-    loop {}
+    pub fn b_get(buffer: &u8);
 }

@@ -1,38 +1,47 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-#![no_std]
-use canonical::{Canon, CanonError, BridgeStore, Store};
+#![cfg_attr(feature = "bridge", no_std)]
+#![feature(lang_items)]
+
+use canonical::{BridgeStore, Canon};
 use canonical_derive::Canon;
 
-#[derive(Clone, Canon)]
+#[derive(Clone, Canon, Default)]
 pub struct Counter {
     value: i32,
 }
 
-#[gen_remote]
 impl Counter {
-    pub fn read(&self) -> i32 {
-        self.value
-    }
-
-    pub fn adjust(&mut self, add: i32) {
-        self.value += add;
+    pub fn new(value: i32) -> Self {
+        Counter { value }
     }
 }
 
-
-
-type Id = [u8; 32];
-type St = BridgeStore<Id>;
+#[no_mangle]
+fn q(self_bytes: &[u8], _query: &[u8], ret: &mut [u8]) {
+    let self_instance =
+        <Counter as Canon<BridgeStore<[u8; 8]>>>::read(&mut &self_bytes[..])
+            .unwrap();
+    let return_value = self_instance.value;
+    Canon::<BridgeStore<[u8; 8]>>::write(&return_value, &mut &mut ret[..])
+        .unwrap();
+}
 
 #[no_mangle]
-fn call(mut state: &[u8], args: &[u8]) -> Result<Id, CanonError<<St as Store>::Error>> {
-    let mut this: Counter = Canon::<St>::read(&mut state)?;
-    this._adjust(1);
+fn t(slf: &mut Counter, args: &i32, _ret: &mut i32) {
+    slf.value += args;
+}
 
-    let store = BridgeStore::<Id>::new();
-    let ident = store.stash(this);
+#[cfg(feature = "bridge")]
+mod panic_handling {
+    use core::panic::PanicInfo;
 
-    Ok(ident)
+    #[panic_handler]
+    fn panic(_: &PanicInfo) -> ! {
+        loop {}
+    }
+
+    #[lang = "eh_personality"]
+    extern "C" fn eh_personality() {}
 }

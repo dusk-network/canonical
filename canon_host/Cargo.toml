@@ -8,6 +8,8 @@ version = "0.1.0"
 lazy_static = "*"
 parking_lot = "*"
 canonical = { path = "../canon" }
+wasmi = "0.6.0"
 
 [dev-dependencies]
 canonical_derive = { path = "../canon_derive" }
+counter = { path = "examples/counter" }
