@@ -1,0 +1,14 @@
+[package]
+name = "canonical_remote_derive"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[dependencies]
+proc-macro2 = "1.0.10"
+quote = "1.0.3"
+syn = { version = "1.0.17" }
+canonical = { path = "../canon" }
+
+[lib]
+proc-macro = true
