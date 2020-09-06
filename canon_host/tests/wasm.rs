@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use wasmi;
 
-use canonical::{Canon, CanonError, Store};
+use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use canonical_host::{MemStore, Remote};
 
@@ -15,11 +15,13 @@ const BUF_SIZE: usize = 1024 * 4;
 
 struct CanonImports;
 
+type Error = Box<dyn std::error::Error>;
+
 impl wasmi::ImportResolver for CanonImports {
     fn resolve_func(
         &self,
         _module_name: &str,
-        field_name: &str,
+        _field_name: &str,
         _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
         unimplemented!()
@@ -27,27 +29,27 @@ impl wasmi::ImportResolver for CanonImports {
 
     fn resolve_global(
         &self,
-        module_name: &str,
-        field_name: &str,
-        descriptor: &wasmi::GlobalDescriptor,
+        _module_name: &str,
+        _field_name: &str,
+        _descriptor: &wasmi::GlobalDescriptor,
     ) -> Result<wasmi::GlobalRef, wasmi::Error> {
         unimplemented!()
     }
 
     fn resolve_memory(
         &self,
-        module_name: &str,
-        field_name: &str,
-        descriptor: &wasmi::MemoryDescriptor,
+        _module_name: &str,
+        _field_name: &str,
+        _descriptor: &wasmi::MemoryDescriptor,
     ) -> Result<wasmi::MemoryRef, wasmi::Error> {
         unimplemented!()
     }
 
     fn resolve_table(
         &self,
-        module_name: &str,
-        field_name: &str,
-        descriptor: &wasmi::TableDescriptor,
+        _module_name: &str,
+        _field_name: &str,
+        _descriptor: &wasmi::TableDescriptor,
     ) -> Result<wasmi::TableRef, wasmi::Error> {
         unimplemented!()
     }
@@ -55,31 +57,115 @@ impl wasmi::ImportResolver for CanonImports {
 
 /// A type with a corresponding wasm module
 #[derive(Canon)]
-pub struct Wasm<State, S> {
+pub struct Wasm<State, S: Store> {
     state: State,
-    bytecode: [u8; 0],
+    bytecode: Vec<u8>,
     _marker: PhantomData<S>,
 }
 
-impl<State, S: Store> Wasm<State, S> {
-    fn query(&self, query: &[u8], ret: &mut [u8]) -> Result<(), wasmi::Error> {
+impl<S, State> wasmi::Externals for Wasm<State, S>
+where
+    State: Canon<S>,
+    S: Store,
+{
+    fn invoke_index(
+        &mut self,
+        index: usize,
+        args: wasmi::RuntimeArgs,
+    ) -> Result<Option<wasmi::RuntimeValue>, wasmi::Trap> {
+        //
+        todo!()
+    }
+}
+
+impl<State, S> Wasm<State, S>
+where
+    State: Canon<S>,
+    S: Store,
+{
+    fn query<A, R>(&self, args: &A) -> Result<R, Error>
+    where
+        A: Canon<S>,
+        R: Canon<S>,
+    {
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
+        let instance = wasmi::ModuleInstance::new(&module, &CanonImports)?
+            .assert_no_start();
+
+        match instance.export_by_name("memory") {
+            Some(wasmi::ExternVal::Memory(memref)) => {
+                memref.with_direct_access_mut(|mem| {
+                    let sink = &mut &mut mem[..];
+                    // First we write State into memory
+                    Canon::<S>::write(&self.state, sink);
+                    // then the arguments, as bytes
+                    Canon::<S>::write(args, sink);
+                });
+            }
+            _ => todo!("no memory"),
+        }
+
+        // TODO: perform the query call
+
+        // read return value
+        match instance.export_by_name("memory") {
+            Some(wasmi::ExternVal::Memory(memref)) => memref
+                .with_direct_access(|mem| {
+                    let source = &mut &mem[..];
+                    let ret = R::read(source).expect("todo, error overhaul");
+                    Ok(ret)
+                }),
+            _ => todo!("no memory"),
+        }
+    }
+
+    pub fn transact<A, R>(
+        &mut self,
+        args: &A,
+    ) -> Result<R, Box<dyn std::error::Error>>
+    where
+        A: Canon<S>,
+        R: Canon<S>,
+    {
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
         let instance = wasmi::ModuleInstance::new(&module, &CanonImports)
             .expect("Failed to instantiate module")
             .assert_no_start();
 
         match instance.export_by_name("memory") {
-            Some(wasmi::ExternVal::Memory(memref)) => panic!(),
+            Some(wasmi::ExternVal::Memory(memref)) => {
+                memref.with_direct_access_mut(|mem| {
+                    let sink = &mut &mut mem[..];
+                    // First we write State into memory
+                    Canon::<S>::write(&self.state, sink);
+                    // then the arguments, as bytes
+                    Canon::<S>::write(args, sink);
+                });
+
+                match instance.invoke_export("t", &[], self)? {
+                    _ => (),
+                };
+
+                // read return value
+
+                memref.with_direct_access_mut(|mem| {
+                    let source = &mut &mem[..];
+                    let ret = R::read(source).expect("todo, error overhaul");
+                    Ok(ret)
+                })
+            }
             _ => todo!("no memory"),
         }
     }
 }
 
 impl<S: Store> Wasm<Counter, S> {
-    fn read_state(&self) -> Result<u32, CanonError<S::Error>> {
-        let mut result = [0u8; BUF_SIZE];
-        self.query(&[], &mut result);
-        <u32 as Canon<S>>::read(&mut &result[..])
+    fn read_state(&self) -> Result<u32, Error> {
+        self.query(&())
+    }
+
+    fn adjust(&mut self, by: i32) -> Result<(), Error> {
+        self.transact(&by)
     }
 }
 
@@ -92,7 +178,7 @@ fn wasm_contracts() {
     let store = MemStore::new();
 
     let wasm_counter = Wasm {
-        bytecode: [], // bytecode.to_vec()
+        bytecode: bytecode.to_vec(),
         state: Counter::new(99),
         _marker: PhantomData as PhantomData<MemStore>,
     };
@@ -108,20 +194,18 @@ fn wasm_contracts() {
         99
     );
 
-    // let mut transaction =
-    //     world[0].transact::<Wasm<Counter, MemStore>>().unwrap();
+    let mut transaction =
+        world[0].transact::<Wasm<Counter, MemStore>>().unwrap();
 
-    // transaction.adjust(33).unwrap();
-    // transaction.adjust(-1).unwrap();
+    transaction.adjust(-33).unwrap();
+    transaction.commit();
 
-    // transaction.commit().unwrap();
-
-    // assert_eq!(
-    //     world[0]
-    //         .query::<Wasm<Counter, MemStore>>()
-    //         .unwrap()
-    //         .read_state()
-    //         .unwrap(),
-    //     32
-    // );
+    assert_eq!(
+        world[0]
+            .query::<Wasm<Counter, MemStore>>()
+            .unwrap()
+            .read_state()
+            .unwrap(),
+        66
+    );
 }

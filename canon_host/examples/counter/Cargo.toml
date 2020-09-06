@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { path = "../../../canon", features = ["bridge"] }
+canonical = { path = "../../../canon" }
 canonical_derive = { path = "../../../canon_derive" }
 
 [features]
