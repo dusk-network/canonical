@@ -8,15 +8,6 @@ edition = "2018"
 canonical_derive = { path = "../canon_derive" }
 canonical_host = { path = "../canon_host" }
 
-[dependencies]
-parking_lot = "*"
-
 [features]
 default = []
 bridge = []
-
-[profile.release]
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = 'abort'

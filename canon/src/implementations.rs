@@ -206,3 +206,42 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
         0
     }
 }
+
+#[cfg(not(feature = "bridge"))]
+mod std_impls {
+    use super::*;
+
+    impl<S: Store, T: Canon<S>> Canon<S> for std::vec::Vec<T> {
+        fn write(
+            &self,
+            sink: &mut impl Sink<S>,
+        ) -> Result<(), CanonError<S::Error>> {
+            let len = self.len() as u64;
+            len.write(sink)?;
+            for t in self.iter() {
+                t.write(sink)?;
+            }
+            Ok(())
+        }
+
+        fn read(
+            source: &mut impl Source<S>,
+        ) -> Result<Self, CanonError<S::Error>> {
+            let mut vec = vec![];
+            let len = u64::read(source)?;
+            for _ in 0..len {
+                vec.push(T::read(source)?);
+            }
+            Ok(vec)
+        }
+
+        fn encoded_len(&self) -> usize {
+            // length of length
+            let mut len = Canon::<S>::encoded_len(&0u64);
+            for t in self.iter() {
+                len += t.encoded_len()
+            }
+            len
+        }
+    }
+}

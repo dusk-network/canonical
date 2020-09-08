@@ -3,5 +3,4 @@ members = [
     "canon",
     "canon_derive",
     "canon_host",
-    "remote_derive",						
 ]

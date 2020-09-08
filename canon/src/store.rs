@@ -49,28 +49,32 @@ pub trait Store: Clone {
     ) -> Result<T, CanonError<Self::Error>>;
 
     /// Encode a value into the store
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError<Self::Error>>;
+    fn put<T: Canon<Self>>(
+        &self,
+        t: &T,
+    ) -> Result<Self::Ident, CanonError<Self::Error>>;
 
     /// Store raw bytes in the store
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>>;
+    fn put_raw(
+        &self,
+        bytes: &[u8],
+    ) -> Result<Self::Ident, CanonError<Self::Error>>;
 }
 
-/// Hack to allow the derive macro to assume stores are `Canon`
-#[doc(hidden)]
 impl<S> Canon<S> for S
 where
     S: Store,
 {
     fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S::Error>> {
-        unimplemented!("Stores are not Canon, hack to aid in deriving")
+        Ok(())
     }
 
-    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
-        unimplemented!("Stores are not Canon, hack to aid in deriving")
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+        Ok(source.store())
     }
 
     fn encoded_len(&self) -> usize {
-        unimplemented!("Stores are not Canon, hack to aid in deriving")
+        0
     }
 }
 
@@ -127,11 +131,17 @@ impl Store for VoidStore {
         Err(CanonError::MissingValue)
     }
 
-    fn put<T: Canon<Self>>(&self, _: &T) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put<T: Canon<Self>>(
+        &self,
+        _: &T,
+    ) -> Result<Self::Ident, CanonError<Self::Error>> {
         Ok([])
     }
 
-    fn put_raw(&self, _: &[u8]) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put_raw(
+        &self,
+        _: &[u8],
+    ) -> Result<Self::Ident, CanonError<Self::Error>> {
         Ok([])
     }
 }

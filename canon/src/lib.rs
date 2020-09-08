@@ -6,6 +6,7 @@
 #![allow(incomplete_features)]
 #![warn(missing_docs)]
 #![feature(const_generics)]
+#![feature(lang_items)]
 
 mod canon;
 

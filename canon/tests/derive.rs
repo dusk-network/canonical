@@ -50,6 +50,9 @@ enum G {
 struct H<T>(T);
 
 #[derive(Clone, Canon, PartialEq, Debug)]
+struct I<T>(Vec<T>);
+
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct MonsterStruct<T> {
     a: A,
     b: B,
@@ -59,9 +62,12 @@ struct MonsterStruct<T> {
     f: F,
     g: G,
     h: H<T>,
+    i: I<T>,
 }
 
-fn serialize_deserialize<T: Canon<MemStore> + std::fmt::Debug + PartialEq>(
+fn serialize_deserialize<
+    T: Canon<MemStore> + Clone + std::fmt::Debug + PartialEq,
+>(
     t: T,
 ) {
     let store = MemStore::new();
@@ -103,5 +109,6 @@ fn derives() {
         f: F::A(73, [0, 1, 4, 3, 4]),
         g: G::A { alice: 73, bob: 3 },
         h: H(E::B),
+        i: I(vec![E::B, E::B, E::A]),
     });
 }

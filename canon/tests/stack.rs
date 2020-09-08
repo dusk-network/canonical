@@ -16,7 +16,7 @@ enum Stack<T, S: Store> {
 impl<T, S> Stack<T, S>
 where
     S: Store,
-    T: Canon<S>,
+    T: Canon<S> + Clone,
 {
     fn new() -> Self {
         Stack::Empty

@@ -2,31 +2,16 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use canonical::{Canon, CanonError, Sink, Source, Store};
-use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 
-pub trait Query {
-    type Args;
-    type Return;
-
-    fn query(&self, args: &Self::Args) -> Self::Return;
-}
-
-pub trait Transact {
-    type Args;
-    type Return;
-
-    fn transact(&mut self, args: &Self::Args) -> Self::Return;
-}
-
-#[derive(Clone)]
 pub struct Remote<S: Store> {
     id: S::Ident,
     store: S,
 }
 
 impl<S: Store> Remote<S> {
-    pub fn new<C: Canon<S>>(
-        from: C,
+    pub fn new<T: Canon<S>>(
+        from: T,
         store: &S,
     ) -> Result<Self, CanonError<S::Error>> {
         let id = store.put(&from)?;
@@ -36,31 +21,70 @@ impl<S: Store> Remote<S> {
         })
     }
 
-    pub fn cast<T>(&self) -> Cast<T, S> {
-        Cast(self, PhantomData)
+    pub fn query<T: Canon<S>>(&self) -> Result<T, CanonError<S::Error>> {
+        self.store.get(&self.id)
     }
 
-    pub fn cast_mut<T>(&mut self) -> CastMut<T, S> {
-        CastMut(self, PhantomData)
+    pub fn transact<T: Canon<S>>(
+        &mut self,
+    ) -> Result<Transaction<T, S>, CanonError<S::Error>> {
+        let t = self.store.get(&self.id)?;
+        Ok(Transaction {
+            remote: self,
+            value: t,
+        })
     }
 }
 
-pub struct Cast<'a, T, S>(&'a Remote<S>, PhantomData<T>)
+pub struct Transaction<'a, T, S>
 where
-    S: Store;
+    S: Store,
+    T: Canon<S>,
+{
+    remote: &'a mut Remote<S>,
+    value: T,
+}
 
-pub struct CastMut<'a, T, S>(&'a mut Remote<S>, PhantomData<T>)
+impl<'a, T, S> Deref for Transaction<'a, T, S>
 where
-    S: Store;
+    S: Store,
+    T: Canon<S>,
+{
+    type Target = T;
 
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<'a, T, S> DerefMut for Transaction<'a, T, S>
+where
+    S: Store,
+    T: Canon<S>,
+{
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
+    }
+}
+
+impl<'a, T, S> Transaction<'a, T, S>
+where
+    S: Store,
+    T: Canon<S>,
+{
+    pub fn commit(&mut self) -> Result<(), CanonError<S::Error>> {
+        let id = self.remote.store.put(&self.value)?;
+        self.remote.id = id;
+        Ok(())
+    }
+}
 
 impl<S: Store> Canon<S> for Remote<S> {
     fn write(
         &self,
         sink: &mut impl Sink<S>,
     ) -> Result<(), CanonError<S::Error>> {
-        sink.copy_bytes(self.id.as_ref());
-        Ok(())
+        Ok(sink.copy_bytes(self.id.as_ref()))
     }
 
     fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
@@ -75,60 +99,6 @@ impl<S: Store> Canon<S> for Remote<S> {
     }
 
     fn encoded_len(&self) -> usize {
-        self.id.as_ref().len()
-    }
-}
-
-impl<'a, T, S> Query for Cast<'a, T, S>
-where
-    S: Store,
-    T: Canon<S> + Query,
-    T::Args: Canon<S>,
-    T::Return: Canon<S>,
-{
-    type Args = T::Args;
-    type Return = Result<T::Return, CanonError<S::Error>>;
-
-    fn query(&self, args: &Self::Args) -> Self::Return {
-        let remote = self.0;
-        let slf: T = remote.store.get(&remote.id)?;
-        Ok(slf.query(args))
-    }
-}
-
-impl<'a, T, S> Query for CastMut<'a, T, S>
-where
-    S: Store,
-    T: Canon<S> + Query,
-    T::Args: Canon<S>,
-    T::Return: Canon<S>,
-{
-    type Args = T::Args;
-    type Return = Result<T::Return, CanonError<S::Error>>;
-
-    fn query(&self, args: &Self::Args) -> Self::Return {
-        let remote = &self.0;
-        let slf: T = remote.store.get(&remote.id)?;
-        Ok(slf.query(args))
-    }
-}
-
-impl<'a, T, S> Transact for CastMut<'a, T, S>
-where
-    S: Store,
-    T: Canon<S> + Transact,
-    T::Args: Canon<S>,
-    T::Return: Canon<S>,
-{
-    type Args = T::Args;
-    type Return = Result<T::Return, CanonError<S::Error>>;
-
-    fn transact(&mut self, args: &Self::Args) -> Self::Return {
-        let mut remote = &mut self.0;
-        let mut slf: T = remote.store.get(&remote.id)?;
-        let ret = slf.transact(args);
-        let new_id = remote.store.put(&slf)?;
-        remote.id = new_id;
-        Ok(ret)
+        S::Ident::default().as_ref().len()
     }
 }

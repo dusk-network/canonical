@@ -91,8 +91,7 @@ where
         let len = t.encoded_len();
         // can we inline the value?
         let mut buffer = <BridgeStore<I> as Store>::Ident::default();
-        t.write(&mut buffer.as_mut())
-            .expect("Put in host should always succeed");
+        t.write(&mut buffer.as_mut()).expect("host error");
         if len <= buffer.as_ref().len() {
             Handle::Inline {
                 bytes: buffer,
@@ -101,7 +100,7 @@ where
             }
         } else {
             let store = BridgeStore::new();
-            let id = store.stash(t);
+            let id = store.put(&t).expect("host error");
             Handle::Ident(id)
         }
     }
