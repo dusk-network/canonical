@@ -31,10 +31,7 @@ where
     S: Store,
     T: Canon<S>,
 {
-    fn write(
-        &self,
-        sink: &mut impl Sink<S>,
-    ) -> Result<(), CanonError<S::Error>> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
         match self {
             Handle::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
@@ -61,7 +58,7 @@ where
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         let len = u8::read(source)?;
         if len > 0 {
             // inlined value
@@ -109,7 +106,7 @@ where
     }
 
     /// Returns the value behind the `Handle`
-    pub fn restore(&self) -> Result<T, CanonError<S::Error>> {
+    pub fn restore(&self) -> Result<T, CanonError> {
         match &self {
             Handle::Value { rc, .. } => Ok((**rc).clone()),
             Handle::Ident { ident, store } => store.get(ident),
@@ -117,7 +114,7 @@ where
     }
 
     /// Commits the value to the store
-    pub fn commit(&mut self, _store: &S) -> Result<(), CanonError<S::Error>> {
+    pub fn commit(&mut self, _store: &S) -> Result<(), CanonError> {
         match self {
             Handle::Ident { .. } => (),
             Handle::Value {

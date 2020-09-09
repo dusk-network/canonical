@@ -30,7 +30,7 @@ where
     fn write(
         &self,
         sink: &mut impl Sink<BridgeStore<I>>,
-    ) -> Result<(), CanonError<<BridgeStore<I> as Store>::Error>> {
+    ) -> Result<(), CanonError> {
         match self {
             Handle::Inline {
                 ref bytes, ref len, ..
@@ -48,7 +48,7 @@ where
 
     fn read(
         source: &mut impl Source<BridgeStore<I>>,
-    ) -> Result<Self, CanonError<<BridgeStore<I> as Store>::Error>> {
+    ) -> Result<Self, CanonError> {
         let len = u8::read(source)?;
         if len > 0 {
             let mut bytes = <BridgeStore<I> as Store>::Ident::default();
@@ -106,9 +106,7 @@ where
     }
 
     /// Restore the value from the handle
-    pub fn restore(
-        &self,
-    ) -> Result<T, CanonError<<BridgeStore<I> as Store>::Error>> {
+    pub fn restore(&self) -> Result<T, CanonError> {
         unimplemented!()
     }
 }
