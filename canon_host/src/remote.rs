@@ -10,10 +10,7 @@ pub struct Remote<S: Store> {
 }
 
 impl<S: Store> Remote<S> {
-    pub fn new<T: Canon<S>>(
-        from: T,
-        store: &S,
-    ) -> Result<Self, CanonError<S::Error>> {
+    pub fn new<T: Canon<S>>(from: T, store: &S) -> Result<Self, CanonError> {
         let id = store.put(&from)?;
         Ok(Remote {
             id,
@@ -21,13 +18,13 @@ impl<S: Store> Remote<S> {
         })
     }
 
-    pub fn query<T: Canon<S>>(&self) -> Result<T, CanonError<S::Error>> {
+    pub fn query<T: Canon<S>>(&self) -> Result<T, CanonError> {
         self.store.get(&self.id)
     }
 
     pub fn transact<T: Canon<S>>(
         &mut self,
-    ) -> Result<Transaction<T, S>, CanonError<S::Error>> {
+    ) -> Result<Transaction<T, S>, CanonError> {
         let t = self.store.get(&self.id)?;
         Ok(Transaction {
             remote: self,
@@ -72,7 +69,7 @@ where
     S: Store,
     T: Canon<S>,
 {
-    pub fn commit(&mut self) -> Result<(), CanonError<S::Error>> {
+    pub fn commit(&mut self) -> Result<(), CanonError> {
         let id = self.remote.store.put(&self.value)?;
         self.remote.id = id;
         Ok(())
@@ -80,14 +77,11 @@ where
 }
 
 impl<S: Store> Canon<S> for Remote<S> {
-    fn write(
-        &self,
-        sink: &mut impl Sink<S>,
-    ) -> Result<(), CanonError<S::Error>> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
         Ok(sink.copy_bytes(self.id.as_ref()))
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         let mut id = S::Ident::default();
         let slice = id.as_mut();
         let len = slice.len();

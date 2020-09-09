@@ -7,6 +7,7 @@
 #![warn(missing_docs)]
 #![feature(const_generics)]
 #![feature(lang_items)]
+#![feature(never_type)]
 
 mod canon;
 

@@ -40,7 +40,7 @@ pub trait Store: Clone {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: core::fmt::Debug;
+    type Error: core::fmt::Debug + From<CanonError>;
 
     /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError>;

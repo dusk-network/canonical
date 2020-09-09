@@ -30,7 +30,7 @@ where
         };
     }
 
-    fn pop(&mut self) -> Result<Option<T>, CanonError<S::Error>> {
+    fn pop(&mut self) -> Result<Option<T>, CanonError> {
         let root = mem::replace(self, Stack::Empty);
         match root {
             Stack::Empty => Ok(None),

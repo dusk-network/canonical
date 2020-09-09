@@ -14,6 +14,18 @@ pub enum CanonError {
     MissingValue,
 }
 
+impl From<CanonError> for () {
+    fn from(_: CanonError) -> () {
+        ()
+    }
+}
+
+impl From<CanonError> for ! {
+    fn from(_: CanonError) -> ! {
+        unimplemented!()
+    }
+}
+
 /// Trait to read/write values as bytes
 pub trait Canon<S: Store>: Sized {
     /// Write the value as bytes to a `Sink`
