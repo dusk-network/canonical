@@ -332,14 +332,14 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let output = quote! {
         impl #impl_generics canonical::Canon<#__s> for #name #ty_generics #where_clause {
             fn write(&self, sink: &mut impl canonical::Sink < #__s >)
-              -> Result<(), canonical::CanonError< #__s :: Error > > {
+              -> Result<(), canonical::CanonError> {
                 #write
                 ;
                 Ok(())
             }
 
             fn read(source: &mut impl canonical::Source < #__s >)
-                    -> Result<Self, canonical::CanonError < #__s :: Error > > {
+                    -> Result<Self, canonical::CanonError> {
                 #read
             }
 

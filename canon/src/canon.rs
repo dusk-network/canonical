@@ -7,24 +7,31 @@ use crate::store::{Sink, Source, Store};
 
 /// The main crate error type.
 #[derive(Debug)]
-pub enum CanonError<E> {
+pub enum CanonError {
     /// The data read was invalid
     InvalidData,
     /// The value was missing in a store
     MissingValue,
-    /// Error emenating from the underlying store
-    StoreError(E),
+}
+
+impl From<CanonError> for () {
+    fn from(_: CanonError) -> () {
+        ()
+    }
+}
+
+impl From<CanonError> for ! {
+    fn from(_: CanonError) -> ! {
+        unimplemented!()
+    }
 }
 
 /// Trait to read/write values as bytes
 pub trait Canon<S: Store>: Sized {
     /// Write the value as bytes to a `Sink`
-    fn write(
-        &self,
-        sink: &mut impl Sink<S>,
-    ) -> Result<(), CanonError<S::Error>>;
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError>;
     /// Read the value from bytes in a `Source`
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>>;
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError>;
     /// Returns the number of bytes needed to encode this value
     fn encoded_len(&self) -> usize;
 }

@@ -23,7 +23,7 @@ pub trait Sink<S: Store> {
     /// Recursively create another sink for storing children
     fn recur(&mut self) -> Self;
     /// Finish the sink, store the value, and return the identity
-    fn fin(self) -> Result<S::Ident, CanonError<S::Error>>;
+    fn fin(self) -> Result<S::Ident, CanonError>;
 }
 
 /// Trait to implement reading bytes from an underlying storage
@@ -40,36 +40,27 @@ pub trait Store: Clone {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: core::fmt::Debug;
+    type Error: core::fmt::Debug + From<CanonError>;
 
     /// Get a value from storage, given an identifier
-    fn get<T: Canon<Self>>(
-        &self,
-        id: &Self::Ident,
-    ) -> Result<T, CanonError<Self::Error>>;
+    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError>;
 
     /// Encode a value into the store
-    fn put<T: Canon<Self>>(
-        &self,
-        t: &T,
-    ) -> Result<Self::Ident, CanonError<Self::Error>>;
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError>;
 
     /// Store raw bytes in the store
-    fn put_raw(
-        &self,
-        bytes: &[u8],
-    ) -> Result<Self::Ident, CanonError<Self::Error>>;
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError>;
 }
 
 impl<S> Canon<S> for S
 where
     S: Store,
 {
-    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError<S::Error>> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError> {
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError<S::Error>> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
         Ok(source.store())
     }
 
@@ -98,7 +89,7 @@ impl<S: Store> Sink<S> for &mut [u8] {
         unimplemented!("Non-recursive sink")
     }
 
-    fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
+    fn fin(self) -> Result<S::Ident, CanonError> {
         unimplemented!("Non-recursive sink")
     }
 }
@@ -124,24 +115,15 @@ impl Store for VoidStore {
     type Ident = [u8; 0];
     type Error = ();
 
-    fn get<T: Canon<Self>>(
-        &self,
-        _: &Self::Ident,
-    ) -> Result<T, CanonError<Self::Error>> {
+    fn get<T: Canon<Self>>(&self, _: &Self::Ident) -> Result<T, CanonError> {
         Err(CanonError::MissingValue)
     }
 
-    fn put<T: Canon<Self>>(
-        &self,
-        _: &T,
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put<T: Canon<Self>>(&self, _: &T) -> Result<Self::Ident, CanonError> {
         Ok([])
     }
 
-    fn put_raw(
-        &self,
-        _: &[u8],
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put_raw(&self, _: &[u8]) -> Result<Self::Ident, CanonError> {
         Ok([])
     }
 }

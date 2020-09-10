@@ -39,10 +39,7 @@ impl Store for MemStore {
     type Ident = [u8; 8];
     type Error = !;
 
-    fn get<T: Canon<Self>>(
-        &self,
-        id: &Self::Ident,
-    ) -> Result<T, CanonError<Self::Error>> {
+    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError> {
         self.0
             .read()
             .map
@@ -58,10 +55,7 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(CanonError::MissingValue))
     }
 
-    fn put_raw(
-        &self,
-        bytes: &[u8],
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError> {
         let mut hasher = DefaultHasher::new();
         bytes[..].hash(&mut hasher);
         let hash = hasher.finish().to_be_bytes();
@@ -70,10 +64,7 @@ impl Store for MemStore {
         Ok(hash)
     }
 
-    fn put<T: Canon<Self>>(
-        &self,
-        t: &T,
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
         unsafe {
@@ -104,7 +95,7 @@ impl<S: Store> Sink<S> for MemSink<S> {
         }
     }
 
-    fn fin(self) -> Result<S::Ident, CanonError<S::Error>> {
+    fn fin(self) -> Result<S::Ident, CanonError> {
         self.store.put_raw(&self.bytes)
     }
 }

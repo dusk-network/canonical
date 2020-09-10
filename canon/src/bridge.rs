@@ -60,12 +60,7 @@ where
         }
     }
 
-    fn fin(
-        self,
-    ) -> Result<
-        <BridgeStore<I> as Store>::Ident,
-        CanonError<<BridgeStore<I> as Store>::Error>,
-    > {
+    fn fin(self) -> Result<<BridgeStore<I> as Store>::Ident, CanonError> {
         let store = BridgeStore::new();
         store.put_raw(&self.bytes[0..self.offset])
     }
@@ -98,17 +93,11 @@ where
     type Ident = I;
     type Error = ();
 
-    fn get<T: Canon<Self>>(
-        &self,
-        _id: &Self::Ident,
-    ) -> Result<T, CanonError<Self::Error>> {
+    fn get<T: Canon<Self>>(&self, _id: &Self::Ident) -> Result<T, CanonError> {
         loop {}
     }
 
-    fn put_raw(
-        &self,
-        bytes: &[u8],
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError> {
         unsafe {
             let mut ret = Self::Ident::default();
             b_put(&bytes[0], bytes.len() as u32, &mut ret.as_mut()[0]);
@@ -116,10 +105,7 @@ where
         }
     }
 
-    fn put<T: Canon<Self>>(
-        &self,
-        _t: &T,
-    ) -> Result<Self::Ident, CanonError<Self::Error>> {
+    fn put<T: Canon<Self>>(&self, _t: &T) -> Result<Self::Ident, CanonError> {
         unsafe {
             b_get(&self.buffer[0]);
             unimplemented!()
