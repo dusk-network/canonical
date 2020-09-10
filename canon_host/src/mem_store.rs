@@ -37,7 +37,7 @@ struct MemSource<'a, S> {
 
 impl Store for MemStore {
     type Ident = [u8; 8];
-    type Error = !;
+    type Error = ();
 
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError> {
         self.0
