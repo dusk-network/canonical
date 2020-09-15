@@ -18,22 +18,22 @@ impl<S: Store> Remote<S> {
         })
     }
 
-    pub fn query<T: Canon<S>>(&self) -> Result<T, CanonError> {
+    pub fn cast<T: Canon<S>>(&self) -> Result<T, CanonError> {
         self.store.get(&self.id)
     }
 
-    pub fn transact<T: Canon<S>>(
+    pub fn cast_mut<T: Canon<S>>(
         &mut self,
-    ) -> Result<Transaction<T, S>, CanonError> {
+    ) -> Result<CastMut<T, S>, CanonError> {
         let t = self.store.get(&self.id)?;
-        Ok(Transaction {
+        Ok(CastMut {
             remote: self,
             value: t,
         })
     }
 }
 
-pub struct Transaction<'a, T, S>
+pub struct CastMut<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -42,7 +42,7 @@ where
     value: T,
 }
 
-impl<'a, T, S> Deref for Transaction<'a, T, S>
+impl<'a, T, S> Deref for CastMut<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<'a, T, S> DerefMut for Transaction<'a, T, S>
+impl<'a, T, S> DerefMut for CastMut<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
@@ -64,7 +64,7 @@ where
     }
 }
 
-impl<'a, T, S> Transaction<'a, T, S>
+impl<'a, T, S> CastMut<'a, T, S>
 where
     S: Store,
     T: Canon<S>,

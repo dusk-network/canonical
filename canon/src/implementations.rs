@@ -190,6 +190,48 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
     }
 }
 
+// TODO more tuples
+
+impl<S: Store, A, B> Canon<S> for (A, B)
+where
+    A: Canon<S>,
+    B: Canon<S>,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+        self.0.write(sink)?;
+        self.1.write(sink)
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+        Ok((A::read(source)?, B::read(source)?))
+    }
+
+    fn encoded_len(&self) -> usize {
+        self.0.encoded_len() + self.1.encoded_len()
+    }
+}
+
+impl<S: Store, A, B, C> Canon<S> for (A, B, C)
+where
+    A: Canon<S>,
+    B: Canon<S>,
+    C: Canon<S>,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+        self.0.write(sink)?;
+        self.1.write(sink)?;
+        self.2.write(sink)
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+        Ok((A::read(source)?, B::read(source)?, C::read(source)?))
+    }
+
+    fn encoded_len(&self) -> usize {
+        self.0.encoded_len() + self.1.encoded_len() + self.2.encoded_len()
+    }
+}
+
 #[cfg(not(feature = "bridge"))]
 mod std_impls {
     use super::*;
