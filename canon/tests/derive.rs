@@ -71,7 +71,7 @@ fn serialize_deserialize<
     t: T,
 ) {
     let store = MemStore::new();
-    let mut handle = Handle::new(t.clone());
+    let mut handle = Handle::new(t.clone()).unwrap();
 
     handle.commit(&store).unwrap();
 

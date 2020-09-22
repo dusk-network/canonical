@@ -1,0 +1,16 @@
+[package]
+name = "canonical_collections"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+
+[dependencies]
+canonical_derive = { path = "../canon_derive" }
+canonical = { path = "../canon" }
+
+[dev-dependencies]
+canonical_host = { path = "../canon_host" }
+
+[features]
+hosted = ["canonical/hosted"]
+host = ["canonical/host"]

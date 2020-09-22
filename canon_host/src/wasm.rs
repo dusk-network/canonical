@@ -3,20 +3,25 @@
 
 use std::marker::PhantomData;
 
-use canonical::{Canon, CanonError, Store};
+use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 use wasmi;
 
-struct CanonImports;
+struct CanonImports<S>(S);
 
-impl wasmi::ImportResolver for CanonImports {
+impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
     fn resolve_func(
         &self,
         _module_name: &str,
-        _field_name: &str,
-        _signature: &wasmi::Signature,
+        field_name: &str,
+        signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
-        unimplemented!()
+        match field_name {
+            "b_get" => {
+                panic!("b_get {:?}", &signature);
+            }
+            _ => panic!("yoo"),
+        }
     }
 
     fn resolve_global(
@@ -48,10 +53,9 @@ impl wasmi::ImportResolver for CanonImports {
 }
 
 /// A type with a corresponding wasm module
-#[derive(Canon)]
-pub struct Wasm<State, S: Store> {
+#[derive(Canon, Debug)]
+pub struct Wasm<State: Module, S: Store> {
     state: State,
-    bytecode: Vec<u8>,
     _marker: PhantomData<S>,
 }
 
@@ -71,6 +75,7 @@ pub trait Module {
     const BYTECODE: &'static [u8];
 }
 
+#[derive(Debug)]
 pub struct Query<A, R> {
     args: A,
     _return: PhantomData<R>,
@@ -89,6 +94,7 @@ impl<A, R> Query<A, R> {
     }
 }
 
+#[derive(Debug)]
 pub struct Transaction<A, R> {
     args: A,
     _return: PhantomData<R>,
@@ -109,13 +115,12 @@ impl<A, R> Transaction<A, R> {
 
 impl<State, S> Wasm<State, S>
 where
-    State: Canon<S> + Module,
+    State: Canon<S> + Module + core::fmt::Debug,
     S: Store,
 {
     pub fn new(state: State) -> Self {
         Wasm {
             state,
-            bytecode: State::BYTECODE.to_vec(),
             _marker: PhantomData,
         }
     }
@@ -123,22 +128,25 @@ where
     pub fn query<A, R>(
         &self,
         query: &Query<A, R>,
+        store: S,
     ) -> Result<Result<R, S::Error>, wasmi::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
     {
-        let module = wasmi::Module::from_buffer(&self.bytecode)?;
-        let instance = wasmi::ModuleInstance::new(&module, &CanonImports)?
-            .assert_no_start();
+        let imports = CanonImports(store.clone());
+        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+
+        let instance =
+            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
-                    let sink = &mut &mut mem[..];
-                    // First we write State and arguments into memory
-                    Canon::<S>::write(&self.state, sink)?;
-                    Canon::<S>::write(query.args(), sink)
+                    let mut sink = ByteSink::new(&mut mem[..], store.clone());
+                    // Write State and arguments into memory
+                    Canon::<S>::write(&self.state, &mut sink)?;
+                    Canon::<S>::write(query.args(), &mut sink)
                 })
             }
             _ => todo!("no memory"),
@@ -157,7 +165,10 @@ where
         // read return value
         Ok(match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => memref
-                .with_direct_access(|mem| R::read(&mut &mem[..]))
+                .with_direct_access(|mem| {
+                    let mut source = ByteSource::new(&mem[..], store.clone());
+                    R::read(&mut source)
+                })
                 .map_err(Into::into),
             _ => todo!("no memory"),
         })
@@ -166,28 +177,31 @@ where
     pub fn transact<A, R>(
         &mut self,
         transaction: &Transaction<A, R>,
+        store: S,
     ) -> Result<Result<R, S::Error>, wasmi::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
     {
-        let module = wasmi::Module::from_buffer(&self.bytecode)?;
-        let instance = wasmi::ModuleInstance::new(&module, &CanonImports)
+        let imports = CanonImports(store.clone());
+        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+        let instance = wasmi::ModuleInstance::new(&module, &imports)
             .expect("Failed to instantiate module")
             .assert_no_start();
 
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref
-                    .with_direct_access_mut::<Result<(), CanonError>, _>(
-                        |mem| {
-                            let sink = &mut &mut mem[..];
-                            // First we write State into memory
-                            Canon::<S>::write(&self.state, sink)?;
-                            // then the arguments, as bytes
-                            Canon::<S>::write(transaction.args(), sink)
-                        },
-                    )
+                    .with_direct_access_mut(|mem| {
+                        let mut sink = ByteSink::new(mem, store.clone());
+                        // First we write State into memory
+                        Canon::<S>::write(&self.state, &mut sink)?;
+                        // then the arguments, as bytes
+                        let res =
+                            Canon::<S>::write(transaction.args(), &mut sink);
+                        println!("before transaction {:x?}", &mem[0..32]);
+                        res
+                    })
                     .expect("todo, error");
 
                 match instance.invoke_export(
@@ -200,9 +214,11 @@ where
 
                 Ok(memref
                     .with_direct_access(|mem| {
-                        let source = &mut &mem[..];
-                        self.state = State::read(source)?;
-                        R::read(source)
+                        println!("after transaction {:x?}", &mem[0..32]);
+                        let mut source =
+                            ByteSource::new(&mem[..], store.clone());
+                        self.state = State::read(&mut source)?;
+                        R::read(&mut source)
                     })
                     .map_err(Into::into))
             }

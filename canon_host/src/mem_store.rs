@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use canonical::{Canon, CanonError, Sink, Source, Store};
+use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
+use canonical_derive::Canon;
 
 #[derive(Default, Debug)]
 struct MemStoreInner {
@@ -35,11 +36,23 @@ struct MemSource<'a, S> {
     store: S,
 }
 
+#[derive(Canon, Debug)]
+pub enum MemError {
+    MissingValue,
+    InvalidEncoding,
+}
+
+impl From<InvalidEncoding> for MemError {
+    fn from(_: InvalidEncoding) -> Self {
+        MemError::InvalidEncoding
+    }
+}
+
 impl Store for MemStore {
     type Ident = [u8; 8];
-    type Error = ();
+    type Error = MemError;
 
-    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError> {
+    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
         self.0
             .read()
             .map
@@ -52,10 +65,10 @@ impl Store for MemStore {
                 };
                 T::read(&mut source)
             })
-            .unwrap_or_else(|| Err(CanonError::MissingValue))
+            .unwrap_or_else(|| Err(MemError::MissingValue))
     }
 
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError> {
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
         let mut hasher = DefaultHasher::new();
         bytes[..].hash(&mut hasher);
         let hash = hasher.finish().to_be_bytes();
@@ -64,14 +77,13 @@ impl Store for MemStore {
         Ok(hash)
     }
 
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError> {
-        let len = t.encoded_len();
-        let mut bytes = Vec::with_capacity(len);
-        unsafe {
-            bytes.set_len(len);
-        }
-        Canon::write(t, &mut &mut bytes[..])?;
-        self.put_raw(&mut bytes[..])
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
+        let mut sink = MemSink {
+            bytes: vec![],
+            store: self.clone(),
+        };
+        Canon::<Self>::write(t, &mut sink)?;
+        self.put_raw(&sink.bytes[..])
     }
 }
 
@@ -88,15 +100,8 @@ impl<S: Store> Sink<S> for MemSink<S> {
         self.bytes[ofs..].clone_from_slice(bytes)
     }
 
-    fn recur(&mut self) -> Self {
-        MemSink {
-            bytes: vec![],
-            store: self.store.clone(),
-        }
-    }
-
-    fn fin(self) -> Result<S::Ident, CanonError> {
-        self.store.put_raw(&self.bytes)
+    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error> {
+        self.store.put(t)
     }
 }
 
@@ -110,7 +115,7 @@ where
         &self.bytes[ofs..self.offset]
     }
 
-    fn store(&self) -> S {
-        self.store.clone()
+    fn store(&self) -> &S {
+        &self.store
     }
 }

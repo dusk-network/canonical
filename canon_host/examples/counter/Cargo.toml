@@ -13,5 +13,5 @@ canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host" , optional = true }
 
 [features]
-wasm = ["canonical/bridge"]
+hosted = ["canonical/hosted"]
 host = ["canonical_host"]

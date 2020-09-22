@@ -13,3 +13,4 @@ wasmi = "0.6.0"
 
 [dev-dependencies]
 counter = { path = "examples/counter", features = ["host"] }
+storage = { path = "examples/storage", features = ["host"] }
