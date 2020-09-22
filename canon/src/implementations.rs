@@ -190,47 +190,45 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
     }
 }
 
-// TODO more tuples
+macro_rules! canon_tuple_impls {
+    ( $( $name:ident )+, $( $idx:tt )+ ) => {
+        impl<S: Store, $($name,)+> Canon<S> for ($($name,)+) where $($name: Canon<S>,)+ {
+            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+                $(self.$idx.write(sink)?;)+
 
-impl<S: Store, A, B> Canon<S> for (A, B)
-where
-    A: Canon<S>,
-    B: Canon<S>,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
-        self.0.write(sink)?;
-        self.1.write(sink)
-    }
+                Ok(())
+            }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
-        Ok((A::read(source)?, B::read(source)?))
-    }
+            fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+                Ok(($($name::read(source)?,)+))
+            }
 
-    fn encoded_len(&self) -> usize {
-        self.0.encoded_len() + self.1.encoded_len()
-    }
+            fn encoded_len(&self) -> usize {
+                let mut n = 0;
+
+                $(n += self.$idx.encoded_len();)+
+
+                n
+            }
+        }
+    };
 }
 
-impl<S: Store, A, B, C> Canon<S> for (A, B, C)
-where
-    A: Canon<S>,
-    B: Canon<S>,
-    C: Canon<S>,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
-        self.0.write(sink)?;
-        self.1.write(sink)?;
-        self.2.write(sink)
-    }
-
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
-        Ok((A::read(source)?, B::read(source)?, C::read(source)?))
-    }
-
-    fn encoded_len(&self) -> usize {
-        self.0.encoded_len() + self.1.encoded_len() + self.2.encoded_len()
-    }
-}
+canon_tuple_impls! { A B, 0 1 }
+canon_tuple_impls! { A B C, 0 1 2 }
+canon_tuple_impls! { A B C D, 0 1 2 3 }
+canon_tuple_impls! { A B C D E, 0 1 2 3 4 }
+canon_tuple_impls! { A B C D E F, 0 1 2 3 4 5 }
+canon_tuple_impls! { A B C D E F G, 0 1 2 3 4 5 6 }
+canon_tuple_impls! { A B C D E F G H, 0 1 2 3 4 5 6 7 }
+canon_tuple_impls! { A B C D E F G H I, 0 1 2 3 4 5 6 7 8 }
+canon_tuple_impls! { A B C D E F G H I J, 0 1 2 3 4 5 6 7 8 9 }
+canon_tuple_impls! { A B C D E F G H I J K, 0 1 2 3 4 5 6 7 8 9 10 }
+canon_tuple_impls! { A B C D E F G H I J K L, 0 1 2 3 4 5 6 7 8 9 10 11 }
+canon_tuple_impls! { A B C D E F G H I J K L M, 0 1 2 3 4 5 6 7 8 9 10 11 12 }
+canon_tuple_impls! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }
+canon_tuple_impls! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
+canon_tuple_impls! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
 
 #[cfg(not(feature = "bridge"))]
 mod std_impls {
