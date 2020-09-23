@@ -18,25 +18,24 @@ impl<S: Store> Storage<S> {
 }
 
 #[cfg(feature = "hosted")]
-impl<S: Store> Storage<S> {
-    pub fn push(&mut self, value: u8) -> Result<(), S::Error> {
-        self.0.push(value)
-    }
-
-    pub fn pop(&mut self) -> Result<Option<u8>, S::Error> {
-        self.0.pop()
-    }
-}
-
-#[cfg(feature = "hosted")]
-mod bridge {
+mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, Store};
+    use canonical::{BridgeStore, ByteSink, ByteSource, Store};
 
     const PAGE_SIZE: usize = 1024 * 64;
 
     type BS = BridgeStore<[u8; 8]>;
+
+    impl Storage<BS> {
+        pub fn push(&mut self, value: u8) -> Result<(), <BS as Store>::Error> {
+            self.0.push(value)
+        }
+
+        pub fn pop(&mut self) -> Result<Option<u8>, <BS as Store>::Error> {
+            self.0.pop()
+        }
+    }
 
     fn query(_bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         Ok(())
@@ -50,20 +49,22 @@ mod bridge {
     fn transaction(
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
-        let source = &mut &bytes[..];
-
         let store = BS::singleton();
+        let mut source = ByteSource::new(&bytes[..], store.clone());
 
         // read self.
-        let mut slf: Storage<BS> = Canon::<BS>::read(source)?;
+        let mut slf: Storage<BS> = Canon::<BS>::read(&mut source)?;
         // read transaction id
-        let tid: u16 = Canon::<BS>::read(source)?;
+        let tid: u16 = Canon::<BS>::read(&mut source)?;
 
         match tid {
             // push
             0xaaa => {
-                let t: i32 = Canon::<BS>::read(source)?;
+                let t: u8 = Canon::<BS>::read(&mut source)?;
                 slf.0.push(t)?;
+
+                bytes[30] = Canon::<BS>::encoded_len(&slf) as u8;
+
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
@@ -72,12 +73,13 @@ mod bridge {
             }
             // pop
             0xaab => {
-                let t_opt = slf.pop();
+                let res_opt_t = slf.pop();
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // write return value
-                Canon::<BS>::write(&t_opt, &mut sink)
+                Canon::<BS>::write(&res_opt_t, &mut sink)?;
+                Ok(())
             }
             _ => panic!(""),
         }
@@ -120,7 +122,9 @@ mod host {
             Transaction::new((0xaaa, i))
         }
 
-        pub fn pop() -> Transaction<TransactionIndex, Option<u8>> {
+        pub fn pop(
+        ) -> Transaction<TransactionIndex, Result<Option<u8>, S::Error>>
+        {
             Transaction::new(0xaab)
         }
     }

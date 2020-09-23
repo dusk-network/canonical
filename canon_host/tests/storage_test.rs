@@ -28,8 +28,10 @@ fn storage() {
     for i in 0..n {
         // reverse order
         let val = n - i - 1 + 0xb0;
+        println!("pop {}", val);
         assert_eq!(
             cast.transact(&Storage::<Mem>::pop(), store.clone())
+                .unwrap()
                 .unwrap()
                 .unwrap(),
             Some(val)
@@ -39,6 +41,7 @@ fn storage() {
     // empty
     assert_eq!(
         cast.transact(&Storage::<Mem>::pop(), store.clone())
+            .unwrap()
             .unwrap()
             .unwrap(),
         None

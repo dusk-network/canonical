@@ -68,12 +68,13 @@ where
     }
 }
 
-struct BridgeSource<'a> {
+struct BridgeSource<'a, I> {
     bytes: &'a [u8],
     offset: usize,
+    store: BridgeStore<I>,
 }
 
-impl<'a, I> Source<BridgeStore<I>> for BridgeSource<'a>
+impl<'a, I> Source<BridgeStore<I>> for BridgeSource<'a, I>
 where
     I: Ident,
 {
@@ -83,8 +84,8 @@ where
         &self.bytes[ofs..self.offset]
     }
 
-    fn store(&self) -> BridgeStore<I> {
-        BridgeStore::new()
+    fn store(&self) -> &BridgeStore<I> {
+        &self.store
     }
 }
 

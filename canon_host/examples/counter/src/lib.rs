@@ -62,7 +62,7 @@ impl Counter {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, Store};
+    use canonical::{BridgeStore, ByteSink, ByteSource, Store};
 
     const PAGE_SIZE: usize = 1024 * 64;
 
@@ -70,13 +70,13 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let store = BS::singleton();
-        let source = &mut &bytes[..];
+        let mut source = ByteSource::new(&bytes[..], store.clone());
 
         // read self.
-        let slf: Counter = Canon::<BS>::read(source)?;
+        let slf: Counter = Canon::<BS>::read(&mut source)?;
 
         // read query id
-        let qid: u16 = Canon::<BS>::read(source)?;
+        let qid: u16 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             0 => {
@@ -87,7 +87,7 @@ mod hosted {
             }
             // xor_values (&Self, a: i32, b: i32) -> i32
             1 => {
-                let (a, b): (i32, i32) = Canon::<BS>::read(source)?;
+                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let ret = slf.xor_values(a, b);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 Canon::<BS>::write(&ret, &mut sink)?;
@@ -115,13 +115,12 @@ mod hosted {
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
         let store = BS::singleton();
-
-        let source = &mut &bytes[..];
+        let mut source = ByteSource::new(bytes, store.clone());
 
         // read self.
-        let mut slf: Counter = Canon::<BS>::read(source)?;
+        let mut slf: Counter = Canon::<BS>::read(&mut source)?;
         // read transaction id
-        let qid: u16 = Canon::<BS>::read(source)?;
+        let qid: u16 = Canon::<BS>::read(&mut source)?;
         match qid {
             // increment (&Self)
             0 => {
@@ -143,7 +142,7 @@ mod hosted {
             }
             2 => {
                 // read arg
-                let by: i32 = Canon::<BS>::read(source)?;
+                let by: i32 = Canon::<BS>::read(&mut source)?;
                 slf.adjust(by);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
@@ -153,7 +152,7 @@ mod hosted {
             }
             3 => {
                 // read multiple args
-                let (a, b): (i32, i32) = Canon::<BS>::read(source)?;
+                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state

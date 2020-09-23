@@ -3,7 +3,7 @@
 
 use core::marker::PhantomData;
 
-use crate::{ByteSink, Canon, Sink, Source, Store};
+use crate::{ByteSink, ByteSource, Canon, Sink, Source, Store};
 
 /// The `Handle` type can be thought of as a host-allocating version of `Box`
 #[derive(Debug, Clone)]
@@ -107,8 +107,9 @@ where
             Handle::Inline {
                 bytes: ident_bytes, ..
             } => {
-                let mut bytes = ident_bytes.as_ref();
-                Canon::<S>::read(&mut bytes)
+                let mut source =
+                    ByteSource::new(ident_bytes.as_ref(), S::singleton());
+                Canon::<S>::read(&mut source)
             }
             Handle::Ident(_id) => {
                 unimplemented!();
