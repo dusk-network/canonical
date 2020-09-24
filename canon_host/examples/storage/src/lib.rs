@@ -23,7 +23,7 @@ mod hosted {
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Store};
 
-    const PAGE_SIZE: usize = 1024 * 64;
+    const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<[u8; 8]>;
 
@@ -37,12 +37,13 @@ mod hosted {
         }
     }
 
+    #[allow(unused)]
     fn query(_bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         Ok(())
     }
 
     #[no_mangle]
-    fn q(bytes: &mut [u8; PAGE_SIZE]) {
+    fn q(_bytes: &mut [u8; PAGE_SIZE]) {
         //
     }
 
@@ -61,24 +62,24 @@ mod hosted {
             // push
             0xaaa => {
                 let t: u8 = Canon::<BS>::read(&mut source)?;
-                slf.0.push(t)?;
 
-                bytes[30] = Canon::<BS>::encoded_len(&slf) as u8;
-
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                // return new state
-                Canon::<BS>::write(&slf, &mut sink)?;
-                // no return value
-                Ok(())
-            }
-            // pop
-            0xaab => {
-                let res_opt_t = slf.pop();
+                let res = slf.push(t);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // write return value
-                Canon::<BS>::write(&res_opt_t, &mut sink)?;
+                Canon::<BS>::write(&res, &mut sink)?;
+                Ok(())
+            }
+            // pop
+            0xaab => {
+                // no arg to read
+                let res = slf.pop();
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                // return new state
+                Canon::<BS>::write(&slf, &mut sink)?;
+                // write return value
+                Canon::<BS>::write(&res, &mut sink)?;
                 Ok(())
             }
             _ => panic!(""),
@@ -88,16 +89,16 @@ mod hosted {
     #[no_mangle]
     fn t(bytes: &mut [u8; PAGE_SIZE]) {
         // todo, handle errors here
-        transaction(bytes).unwrap()
+        let _ = transaction(bytes);
     }
 
-    #[cfg(feature = "hosted")]
     mod panic_handling {
         use core::panic::PanicInfo;
 
         #[panic_handler]
         fn panic(_: &PanicInfo) -> ! {
-            loop {}
+            // overflow stack
+            panic!()
         }
 
         #[lang = "eh_personality"]
@@ -118,7 +119,9 @@ mod host {
     type TransactionIndex = u16;
 
     impl<S: Store> Storage<S> {
-        pub fn push(i: u8) -> Transaction<(TransactionIndex, u8), ()> {
+        pub fn push(
+            i: u8,
+        ) -> Transaction<(TransactionIndex, u8), Result<(), S::Error>> {
             Transaction::new((0xaaa, i))
         }
 

@@ -23,50 +23,49 @@ impl Counter {
 }
 
 #[cfg(feature = "hosted")]
-impl Counter {
-    pub fn read_value(&self) -> i32 {
-        self.value
-    }
-
-    pub fn xor_values(&self, a: i32, b: i32) -> i32 {
-        self.value ^ a ^ b
-    }
-
-    pub fn is_even(&self) -> bool {
-        self.value % 2 == 0
-    }
-
-    pub fn increment(&mut self) {
-        self.value += 1;
-    }
-
-    pub fn decrement(&mut self) {
-        self.value -= 1;
-    }
-
-    pub fn adjust(&mut self, by: i32) {
-        self.value += by;
-    }
-
-    pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
-        if self.value == expected {
-            self.value = new;
-            true
-        } else {
-            false
-        }
-    }
-}
-
-#[cfg(feature = "hosted")]
 mod hosted {
     use super::*;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Store};
 
-    const PAGE_SIZE: usize = 1024 * 64;
+    const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<[u8; 8]>;
+
+    impl Counter {
+        pub fn read_value(&self) -> i32 {
+            self.value
+        }
+
+        pub fn xor_values(&self, a: i32, b: i32) -> i32 {
+            self.value ^ a ^ b
+        }
+
+        pub fn is_even(&self) -> bool {
+            self.value % 2 == 0
+        }
+
+        pub fn increment(&mut self) {
+            self.value += 1;
+        }
+
+        pub fn decrement(&mut self) {
+            self.value -= 1;
+        }
+
+        pub fn adjust(&mut self, by: i32) {
+            self.value += by;
+        }
+
+        pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
+            if self.value == expected {
+                self.value = new;
+                true
+            } else {
+                false
+            }
+        }
+    }
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let store = BS::singleton();

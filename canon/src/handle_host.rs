@@ -36,6 +36,12 @@ where
             Handle::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
                 let ident_len = S::Ident::default().as_ref().len();
+
+                debug_assert!(
+                    ident_len <= 255,
+                    "Identifier lengths > 255 is not supported at the moment"
+                );
+
                 if len <= ident_len {
                     // inline value
                     Canon::<S>::write(&mut (len as u8), sink)?;
@@ -109,20 +115,5 @@ where
             Handle::Value { rc, .. } => Ok((**rc).clone()),
             Handle::Ident { ident, store } => store.get(ident),
         }
-    }
-
-    /// Commits the value to the store
-    pub fn commit(&mut self, _store: &S) -> Result<(), S::Error> {
-        match self {
-            Handle::Ident { .. } => (),
-            Handle::Value {
-                rc: _,
-                cached_ident,
-            } => match *cached_ident.borrow() {
-                Some(_) => unimplemented!(),
-                None => (),
-            },
-        }
-        Ok(())
     }
 }

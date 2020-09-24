@@ -9,6 +9,5 @@ canonical_host = { path = "../canon_host" }
 canonical_derive = { path = "../canon_derive" }
 
 [features]
-default = []
 hosted = []
 host = []

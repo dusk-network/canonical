@@ -18,14 +18,18 @@ fn storage() {
 
     // push n values
     for i in 0..n {
+        println!("state: {:?}", cast);
         let val = i + 0xb0;
+        println!("push {}", val);
         cast.transact(&Storage::<Mem>::push(val), store.clone())
+            .unwrap()
             .unwrap()
             .unwrap()
     }
 
     // pop n values
     for i in 0..n {
+        println!("state: {:?}", cast);
         // reverse order
         let val = n - i - 1 + 0xb0;
         println!("pop {}", val);

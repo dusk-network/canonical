@@ -76,11 +76,9 @@ mod test {
             list.push(i).unwrap()
         }
 
-        let mut handle = Handle::new(list).unwrap();
+        let id = store.put(&list).unwrap();
 
-        handle.commit(&store).unwrap();
-
-        let mut restored = handle.restore().unwrap();
+        let mut restored: Stack<Int, MemStore> = store.get(&id).unwrap();
 
         for i in 0..n {
             let i = n - i - 1;

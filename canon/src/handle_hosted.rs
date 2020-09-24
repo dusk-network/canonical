@@ -78,24 +78,22 @@ where
 {
     /// Construct a new `Handle` from value `t`
     pub fn new(t: T) -> Result<Self, S::Error> {
-        // In the bridged enviroment, we assume that the put will succeed,
-        // and handle any errors in the host instead
-
         let store = S::singleton();
 
         let len = t.encoded_len();
-        // can we inline the value?
         let mut buffer = <S as Store>::Ident::default();
-        let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
-        t.write(&mut sink)?;
+
+        // can we inline the value?
         if len <= buffer.as_ref().len() {
+            let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
+            t.write(&mut sink)?;
+
             Ok(Handle::Inline {
                 bytes: buffer,
                 len: len as u8,
                 _marker: PhantomData,
             })
         } else {
-            // panic!("ohno")
             let id = store.put(&t)?;
             Ok(Handle::Ident(id))
         }
@@ -111,8 +109,9 @@ where
                     ByteSource::new(ident_bytes.as_ref(), S::singleton());
                 Canon::<S>::read(&mut source)
             }
-            Handle::Ident(_id) => {
-                unimplemented!();
+            Handle::Ident(id) => {
+                let store = S::singleton();
+                store.get(id)
             }
         }
     }

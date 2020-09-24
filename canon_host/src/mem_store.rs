@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
+use canonical::{ByteSink, Canon, InvalidEncoding, Sink, Source, Store};
 use canonical_derive::Canon;
 
 #[derive(Default, Debug)]
@@ -68,22 +68,20 @@ impl Store for MemStore {
             .unwrap_or_else(|| Err(MemError::MissingValue))
     }
 
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
+        let len = t.encoded_len();
+        let mut bytes = Vec::with_capacity(len);
+        bytes.resize_with(len, || 0);
+
+        let mut sink = ByteSink::new(&mut bytes, self.clone());
+        Canon::<Self>::write(t, &mut sink)?;
+
         let mut hasher = DefaultHasher::new();
+        debug_assert!(bytes[..].len() == len);
         bytes[..].hash(&mut hasher);
         let hash = hasher.finish().to_be_bytes();
-
-        self.0.write().map.insert(hash, bytes.into());
+        self.0.write().map.insert(hash, bytes);
         Ok(hash)
-    }
-
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
-        let mut sink = MemSink {
-            bytes: vec![],
-            store: self.clone(),
-        };
-        Canon::<Self>::write(t, &mut sink)?;
-        self.put_raw(&sink.bytes[..])
     }
 }
 

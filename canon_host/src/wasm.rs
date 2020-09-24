@@ -14,12 +14,20 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
         &self,
         _module_name: &str,
         field_name: &str,
-        signature: &wasmi::Signature,
+        _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
         match field_name {
-            "b_get" => {
-                panic!("b_get {:?}", &signature);
-            }
+            "b_get" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(&[wasmi::ValueType::I32][..], None),
+                0,
+            )),
+            "b_put" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
+                    None,
+                ),
+                1,
+            )),
             _ => panic!("yoo"),
         }
     }
@@ -133,6 +141,8 @@ where
     where
         A: Canon<S>,
         R: Canon<S>,
+        // todo proper error handling
+        S::Error: core::fmt::Debug,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
@@ -182,12 +192,13 @@ where
     where
         A: Canon<S>,
         R: Canon<S>,
+        // todo proper error handling
+        S::Error: core::fmt::Debug,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
-        let instance = wasmi::ModuleInstance::new(&module, &imports)
-            .expect("Failed to instantiate module")
-            .assert_no_start();
+        let instance =
+            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
@@ -199,7 +210,7 @@ where
                         // then the arguments, as bytes
                         let res =
                             Canon::<S>::write(transaction.args(), &mut sink);
-                        println!("before transaction {:x?}", &mem[0..32]);
+                        println!("self + args: {:x?}", &mem[0..32]);
                         res
                     })
                     .expect("todo, error");
@@ -214,7 +225,7 @@ where
 
                 Ok(memref
                     .with_direct_access(|mem| {
-                        println!("after transaction {:x?}", &mem[0..32]);
+                        println!("new self + return {:x?}", &mem[0..32]);
                         let mut source =
                             ByteSource::new(&mem[..], store.clone());
                         self.state = State::read(&mut source)?;
