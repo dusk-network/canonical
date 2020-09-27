@@ -48,9 +48,32 @@ impl From<InvalidEncoding> for MemError {
     }
 }
 
+fn hash_of(bytes: &[u8]) -> [u8; 8] {
+    let mut hasher = DefaultHasher::new();
+    bytes[..].hash(&mut hasher);
+    hasher.finish().to_be_bytes()
+}
+
 impl Store for MemStore {
     type Ident = [u8; 8];
     type Error = MemError;
+
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        self.0
+            .read()
+            .map
+            .get(id)
+            .map(|bytes| {
+                let len = bytes.len();
+                into[0..len].copy_from_slice(&bytes[..]);
+                Ok(())
+            })
+            .unwrap_or(Err(MemError::MissingValue))
+    }
 
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
         self.0
@@ -76,11 +99,17 @@ impl Store for MemStore {
         let mut sink = ByteSink::new(&mut bytes, self.clone());
         Canon::<Self>::write(t, &mut sink)?;
 
-        let mut hasher = DefaultHasher::new();
         debug_assert!(bytes[..].len() == len);
-        bytes[..].hash(&mut hasher);
-        let hash = hasher.finish().to_be_bytes();
+
+        let hash = hash_of(&bytes[..]);
+
         self.0.write().map.insert(hash, bytes);
+        Ok(hash)
+    }
+
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
+        let hash = hash_of(bytes);
+        self.0.write().map.insert(hash, bytes.to_vec());
         Ok(hash)
     }
 }

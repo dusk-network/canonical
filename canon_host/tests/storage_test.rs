@@ -12,15 +12,13 @@ fn storage() {
 
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 
-    let n = 1;
+    let n = 16;
 
     let mut cast = remote.cast_mut::<Wasm<Storage<Mem>, Mem>>().unwrap();
 
     // push n values
     for i in 0..n {
-        println!("state: {:?}", cast);
         let val = i + 0xb0;
-        println!("push {}", val);
         cast.transact(&Storage::<Mem>::push(val), store.clone())
             .unwrap()
             .unwrap()
@@ -29,10 +27,8 @@ fn storage() {
 
     // pop n values
     for i in 0..n {
-        println!("state: {:?}", cast);
         // reverse order
         let val = n - i - 1 + 0xb0;
-        println!("pop {}", val);
         assert_eq!(
             cast.transact(&Storage::<Mem>::pop(), store.clone())
                 .unwrap()

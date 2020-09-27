@@ -40,11 +40,21 @@ pub trait Store: Clone {
     /// The error the store can emit
     type Error: From<InvalidEncoding>;
 
+    /// Write bytes associated with `Ident`
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error>;
+
     /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error>;
 
     /// Encode a value into the store
     fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error>;
+
+    /// Put raw bytes in store
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error>;
 
     /// For hosted environments, get a reference to the current store
     #[cfg(feature = "hosted")]

@@ -61,12 +61,27 @@ where
     type Ident = I;
     type Error = InvalidEncoding;
 
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        unsafe {
+            let slice = id.as_ref();
+            let id_len = slice.len();
+            // first copy the id into the buffer
+            into[0..id_len].copy_from_slice(slice);
+            b_get(&mut into[0]);
+            Ok(())
+        }
+    }
+
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
         unsafe {
             let slice = id.as_ref();
             let id_len = slice.len();
             BUF[0..id_len].copy_from_slice(slice);
-            b_get(&mut BUF);
+            b_get(&mut BUF[0]);
             // b_get has written T into the buffer
             let mut source = ByteSource::new(&BUF[..], self.clone());
             Canon::<Self>::read(&mut source)
@@ -78,11 +93,18 @@ where
             let len = t.encoded_len();
             let mut sink = ByteSink::new(&mut BUF, self.clone());
             Canon::<Self>::write(t, &mut sink)?;
-            b_put(&mut BUF, len);
-            // b_put writes an ident back in the BUF
             let mut id = Self::Ident::default();
-            let id_len = id.as_ref().len();
-            id.as_mut().copy_from_slice(&BUF[0..id_len]);
+            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
+            Ok(id)
+        }
+    }
+
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
+        unsafe {
+            let mut id = Self::Ident::default();
+            let len = bytes.len();
+            BUF[0..len].copy_from_slice(bytes);
+            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
             Ok(id)
         }
     }
@@ -95,6 +117,6 @@ where
 }
 
 extern "C" {
-    pub fn b_put(buf: &mut [u8; BUF_SIZE], len: usize);
-    pub fn b_get(buf: &mut [u8; BUF_SIZE]);
+    pub fn b_put(buf: &mut u8, len: usize, ret: &mut u8);
+    pub fn b_get(buf: &mut u8);
 }
