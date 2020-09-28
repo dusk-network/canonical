@@ -4,6 +4,8 @@
 use canonical::{Canon, Sink, Source, Store};
 use std::ops::{Deref, DerefMut};
 
+/// A representation of a Module of erased type, with its root state reachable
+/// from the Id in the store.
 #[derive(Debug)]
 pub struct Remote<S: Store> {
     id: S::Ident,
@@ -11,6 +13,7 @@ pub struct Remote<S: Store> {
 }
 
 impl<S: Store> Remote<S> {
+    /// Create a new remote given the initial State and store reference
     pub fn new<T: Canon<S>>(from: T, store: &S) -> Result<Self, S::Error> {
         let id = store.put(&from)?;
         Ok(Remote {
@@ -19,10 +22,12 @@ impl<S: Store> Remote<S> {
         })
     }
 
+    /// Attempt casting this Remote to type `T`
     pub fn cast<T: Canon<S>>(&self) -> Result<T, S::Error> {
         self.store.get(&self.id)
     }
 
+    /// Attempt casting this Remote to a mutable reference to type `T`
     pub fn cast_mut<T: Canon<S>>(&mut self) -> Result<CastMut<T, S>, S::Error> {
         let t = self.store.get(&self.id)?;
         Ok(CastMut {
@@ -32,13 +37,16 @@ impl<S: Store> Remote<S> {
     }
 }
 
+/// A cast of a remote to type `T`
 #[derive(Debug)]
 pub struct CastMut<'a, T, S>
 where
     S: Store,
     T: Canon<S>,
 {
+    /// The remote this CastMut derived from
     remote: &'a mut Remote<S>,
+    /// The parsed value
     value: T,
 }
 
@@ -69,6 +77,7 @@ where
     S: Store,
     T: Canon<S>,
 {
+    /// Commits the possibly changed value to the remote it was cast from
     pub fn commit(&mut self) -> Result<(), S::Error> {
         let id = self.remote.store.put(&self.value)?;
         self.remote.id = id;

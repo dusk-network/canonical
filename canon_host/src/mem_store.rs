@@ -2,24 +2,25 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use std::collections::hash_map::{DefaultHasher, HashMap};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
+use wasmi;
 
 use canonical::{ByteSink, Canon, InvalidEncoding, Sink, Source, Store};
 use canonical_derive::Canon;
 
 #[derive(Default, Debug)]
-struct MemStoreInner {
-    map: HashMap<[u8; 8], Vec<u8>>,
-    head: usize,
-}
+struct MemStoreInner(HashMap<[u8; 8], Vec<u8>>);
 
+/// An in-memory store implemented with a hashmap
 #[derive(Default, Debug, Clone)]
 pub struct MemStore(Arc<RwLock<MemStoreInner>>);
 
 impl MemStore {
+    /// Create a new MemStore
     pub fn new() -> Self {
         Default::default()
     }
@@ -41,6 +42,17 @@ pub enum MemError {
     MissingValue,
     InvalidEncoding,
 }
+
+impl fmt::Display for MemError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::MissingValue => write!(f, "Missing Value"),
+            Self::InvalidEncoding => write!(f, "InvalidEncoding"),
+        }
+    }
+}
+
+impl wasmi::HostError for MemError {}
 
 impl From<InvalidEncoding> for MemError {
     fn from(_: InvalidEncoding) -> Self {
@@ -65,7 +77,7 @@ impl Store for MemStore {
     ) -> Result<(), Self::Error> {
         self.0
             .read()
-            .map
+            .0
             .get(id)
             .map(|bytes| {
                 let len = bytes.len();
@@ -78,7 +90,7 @@ impl Store for MemStore {
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
         self.0
             .read()
-            .map
+            .0
             .get(id)
             .map(|bytes| {
                 let mut source = MemSource {
@@ -103,13 +115,13 @@ impl Store for MemStore {
 
         let hash = hash_of(&bytes[..]);
 
-        self.0.write().map.insert(hash, bytes);
+        self.0.write().0.insert(hash, bytes);
         Ok(hash)
     }
 
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
         let hash = hash_of(bytes);
-        self.0.write().map.insert(hash, bytes.to_vec());
+        self.0.write().0.insert(hash, bytes.to_vec());
         Ok(hash)
     }
 }

@@ -85,7 +85,11 @@ impl<'a, S> Externals<'a, S> {
     }
 }
 
-impl<'a, S: Store> wasmi::Externals for Externals<'a, S> {
+impl<'a, S> wasmi::Externals for Externals<'a, S>
+where
+    S: Store,
+    S::Error: wasmi::HostError,
+{
     fn invoke_index(
         &mut self,
         index: usize,
@@ -102,13 +106,11 @@ impl<'a, S: Store> wasmi::Externals for Externals<'a, S> {
                         let slice = &mem[ofs..ofs + id_len];
                         id.as_mut().copy_from_slice(slice);
 
-                        println!("b_get {:?}", id);
-
-                        self.store.fetch(&id, &mut mem[ofs..]);
+                        self.store.fetch(&id, &mut mem[ofs..])?;
                         Ok(None)
                     })
                 } else {
-                    todo!()
+                    todo!("error out for wrong argument types")
                 }
             }
             B_PUT => {
@@ -129,7 +131,7 @@ impl<'a, S: Store> wasmi::Externals for Externals<'a, S> {
                         Ok(None)
                     })
                 } else {
-                    todo!("b")
+                    todo!("error out for wrong argument types")
                 }
             }
             _ => panic!("invalid index"),
@@ -137,17 +139,25 @@ impl<'a, S: Store> wasmi::Externals for Externals<'a, S> {
     }
 }
 
+/// Helper trait for wasm bytecode
+///
+/// TODO: remove this in favor of code being stored in the Wasm wrapper itself.
 pub trait Module {
+    /// The wasm bytecode associated with this type
     const BYTECODE: &'static [u8];
 }
 
+/// Represents the type of a query
 #[derive(Debug)]
 pub struct Query<A, R> {
+    /// Arguments, in form of a tuple or single value
     args: A,
+    /// The expected return type
     _return: PhantomData<R>,
 }
 
 impl<A, R> Query<A, R> {
+    /// Construct a new query with provided arguments
     pub fn new(args: A) -> Self {
         Query {
             args,
@@ -155,18 +165,23 @@ impl<A, R> Query<A, R> {
         }
     }
 
+    /// Returns a reference to the arguments of a query
     pub fn args(&self) -> &A {
         &self.args
     }
 }
 
+/// Represents the type of a transaction
 #[derive(Debug)]
 pub struct Transaction<A, R> {
+    /// Arguments, in form of a tuple or single value
     args: A,
+    /// The expected return type
     _return: PhantomData<R>,
 }
 
 impl<A, R> Transaction<A, R> {
+    /// Create a new transaction
     pub fn new(args: A) -> Self {
         Transaction {
             args,
@@ -174,6 +189,7 @@ impl<A, R> Transaction<A, R> {
         }
     }
 
+    /// Returns a reference to the transactions arguments
     pub fn args(&self) -> &A {
         &self.args
     }
@@ -183,7 +199,9 @@ impl<State, S> Wasm<State, S>
 where
     State: Canon<S> + Module + core::fmt::Debug,
     S: Store,
+    S::Error: wasmi::HostError,
 {
+    /// Creates a new Wasm wrapper over an initial state.
     pub fn new(state: State) -> Self {
         Wasm {
             state,
@@ -191,6 +209,7 @@ where
         }
     }
 
+    /// Perform the provided query in the wasm module
     pub fn query<A, R>(
         &self,
         query: &Query<A, R>,
@@ -199,8 +218,6 @@ where
     where
         A: Canon<S>,
         R: Canon<S>,
-        // todo proper error handling
-        S::Error: core::fmt::Debug,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
@@ -210,27 +227,21 @@ where
 
         Ok(match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
-                memref
-                    .with_direct_access_mut(|mem| {
-                        let mut sink =
-                            ByteSink::new(&mut mem[..], store.clone());
-                        // Write State and arguments into memory
-                        Canon::<S>::write(&self.state, &mut sink)?;
-                        Canon::<S>::write(query.args(), &mut sink)
-                    })
-                    .expect("todo, wasmi errors");
+                memref.with_direct_access_mut(|mem| {
+                    let mut sink = ByteSink::new(&mut mem[..], store.clone());
+                    // Write State and arguments into memory
+                    Canon::<S>::write(&self.state, &mut sink)?;
+                    Canon::<S>::write(query.args(), &mut sink)
+                })?;
 
                 let mut externals = Externals::new(&store, &memref);
 
                 // Perform the query call
-                match instance
-                    .invoke_export(
-                        "q",
-                        &[wasmi::RuntimeValue::I32(0)],
-                        &mut externals,
-                    )
-                    .expect("todo handle wasmi errors")
-                {
+                match instance.invoke_export(
+                    "q",
+                    &[wasmi::RuntimeValue::I32(0)],
+                    &mut externals,
+                )? {
                     _ => (),
                 };
 
@@ -245,6 +256,7 @@ where
         })
     }
 
+    /// Perform the provided transaction in the wasm module
     pub fn transact<A, R>(
         &mut self,
         transaction: &Transaction<A, R>,
@@ -253,8 +265,7 @@ where
     where
         A: Canon<S>,
         R: Canon<S>,
-        // todo proper error handling
-        S::Error: core::fmt::Debug,
+        S::Error: wasmi::HostError,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
@@ -268,26 +279,20 @@ where
                     // First we write State into memory
                     Canon::<S>::write(&self.state, &mut sink)?;
                     // then the arguments, as bytes
-                    let res = Canon::<S>::write(transaction.args(), &mut sink);
-                    println!("self + args: {:x?}", &mem[0..32]);
-                    res
-                });
+                    Canon::<S>::write(transaction.args(), &mut sink)
+                })?;
 
                 let mut externals = Externals::new(&store, &memref);
 
-                match instance
-                    .invoke_export(
-                        "t",
-                        &[wasmi::RuntimeValue::I32(0)],
-                        &mut externals,
-                    )
-                    .expect("todo, error")
-                {
+                match instance.invoke_export(
+                    "t",
+                    &[wasmi::RuntimeValue::I32(0)],
+                    &mut externals,
+                )? {
                     _ => (),
                 };
 
                 memref.with_direct_access_mut(|mem| {
-                    println!("new self + return {:x?}", &mem[0..32]);
                     let mut source = ByteSource::new(&mem[..], store.clone());
                     self.state = State::read(&mut source)?;
                     R::read(&mut source)

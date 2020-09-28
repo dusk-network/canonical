@@ -37,16 +37,6 @@ mod hosted {
         }
     }
 
-    #[allow(unused)]
-    fn query(_bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        Ok(())
-    }
-
-    #[no_mangle]
-    fn q(_bytes: &mut [u8; PAGE_SIZE]) {
-        //
-    }
-
     fn transaction(
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {

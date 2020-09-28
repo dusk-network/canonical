@@ -107,7 +107,7 @@ mod hosted {
     #[no_mangle]
     fn q(bytes: &mut [u8; PAGE_SIZE]) {
         // todo, handle errors here
-        query(bytes).unwrap()
+        let _ = query(bytes);
     }
 
     fn transaction(

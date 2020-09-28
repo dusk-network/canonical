@@ -4,7 +4,7 @@
 //! Canonical, a no_std, host-allocating serialization library
 #![cfg_attr(feature = "hosted", no_std)]
 #![allow(incomplete_features)]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![feature(const_generics)]
 #![feature(lang_items)]
 

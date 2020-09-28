@@ -1,10 +1,18 @@
 use canonical::{Canon, Handle, Store};
 use canonical_derive::Canon;
 
+/// Proof of concept stack structure using a self-referential handle
 #[derive(Clone, Canon, Debug)]
 pub enum Stack<T, S: Store> {
+    /// Represents an empty stack.
     Empty,
-    Node { value: T, prev: Handle<Self, S> },
+    /// Non-empty top node
+    Node {
+        /// The value on top of the stack
+        value: T,
+        /// A handle referencing the previous state of the stack
+        prev: Handle<Self, S>,
+    },
 }
 
 impl<T, S> Stack<T, S>
@@ -12,10 +20,12 @@ where
     S: Store,
     T: Canon<S> + Clone,
 {
+    /// Creates a new Stack
     pub fn new() -> Self {
         Stack::Empty
     }
 
+    /// Pushes a value to the stack
     pub fn push(&mut self, t: T) -> Result<(), S::Error> {
         let root = core::mem::replace(self, Stack::Empty);
         *self = Stack::Node {
@@ -25,6 +35,7 @@ where
         Ok(())
     }
 
+    /// Pops a value from the stack, if any and returns it
     pub fn pop(&mut self) -> Result<Option<T>, S::Error> {
         let root = core::mem::replace(self, Stack::Empty);
         match root {
