@@ -3,7 +3,7 @@
 
 use core::marker::PhantomData;
 
-use crate::{Canon, Sink, Source, Store, S::Error};
+use crate::{Canon, InvalidEncoding, Sink, Source, Store};
 
 macro_rules! number {
     ($number:ty, $size:expr) => {
@@ -86,7 +86,7 @@ where
         match source.read_bytes(1) {
             [0] => Ok(false),
             [1] => Ok(true),
-            _ => Err(S::Error::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -115,7 +115,7 @@ where
         match source.read_bytes(1) {
             [0] => Ok(None),
             [1] => Ok(Some(T::read(source)?)),
-            _ => Err(S::Error::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -150,7 +150,7 @@ where
         match source.read_bytes(1) {
             [0] => Ok(Ok(T::read(source)?)),
             [1] => Ok(Err(E::read(source)?)),
-            _ => Err(S::Error::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -207,7 +207,6 @@ macro_rules! canon_tuple_impls {
                 let mut n = 0;
 
                 $(n += self.$idx.encoded_len();)+
-
                 n
             }
         }
@@ -230,7 +229,7 @@ canon_tuple_impls! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 1
 canon_tuple_impls! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
 canon_tuple_impls! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
 
-#[cfg(not(feature = "bridge"))]
+#[cfg(feature = "host")]
 mod std_impls {
     use super::*;
 

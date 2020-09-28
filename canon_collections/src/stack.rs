@@ -115,14 +115,11 @@ mod test {
             let mut list = Stack::new();
 
             for i in 0..n {
-                list.push(tuple(i));
+                list.push(tuple(i)).unwrap();
             }
 
-            let mut handle = Handle::new(list);
-
-            handle.commit(&store).unwrap();
-
-            let mut restored = handle.restore().unwrap();
+            let id = store.put(&list).unwrap();
+            let mut restored: Stack<T, MemStore> = store.get(&id).unwrap();
 
             for i in (0..n).rev() {
                 assert_eq!(restored.pop().unwrap(), Some(tuple(i)))
