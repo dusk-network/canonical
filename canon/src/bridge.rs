@@ -3,17 +3,18 @@
 
 use core::marker::PhantomData;
 
-use crate::canon::{Canon, CanonError};
-use crate::store::{Ident, Sink, Source, Store};
+use crate::canon::{Canon, InvalidEncoding};
+use crate::store::{ByteSink, ByteSource, Ident, Sink, Source, Store};
 
-// We set the buffer size to 4kb for now, subject to change.
+// We set the buffer size to 4kib for now, subject to change.
 const BUF_SIZE: usize = 1024 * 4;
+
+static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
 /// Store usable across ffi-boundraries
 #[derive(Clone)]
 pub struct BridgeStore<I> {
     _marker: PhantomData<I>,
-    buffer: [u8; BUF_SIZE],
 }
 
 impl<I> BridgeStore<I>
@@ -24,65 +25,32 @@ where
     pub fn new() -> Self {
         BridgeStore {
             _marker: PhantomData,
-            buffer: [0u8; BUF_SIZE],
         }
     }
 }
 
-struct BridgeSink<'a> {
-    bytes: &'a mut [u8],
-    offset: usize,
+#[derive(Debug)]
+pub enum BridgeStoreError {
+    InvalidEncoding,
 }
 
-impl<'a, I> Sink<BridgeStore<I>> for BridgeSink<'a>
-where
-    I: Ident,
-{
-    fn write_bytes(&mut self, n: usize) -> &mut [u8] {
-        let start = self.offset;
-        self.offset += n;
-        &mut self.bytes[start..self.offset]
+impl<S: Store> Canon<S> for BridgeStoreError {
+    fn write(&self, _sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        Ok(())
     }
 
-    fn copy_bytes(&mut self, bytes: &[u8]) {
-        let ofs = self.offset;
-        self.offset += bytes.len();
-        self.bytes[ofs..self.offset].clone_from_slice(bytes)
+    fn read(_source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        Ok(BridgeStoreError::InvalidEncoding)
     }
 
-    fn recur(&mut self) -> Self {
-        let full = core::mem::replace(&mut self.bytes, &mut []);
-        let (a, b) = full.split_at_mut(self.offset);
-        self.bytes = a;
-        BridgeSink {
-            bytes: b,
-            offset: 0,
-        }
-    }
-
-    fn fin(self) -> Result<<BridgeStore<I> as Store>::Ident, CanonError> {
-        let store = BridgeStore::new();
-        store.put_raw(&self.bytes[0..self.offset])
+    fn encoded_len(&self) -> usize {
+        0
     }
 }
 
-struct BridgeSource<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a, I> Source<BridgeStore<I>> for BridgeSource<'a>
-where
-    I: Ident,
-{
-    fn read_bytes(&mut self, n: usize) -> &[u8] {
-        let ofs = self.offset;
-        self.offset += n;
-        &self.bytes[ofs..self.offset]
-    }
-
-    fn store(&self) -> BridgeStore<I> {
-        BridgeStore::new()
+impl From<InvalidEncoding> for BridgeStoreError {
+    fn from(_: InvalidEncoding) -> Self {
+        BridgeStoreError::InvalidEncoding
     }
 }
 
@@ -91,29 +59,64 @@ where
     I: Ident,
 {
     type Ident = I;
-    type Error = ();
+    type Error = InvalidEncoding;
 
-    fn get<T: Canon<Self>>(&self, _id: &Self::Ident) -> Result<T, CanonError> {
-        loop {}
-    }
-
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError> {
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error> {
         unsafe {
-            let mut ret = Self::Ident::default();
-            b_put(&bytes[0], bytes.len() as u32, &mut ret.as_mut()[0]);
-            Ok(ret)
+            let slice = id.as_ref();
+            let id_len = slice.len();
+            // first copy the id into the buffer
+            into[0..id_len].copy_from_slice(slice);
+            b_get(&mut into[0]);
+            Ok(())
         }
     }
 
-    fn put<T: Canon<Self>>(&self, _t: &T) -> Result<Self::Ident, CanonError> {
+    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
         unsafe {
-            b_get(&self.buffer[0]);
-            unimplemented!()
+            let slice = id.as_ref();
+            let id_len = slice.len();
+            BUF[0..id_len].copy_from_slice(slice);
+            b_get(&mut BUF[0]);
+            // b_get has written T into the buffer
+            let mut source = ByteSource::new(&BUF[..], self.clone());
+            Canon::<Self>::read(&mut source)
+        }
+    }
+
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
+        unsafe {
+            let len = t.encoded_len();
+            let mut sink = ByteSink::new(&mut BUF, self.clone());
+            Canon::<Self>::write(t, &mut sink)?;
+            let mut id = Self::Ident::default();
+            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
+            Ok(id)
+        }
+    }
+
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
+        unsafe {
+            let mut id = Self::Ident::default();
+            let len = bytes.len();
+            BUF[0..len].copy_from_slice(bytes);
+            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
+            Ok(id)
+        }
+    }
+
+    fn singleton() -> Self {
+        BridgeStore {
+            _marker: PhantomData,
         }
     }
 }
 
 extern "C" {
-    pub fn b_put(buffer: &u8, len: u32, ret: &mut u8);
-    pub fn b_get(buffer: &u8);
+    pub fn b_put(buf: &mut u8, len: usize, ret: &mut u8);
+    pub fn b_get(buf: &mut u8);
 }

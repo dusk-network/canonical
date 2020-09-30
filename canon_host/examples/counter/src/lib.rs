@@ -1,13 +1,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-#![cfg_attr(feature = "wasm", no_std)]
+#![cfg_attr(feature = "hosted", no_std)]
 #![feature(lang_items)]
 
 use canonical::Canon;
 use canonical_derive::Canon;
 
-#[derive(Clone, Canon, Default)]
+#[derive(Clone, Canon, Debug)]
 pub struct Counter {
     junk: u32,
     value: i32,
@@ -22,82 +22,82 @@ impl Counter {
     }
 }
 
-#[cfg(feature = "wasm")]
-impl Counter {
-    pub fn read_value(&self) -> i32 {
-        self.value
-    }
-
-    pub fn xor_values(&self, a: i32, b: i32) -> i32 {
-        self.value ^ a ^ b
-    }
-
-    pub fn is_even(&self) -> bool {
-        self.value % 2 == 0
-    }
-
-    pub fn increment(&mut self) {
-        self.value += 1;
-    }
-
-    pub fn decrement(&mut self) {
-        self.value -= 1;
-    }
-
-    pub fn adjust(&mut self, by: i32) {
-        self.value += by;
-    }
-
-    pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
-        if self.value == expected {
-            self.value = new;
-            true
-        } else {
-            false
-        }
-    }
-}
-
-#[cfg(feature = "wasm")]
-mod bridge {
+#[cfg(feature = "hosted")]
+mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, CanonError};
+    use canonical::{BridgeStore, ByteSink, ByteSource, Store};
 
-    const PAGE_SIZE: usize = 1024 * 64;
+    const PAGE_SIZE: usize = 1024 * 4;
 
-    type Store = BridgeStore<[u8; 8]>;
+    type BS = BridgeStore<[u8; 8]>;
 
-    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let source = &mut &bytes[..];
+    impl Counter {
+        pub fn read_value(&self) -> i32 {
+            self.value
+        }
+
+        pub fn xor_values(&self, a: i32, b: i32) -> i32 {
+            self.value ^ a ^ b
+        }
+
+        pub fn is_even(&self) -> bool {
+            self.value % 2 == 0
+        }
+
+        pub fn increment(&mut self) {
+            self.value += 1;
+        }
+
+        pub fn decrement(&mut self) {
+            self.value -= 1;
+        }
+
+        pub fn adjust(&mut self, by: i32) {
+            self.value += by;
+        }
+
+        pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
+            if self.value == expected {
+                self.value = new;
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
+        let store = BS::singleton();
+        let mut source = ByteSource::new(&bytes[..], store.clone());
+
         // read self.
-        let slf: Counter = Canon::<Store>::read(source)?;
+        let slf: Counter = Canon::<BS>::read(&mut source)?;
+
         // read query id
-        let qid: u16 = Canon::<Store>::read(source)?;
+        let qid: u16 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             0 => {
                 let ret = slf.read_value();
-
-                let sink = &mut &mut bytes[..];
-                Canon::<Store>::write(&ret, sink)?;
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // xor_values (&Self, a: i32, b: i32) -> i32
             1 => {
-                let (a, b): (i32, i32) = Canon::<Store>::read(source)?;
+                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let ret = slf.xor_values(a, b);
-
-                let sink = &mut &mut bytes[..];
-                Canon::<Store>::write(&ret, sink)?;
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // xor_value (&Self) -> bool
             2 => {
                 let ret = slf.is_even();
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
 
-                let sink = &mut &mut bytes[..];
-                Canon::<Store>::write(&ret, sink)?;
+                Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             _ => panic!(""),
@@ -107,54 +107,57 @@ mod bridge {
     #[no_mangle]
     fn q(bytes: &mut [u8; PAGE_SIZE]) {
         // todo, handle errors here
-        query(bytes).unwrap()
+        let _ = query(bytes);
     }
 
-    fn transaction(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), CanonError> {
-        let source = &mut &bytes[..];
+    fn transaction(
+        bytes: &mut [u8; PAGE_SIZE],
+    ) -> Result<(), <BS as Store>::Error> {
+        let store = BS::singleton();
+        let mut source = ByteSource::new(bytes, store.clone());
 
         // read self.
-        let mut slf: Counter = Canon::<Store>::read(source)?;
+        let mut slf: Counter = Canon::<BS>::read(&mut source)?;
         // read transaction id
-        let qid: u16 = Canon::<Store>::read(source)?;
+        let qid: u16 = Canon::<BS>::read(&mut source)?;
         match qid {
             // increment (&Self)
             0 => {
                 slf.increment();
-                let sink = &mut &mut bytes[..];
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
-                Canon::<Store>::write(&slf, sink)?;
+                Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
                 Ok(())
             }
             1 => {
                 // no args
                 slf.decrement();
-                let sink = &mut &mut bytes[..];
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
-                Canon::<Store>::write(&slf, sink)?;
+                Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
                 Ok(())
             }
             2 => {
                 // read arg
-                let by: i32 = Canon::<Store>::read(source)?;
+                let by: i32 = Canon::<BS>::read(&mut source)?;
                 slf.adjust(by);
-                let sink = &mut &mut bytes[..];
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
-                Canon::<Store>::write(&slf, sink)?;
+                Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
                 Ok(())
             }
             3 => {
                 // read multiple args
-                let (a, b): (i32, i32) = Canon::<Store>::read(source)?;
+                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
-                let sink = &mut &mut bytes[..];
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
-                Canon::<Store>::write(&slf, sink)?;
+                Canon::<BS>::write(&slf, &mut sink)?;
                 // return result
-                Canon::<Store>::write(&res, sink)
+                Canon::<BS>::write(&res, &mut sink)
             }
             _ => panic!(""),
         }
@@ -166,7 +169,6 @@ mod bridge {
         transaction(bytes).unwrap()
     }
 
-    #[cfg(feature = "wasm")]
     mod panic_handling {
         use core::panic::PanicInfo;
 

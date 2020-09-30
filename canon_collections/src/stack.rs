@@ -1,16 +1,18 @@
-// Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
-
-use canonical::{Canon, CanonError, Handle, Store, VoidStore};
+use canonical::{Canon, Handle, Store};
 use canonical_derive::Canon;
-use canonical_host::MemStore;
 
-use std::mem;
-
+/// Proof of concept stack structure using a self-referential handle
 #[derive(Clone, Canon, Debug)]
-enum Stack<T, S: Store> {
+pub enum Stack<T, S: Store> {
+    /// Represents an empty stack.
     Empty,
-    Node { value: T, prev: Handle<Self, S> },
+    /// Non-empty top node
+    Node {
+        /// The value on top of the stack
+        value: T,
+        /// A handle referencing the previous state of the stack
+        prev: Handle<Self, S>,
+    },
 }
 
 impl<T, S> Stack<T, S>
@@ -18,20 +20,24 @@ where
     S: Store,
     T: Canon<S> + Clone,
 {
-    fn new() -> Self {
+    /// Creates a new Stack
+    pub fn new() -> Self {
         Stack::Empty
     }
 
-    fn push(&mut self, t: T) {
-        let root = mem::replace(self, Stack::Empty);
+    /// Pushes a value to the stack
+    pub fn push(&mut self, t: T) -> Result<(), S::Error> {
+        let root = core::mem::replace(self, Stack::Empty);
         *self = Stack::Node {
             value: t,
-            prev: Handle::<_, S>::new(root),
+            prev: Handle::<_, S>::new(root)?,
         };
+        Ok(())
     }
 
-    fn pop(&mut self) -> Result<Option<T>, CanonError> {
-        let root = mem::replace(self, Stack::Empty);
+    /// Pops a value from the stack, if any and returns it
+    pub fn pop(&mut self) -> Result<Option<T>, S::Error> {
+        let root = core::mem::replace(self, Stack::Empty);
         match root {
             Stack::Empty => Ok(None),
             Stack::Node { value, prev } => {
@@ -45,6 +51,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use canonical_host::MemStore;
 
     #[test]
     fn multiple() {
@@ -52,10 +59,10 @@ mod test {
 
         let n: Int = 1024;
 
-        let mut list = Stack::<_, VoidStore>::new();
+        let mut list = Stack::<_, MemStore>::new();
 
         for i in 0..n {
-            list.push(i);
+            list.push(i).unwrap();
         }
 
         for i in 0..n {
@@ -77,14 +84,12 @@ mod test {
         let mut list = Stack::new();
 
         for i in 0..n {
-            list.push(i)
+            list.push(i).unwrap()
         }
 
-        let mut handle = Handle::new(list);
+        let id = store.put(&list).unwrap();
 
-        handle.commit(&store).unwrap();
-
-        let mut restored = handle.restore().unwrap();
+        let mut restored: Stack<Int, MemStore> = store.get(&id).unwrap();
 
         for i in 0..n {
             let i = n - i - 1;
@@ -110,14 +115,11 @@ mod test {
             let mut list = Stack::new();
 
             for i in 0..n {
-                list.push(tuple(i));
+                list.push(tuple(i)).unwrap();
             }
 
-            let mut handle = Handle::new(list);
-
-            handle.commit(&store).unwrap();
-
-            let mut restored = handle.restore().unwrap();
+            let id = store.put(&list).unwrap();
+            let mut restored: Stack<T, MemStore> = store.get(&id).unwrap();
 
             for i in (0..n).rev() {
                 assert_eq!(restored.pop().unwrap(), Some(tuple(i)))

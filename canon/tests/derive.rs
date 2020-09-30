@@ -1,7 +1,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use canonical::{Canon, Handle};
+use canonical::{Canon, Store};
 use canonical_derive::Canon;
 use canonical_host::MemStore;
 
@@ -71,11 +71,10 @@ fn serialize_deserialize<
     t: T,
 ) {
     let store = MemStore::new();
-    let mut handle = Handle::new(t.clone());
 
-    handle.commit(&store).unwrap();
+    let id = store.put(&t).unwrap();
 
-    let restored = handle.restore().unwrap();
+    let restored = store.get(&id).unwrap();
     assert_eq!(t, restored);
 }
 

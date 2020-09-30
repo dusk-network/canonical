@@ -3,17 +3,17 @@
 
 use core::marker::PhantomData;
 
-use crate::{Canon, CanonError, Sink, Source, Store};
+use crate::{Canon, InvalidEncoding, Sink, Source, Store};
 
 macro_rules! number {
     ($number:ty, $size:expr) => {
         impl<S: Store> Canon<S> for $number {
-            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
                 sink.copy_bytes(&self.to_be_bytes());
                 Ok(())
             }
 
-            fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+            fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
                 let mut bytes = [0u8; $size];
                 bytes.copy_from_slice(source.read_bytes($size));
                 Ok(<$number>::from_be_bytes(bytes))
@@ -46,14 +46,14 @@ where
     T: Canon<S> + Default + Copy,
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         for i in 0..N {
             self[i].write(sink)?;
         }
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let mut array = [T::default(); N];
         for i in 0..N {
             array[i] = T::read(source)?;
@@ -74,7 +74,7 @@ impl<S> Canon<S> for bool
 where
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         match self {
             true => sink.copy_bytes(&[1]),
             false => sink.copy_bytes(&[0]),
@@ -82,11 +82,11 @@ where
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         match source.read_bytes(1) {
             [0] => Ok(false),
             [1] => Ok(true),
-            _ => Err(CanonError::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -100,7 +100,7 @@ where
     T: Canon<S>,
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         match self {
             None => sink.copy_bytes(&[0]),
             Some(t) => {
@@ -111,11 +111,11 @@ where
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         match source.read_bytes(1) {
             [0] => Ok(None),
             [1] => Ok(Some(T::read(source)?)),
-            _ => Err(CanonError::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -133,7 +133,7 @@ where
     E: Canon<S>,
     S: Store,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         match self {
             Ok(t) => {
                 sink.copy_bytes(&[0]);
@@ -146,11 +146,11 @@ where
         }
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         match source.read_bytes(1) {
             [0] => Ok(Ok(T::read(source)?)),
             [1] => Ok(Err(E::read(source)?)),
-            _ => Err(CanonError::InvalidData),
+            _ => Err(InvalidEncoding.into()),
         }
     }
 
@@ -163,11 +163,11 @@ where
 }
 
 impl<S: Store> Canon<S> for () {
-    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
         Ok(())
     }
 
-    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(_: &mut impl Source<S>) -> Result<Self, S::Error> {
         Ok(())
     }
 
@@ -177,11 +177,11 @@ impl<S: Store> Canon<S> for () {
 }
 
 impl<S: Store, T> Canon<S> for PhantomData<T> {
-    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
         Ok(())
     }
 
-    fn read(_: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(_: &mut impl Source<S>) -> Result<Self, S::Error> {
         Ok(PhantomData)
     }
 
@@ -193,13 +193,13 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
 macro_rules! canon_tuple_impls {
     ( $( $name:ident )+, $( $idx:tt )+ ) => {
         impl<S: Store, $($name,)+> Canon<S> for ($($name,)+) where $($name: Canon<S>,)+ {
-            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
                 $(self.$idx.write(sink)?;)+
 
                 Ok(())
             }
 
-            fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+            fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
                 Ok(($($name::read(source)?,)+))
             }
 
@@ -207,7 +207,6 @@ macro_rules! canon_tuple_impls {
                 let mut n = 0;
 
                 $(n += self.$idx.encoded_len();)+
-
                 n
             }
         }
@@ -230,12 +229,12 @@ canon_tuple_impls! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 1
 canon_tuple_impls! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
 canon_tuple_impls! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
 
-#[cfg(not(feature = "bridge"))]
+#[cfg(feature = "host")]
 mod std_impls {
     use super::*;
 
     impl<S: Store, T: Canon<S>> Canon<S> for std::vec::Vec<T> {
-        fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+        fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
             let len = self.len() as u64;
             len.write(sink)?;
             for t in self.iter() {
@@ -244,7 +243,7 @@ mod std_impls {
             Ok(())
         }
 
-        fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+        fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
             let mut vec = vec![];
             let len = u64::read(source)?;
             for _ in 0..len {

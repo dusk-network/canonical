@@ -1,7 +1,10 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-#![feature(or_patterns)]
+//! Derives for `Canon` trait for rust types
+
+#![deny(missing_docs)]
+
 use proc_macro2::{Ident, Literal};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
@@ -104,6 +107,7 @@ fn mentions_store(generics: &Generics) -> Option<Ident> {
 }
 
 #[proc_macro_derive(Canon)]
+/// Derive macro that implements the serialization method for a type
 pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident.clone();
@@ -311,7 +315,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let tag = u8::read(source)?;
                     match & tag {
                         #( #reads )*
-                        _ => Err(canonical::CanonError::InvalidData)
+                        _ => Err(canonical::InvalidEncoding.into())
                     }
                 },
                 quote! {
@@ -332,14 +336,14 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let output = quote! {
         impl #impl_generics canonical::Canon<#__s> for #name #ty_generics #where_clause {
             fn write(&self, sink: &mut impl canonical::Sink < #__s >)
-              -> Result<(), canonical::CanonError> {
+              -> Result<(), #__s::Error> {
                 #write
                 ;
                 Ok(())
             }
 
             fn read(source: &mut impl canonical::Source < #__s >)
-                    -> Result<Self, canonical::CanonError> {
+                    -> Result<Self, #__s::Error> {
                 #read
             }
 

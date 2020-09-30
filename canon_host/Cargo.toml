@@ -1,5 +1,5 @@
 [package]
-authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 name = "canonical_host"
 version = "0.1.0"
@@ -13,3 +13,4 @@ wasmi = "0.6.0"
 
 [dev-dependencies]
 counter = { path = "examples/counter", features = ["host"] }
+storage = { path = "examples/storage", features = ["host"] }

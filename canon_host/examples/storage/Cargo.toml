@@ -1,0 +1,18 @@
+[package]
+name = "storage"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+canonical = { path = "../../../canon" }
+canonical_derive = { path = "../../../canon_derive" }
+canonical_host = { path = "../../../canon_host", optional = true }
+canonical_collections = { path = "../../../canon_collections" }
+
+[features]
+hosted = ["canonical/hosted", "canonical_collections/hosted"]
+host = ["canonical/host", "canonical_collections/host", "canonical_host"]

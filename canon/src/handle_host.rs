@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use std::cell::RefCell;
 
-use crate::{Canon, CanonError, Sink, Source, Store};
+use crate::{Canon, Sink, Source, Store};
 
 #[derive(Clone, Debug)]
 /// A Handle to a value that is either local or in storage
@@ -31,20 +31,24 @@ where
     S: Store,
     T: Canon<S>,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         match self {
             Handle::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
                 let ident_len = S::Ident::default().as_ref().len();
+
+                debug_assert!(
+                    ident_len <= 255,
+                    "Identifier lengths > 255 is not supported at the moment"
+                );
+
                 if len <= ident_len {
                     // inline value
                     Canon::<S>::write(&mut (len as u8), sink)?;
                     Canon::<S>::write(&**rc, sink)?;
                 } else {
                     Canon::<S>::write(&mut 0u8, sink)?;
-                    let mut subsink = sink.recur();
-                    Canon::<S>::write(&**rc, &mut subsink)?;
-                    let ident = subsink.fin()?;
+                    let ident = sink.recur(&**rc)?;
 
                     *cached_ident.borrow_mut() = Some(Box::new(ident.clone()));
                     sink.copy_bytes(&ident.as_ref());
@@ -58,7 +62,7 @@ where
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
         if len > 0 {
             // inlined value
@@ -74,7 +78,7 @@ where
             slice.copy_from_slice(bytes);
             Ok(Handle::Ident {
                 ident,
-                store: source.store(),
+                store: source.store().clone(),
             })
         }
     }
@@ -98,34 +102,18 @@ where
     T: Canon<S> + Clone,
 {
     /// Construct a new `Handle` from value `t`
-    pub fn new(t: T) -> Self {
-        Handle::Value {
+    pub fn new(t: T) -> Result<Self, S::Error> {
+        Ok(Handle::Value {
             rc: Rc::new(t),
             cached_ident: RefCell::new(None),
-        }
+        })
     }
 
     /// Returns the value behind the `Handle`
-    pub fn restore(&self) -> Result<T, CanonError> {
+    pub fn restore(&self) -> Result<T, S::Error> {
         match &self {
             Handle::Value { rc, .. } => Ok((**rc).clone()),
             Handle::Ident { ident, store } => store.get(ident),
         }
-    }
-
-    /// Commits the value to the store
-    pub fn commit(&mut self, _store: &S) -> Result<(), CanonError> {
-        match self {
-            Handle::Ident { .. } => (),
-            Handle::Value {
-                rc: _,
-                cached_ident,
-            } => match *cached_ident.borrow() {
-                Some(_) => unimplemented!(),
-                None => (),
-            },
-        }
-        //unimplemented!()
-        Ok(())
     }
 }

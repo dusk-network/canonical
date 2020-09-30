@@ -1,7 +1,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use crate::canon::{Canon, CanonError};
+use crate::canon::{Canon, InvalidEncoding};
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
@@ -21,17 +21,15 @@ pub trait Sink<S: Store> {
     /// Copy bytes from a slice into the `Sink`
     fn copy_bytes(&mut self, bytes: &[u8]);
     /// Recursively create another sink for storing children
-    fn recur(&mut self) -> Self;
-    /// Finish the sink, store the value, and return the identity
-    fn fin(self) -> Result<S::Ident, CanonError>;
+    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error>;
 }
 
 /// Trait to implement reading bytes from an underlying storage
 pub trait Source<S> {
     /// Request n bytes from the sink to be read
     fn read_bytes(&mut self, n: usize) -> &[u8];
-    /// Returns a copy of the Store associated with the source
-    fn store(&self) -> S;
+    /// Returns a reference to the Store associated with the source
+    fn store(&self) -> &S;
 }
 
 /// The main trait for storing/transmitting data, in the case of a wasm environment,
@@ -40,28 +38,39 @@ pub trait Store: Clone {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: core::fmt::Debug + From<CanonError>;
+    type Error: From<InvalidEncoding>;
+
+    /// Write bytes associated with `Ident`
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error>;
 
     /// Get a value from storage, given an identifier
-    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, CanonError>;
+    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error>;
 
     /// Encode a value into the store
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, CanonError>;
+    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error>;
 
-    /// Store raw bytes in the store
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, CanonError>;
+    /// Put raw bytes in store
+    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error>;
+
+    /// For hosted environments, get a reference to the current store
+    #[cfg(feature = "hosted")]
+    fn singleton() -> Self;
 }
 
 impl<S> Canon<S> for S
 where
     S: Store,
 {
-    fn write(&self, _: &mut impl Sink<S>) -> Result<(), CanonError> {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
         Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, CanonError> {
-        Ok(source.store())
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        Ok(source.store().clone())
     }
 
     fn encoded_len(&self) -> usize {
@@ -69,61 +78,73 @@ where
     }
 }
 
-impl<S: Store> Sink<S> for &mut [u8] {
-    fn write_bytes(&mut self, n: usize) -> &mut [u8] {
-        let slice = core::mem::replace(self, &mut []);
-        let (a, b) = slice.split_at_mut(n);
-        *self = b;
-        a
+/// A sink over a slice of bytes
+pub struct ByteSink<'a, S> {
+    bytes: &'a mut [u8],
+    offset: usize,
+    #[allow(unused)]
+    store: S,
+}
+
+impl<'a, S> ByteSink<'a, S> {
+    /// Creates a new sink reading from bytes
+    pub fn new(bytes: &'a mut [u8], store: S) -> Self {
+        ByteSink {
+            bytes,
+            store,
+            offset: 0,
+        }
+    }
+}
+
+impl<'a, S> Sink<S> for ByteSink<'a, S>
+where
+    S: Store,
+{
+    fn write_bytes(&mut self, _n: usize) -> &mut [u8] {
+        unimplemented!("döden");
     }
 
     fn copy_bytes(&mut self, bytes: &[u8]) {
-        let n = bytes.len();
-        let slice = core::mem::replace(self, &mut []);
-        let (a, b) = slice.split_at_mut(n);
-        *self = b;
-        a.copy_from_slice(bytes)
+        let len = bytes.len();
+        self.bytes[self.offset..self.offset + len].copy_from_slice(bytes);
+        self.offset += len;
     }
 
-    fn recur(&mut self) -> Self {
-        unimplemented!("Non-recursive sink")
-    }
-
-    fn fin(self) -> Result<S::Ident, CanonError> {
-        unimplemented!("Non-recursive sink")
+    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error> {
+        self.store.put(t)
     }
 }
 
-impl<S> Source<S> for &[u8] {
+/// A sink over a slice of bytes
+pub struct ByteSource<'a, S> {
+    bytes: &'a [u8],
+    offset: usize,
+    store: S,
+}
+
+impl<'a, S> ByteSource<'a, S> {
+    /// Creates a new sink reading from bytes
+    pub fn new(bytes: &'a [u8], store: S) -> Self {
+        ByteSource {
+            bytes,
+            store,
+            offset: 0,
+        }
+    }
+}
+
+impl<'a, S> Source<S> for ByteSource<'a, S>
+where
+    S: Store,
+{
     fn read_bytes(&mut self, n: usize) -> &[u8] {
-        let slice = core::mem::replace(self, &[]);
-        let (a, b) = slice.split_at(n);
-        *self = b;
-        a
+        let old_offset = self.offset;
+        self.offset += n;
+        &self.bytes[old_offset..old_offset + n]
     }
 
-    fn store(&self) -> S {
-        unimplemented!("Non-recursive source")
-    }
-}
-
-#[derive(Clone, Debug)]
-/// A store that does not store anything
-pub struct VoidStore;
-
-impl Store for VoidStore {
-    type Ident = [u8; 0];
-    type Error = ();
-
-    fn get<T: Canon<Self>>(&self, _: &Self::Ident) -> Result<T, CanonError> {
-        Err(CanonError::MissingValue)
-    }
-
-    fn put<T: Canon<Self>>(&self, _: &T) -> Result<Self::Ident, CanonError> {
-        Ok([])
-    }
-
-    fn put_raw(&self, _: &[u8]) -> Result<Self::Ident, CanonError> {
-        Ok([])
+    fn store(&self) -> &S {
+        &self.store
     }
 }

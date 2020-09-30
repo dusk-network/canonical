@@ -1,7 +1,7 @@
 [package]
 name = "counter"
 version = "0.1.0"
-authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
 [lib]
@@ -13,5 +13,5 @@ canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host" , optional = true }
 
 [features]
-wasm = ["canonical/bridge"]
+hosted = ["canonical/hosted"]
 host = ["canonical_host"]
