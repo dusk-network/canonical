@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use core::hash::Hash;
 
@@ -15,7 +18,15 @@ pub trait IdBuilder<I>: Default {
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    'static + Default + AsRef<[u8]> + AsMut<[u8]> + Clone + Eq + Copy + Hash + core::fmt::Debug
+    'static
+    + Default
+    + AsRef<[u8]>
+    + AsMut<[u8]>
+    + Clone
+    + Eq
+    + Copy
+    + Hash
+    + core::fmt::Debug
 {
     /// Takes bytes to produce an identifier
     type Builder: IdBuilder<Self>;
@@ -48,7 +59,11 @@ pub trait Store: 'static + Clone + Default {
     type Error: From<InvalidEncoding> + core::fmt::Debug;
 
     /// Write bytes associated with `Ident`
-    fn fetch(&self, id: &Self::Ident, into: &mut [u8]) -> Result<(), Self::Error>;
+    fn fetch(
+        &self,
+        id: &Self::Ident,
+        into: &mut [u8],
+    ) -> Result<(), Self::Error>;
 
     /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error>;
