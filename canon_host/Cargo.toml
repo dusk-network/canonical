@@ -1,5 +1,5 @@
 [package]
-authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 name = "canonical_host"
 version = "0.1.0"
