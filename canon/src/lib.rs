@@ -13,14 +13,14 @@ mod canon;
 #[cfg(feature = "hosted")]
 mod bridge;
 #[cfg(feature = "hosted")]
-mod handle_hosted;
+mod repr_hosted;
 #[cfg(feature = "hosted")]
-pub use handle_hosted::Handle;
+pub use repr_hosted::Repr;
 
 #[cfg(feature = "host")]
-mod handle_host;
+mod repr_host;
 #[cfg(feature = "host")]
-pub use handle_host::Handle;
+pub use repr_host::Repr;
 
 #[cfg(feature = "hosted")]
 pub use bridge::BridgeStore;

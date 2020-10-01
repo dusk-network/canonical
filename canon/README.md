@@ -27,11 +27,11 @@ where
     S: Store,
 {
     Empty,
-    Node { value: T, prev: Handle<Self, S> },
+    Node { value: T, prev: Repr<Self, S> },
 }
 ```
 
-The `Handle` type here acts as a `Box`, but is supported in non-allocating code, the trick being that the allocation happens outside, in a special `Store` abstraction.
+The `Repr` type here acts as a `Box`, but is supported in non-allocating code, the trick being that the allocation happens outside, in a special `Store` abstraction.
 
 ```rust
 pub trait Store {
