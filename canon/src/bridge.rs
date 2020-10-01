@@ -56,7 +56,7 @@ impl From<InvalidEncoding> for BridgeStoreError {
 
 impl<I> Store for BridgeStore<I>
 where
-    I: Ident,
+    I: 'static + Ident,
 {
     type Ident = I;
     type Error = InvalidEncoding;
