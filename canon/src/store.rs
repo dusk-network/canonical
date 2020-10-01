@@ -1,7 +1,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use std::hash::Hash;
+use core::hash::Hash;
 
 use crate::canon::{Canon, InvalidEncoding};
 
@@ -13,8 +13,8 @@ pub trait Ident:
     + Clone
     + core::fmt::Debug
     + Eq
-    + Hash
     + Copy
+    + Hash
 {
 }
 
@@ -25,8 +25,8 @@ impl<T> Ident for T where
         + Clone
         + core::fmt::Debug
         + Eq
-        + Hash
         + Copy
+        + Hash
 {
 }
 
