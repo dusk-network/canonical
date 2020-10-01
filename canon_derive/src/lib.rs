@@ -11,7 +11,8 @@ use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, punctuated::Punctuated, Data, DeriveInput,
     Fields, GenericParam, Generics, Path, PathArguments, PathSegment,
-    TraitBound, TraitBoundModifier, TypeParam, TypeParamBound, WherePredicate,
+    TraitBound, TraitBoundModifier, Type, TypeParam, TypeParamBound,
+    WherePredicate,
 };
 
 const FIELD_NAMES: [&str; 16] = [
@@ -90,12 +91,25 @@ fn mentions_store(generics: &Generics) -> Option<Ident> {
         for pred in &where_clause.predicates {
             if let WherePredicate::Type(bound) = pred {
                 for b in &bound.bounds {
-                    if let TypeParamBound::Trait(polytraitref) = b {
+                    if let TypeParamBound::Trait(traitbound) = b {
                         if let Some(PathSegment { ident, .. }) =
-                            polytraitref.path.segments.last()
+                            traitbound.path.segments.last()
                         {
                             if ident == "Store" {
-                                return Some(ident.clone());
+                                if let Type::Path(type_path) = &bound.bounded_ty
+                                {
+                                    if type_path.path.segments.len() == 1 {
+                                        // Single type before, like [S]: Store
+
+                                        let segment = type_path
+                                            .path
+                                            .segments
+                                            .first()
+                                            .expect("len > 0");
+
+                                        return Some(segment.ident.clone());
+                                    }
+                                }
                             }
                         }
                     }
