@@ -1,16 +1,32 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
+use std::hash::Hash;
+
 use crate::canon::{Canon, InvalidEncoding};
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
+    Default
+    + AsRef<[u8]>
+    + AsMut<[u8]>
+    + Clone
+    + core::fmt::Debug
+    + Eq
+    + Hash
+    + Copy
 {
 }
 
 impl<T> Ident for T where
-    T: Default + AsRef<[u8]> + AsMut<[u8]> + Clone + core::fmt::Debug
+    T: Default
+        + AsRef<[u8]>
+        + AsMut<[u8]>
+        + Clone
+        + core::fmt::Debug
+        + Eq
+        + Hash
+        + Copy
 {
 }
 
@@ -34,7 +50,7 @@ pub trait Source<S> {
 
 /// The main trait for storing/transmitting data, in the case of a wasm environment,
 /// this is generally implemented with host calls
-pub trait Store: Clone {
+pub trait Store: Clone + 'static {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit

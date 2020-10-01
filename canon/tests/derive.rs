@@ -65,6 +65,23 @@ struct MonsterStruct<T> {
     i: I<T>,
 }
 
+#[derive(Clone, Canon, Debug)]
+struct StoreIncludedA<S: Store> {
+    junk: u32,
+    store: S,
+}
+
+#[derive(Clone, Canon, Debug)]
+struct StoreIncludedB<S>
+where
+    S: Store,
+{
+    junk: u32,
+    store: S,
+}
+
+//////////////
+
 fn serialize_deserialize<
     T: Canon<MemStore> + Clone + std::fmt::Debug + PartialEq,
 >(
@@ -76,6 +93,27 @@ fn serialize_deserialize<
 
     let restored = store.get(&id).unwrap();
     assert_eq!(t, restored);
+}
+
+#[test]
+fn store_included() {
+    let store = MemStore::new();
+
+    let thing_a = StoreIncludedA {
+        junk: 32,
+        store: store.clone(),
+    };
+
+    let id_a = store.put(&thing_a).unwrap();
+
+    let thing_b = StoreIncludedB {
+        junk: 32,
+        store: store.clone(),
+    };
+
+    let id_b = store.put(&thing_b).unwrap();
+
+    assert_eq!(id_a, id_b);
 }
 
 #[test]
