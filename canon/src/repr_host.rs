@@ -1,9 +1,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use std::rc::Rc;
-
+use std::borrow::Cow;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::{Canon, Sink, Source, Store};
 
@@ -114,6 +114,68 @@ where
         match &self {
             Repr::Value { rc, .. } => Ok((**rc).clone()),
             Repr::Ident { ident, store } => store.get(ident),
+        }
+    }
+
+    /// Retrieve the value behind this representation
+    pub fn val(&self) -> Result<Cow<T>, S::Error> {
+        match self {
+            Repr::Value { rc, .. } => Ok(Cow::Borrowed(&*rc)),
+            Repr::Ident { ident, store } => {
+                let t = store.get(ident)?;
+                Ok(Cow::Owned(t))
+            }
+        }
+    }
+
+    /// Retrieve a mutable value behind this representation and run a closure on it
+    pub fn val_mut<R, F>(&mut self, f: F) -> Result<R, S::Error>
+    where
+        F: Fn(&mut T) -> Result<R, S::Error>,
+    {
+        match self {
+            Repr::Value {
+                ref mut rc,
+                ref mut cached_ident,
+            } => {
+                // clear cache
+                *cached_ident = RefCell::new(None);
+                f(Rc::make_mut(rc))
+            }
+            Repr::Ident { ident, store } => {
+                let mut t = store.get(ident)?;
+                let ret = f(&mut t);
+                *self = Repr::Value {
+                    rc: Rc::new(t),
+                    cached_ident: RefCell::new(None),
+                };
+                ret
+            }
+        }
+    }
+
+    /// Unwrap or clone the contained item
+    pub fn unwrap_or_clone(self) -> Result<T, S::Error> {
+        match self {
+            Repr::Value { rc, .. } => Ok(match Rc::try_unwrap(rc) {
+                Ok(t) => t,
+                Err(rc) => (*rc).clone(),
+            }),
+            Repr::Ident { ident, store } => store.get(&ident),
+        }
+    }
+
+    /// Get the identifier for the `Repr`
+    pub fn get_id(&self) -> Result<S::Ident, S::Error> {
+        match self {
+            Repr::Value { cached_ident, .. } => {
+                if let Some(ident) = &*cached_ident.borrow() {
+                    Ok((**ident).clone())
+                } else {
+                    todo!()
+                }
+            }
+            Repr::Ident { ident, .. } => Ok(ident.clone()),
         }
     }
 }

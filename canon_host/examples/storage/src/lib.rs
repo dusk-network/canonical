@@ -21,11 +21,11 @@ impl<S: Store> Storage<S> {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Store};
+    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
 
     const PAGE_SIZE: usize = 1024 * 4;
 
-    type BS = BridgeStore<[u8; 8]>;
+    type BS = BridgeStore<Id32>;
 
     impl Storage<BS> {
         pub fn push(&mut self, value: u8) -> Result<(), <BS as Store>::Error> {

@@ -2,6 +2,7 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use core::marker::PhantomData;
+use core::mem::{self, MaybeUninit};
 
 use crate::{Canon, InvalidEncoding, Sink, Source, Store};
 
@@ -43,7 +44,7 @@ number!(i128, 16);
 
 impl<T, S, const N: usize> Canon<S> for [T; N]
 where
-    T: Canon<S> + Default + Copy,
+    T: Canon<S> + Sized,
     S: Store,
 {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
@@ -54,11 +55,22 @@ where
     }
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let mut array = [T::default(); N];
-        for i in 0..N {
-            array[i] = T::read(source)?;
+        // Check issue here for discussion on why this unsafety is neccesary
+        // https://github.com/rust-lang/rust/issues/61956
+        unsafe {
+            let mut arr: [MaybeUninit<T>; N] =
+                MaybeUninit::uninit().assume_init();
+
+            for elem in &mut arr[..] {
+                *elem = MaybeUninit::new(T::read(source)?);
+            }
+
+            let transmuted =
+                mem::transmute_copy::<[MaybeUninit<T>; N], [T; N]>(&arr);
+            mem::forget(arr);
+
+            Ok(transmuted)
         }
-        Ok(array)
     }
 
     fn encoded_len(&self) -> usize {

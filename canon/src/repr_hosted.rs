@@ -14,7 +14,7 @@ pub enum Repr<T, S: Store> {
         bytes: S::Ident,
         /// The length of the encoded value
         len: u8,
-        #[doc(hidden)]
+        /// The represented type
         _marker: PhantomData<T>,
     },
     /// Value is stored host-side referenced by an identifier

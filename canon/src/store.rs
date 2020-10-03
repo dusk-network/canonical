@@ -10,6 +10,7 @@ pub trait Ident:
     Default
     + AsRef<[u8]>
     + AsMut<[u8]>
+    + for<'any> From<&'any [u8]>
     + Clone
     + core::fmt::Debug
     + Eq
@@ -22,6 +23,7 @@ impl<T> Ident for T where
     T: Default
         + AsRef<[u8]>
         + AsMut<[u8]>
+        + for<'any> From<&'any [u8]>
         + Clone
         + core::fmt::Debug
         + Eq
@@ -54,7 +56,7 @@ pub trait Store: Clone + 'static {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: From<InvalidEncoding>;
+    type Error: From<InvalidEncoding> + core::fmt::Debug;
 
     /// Write bytes associated with `Ident`
     fn fetch(

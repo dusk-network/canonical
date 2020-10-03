@@ -28,6 +28,8 @@ pub use bridge::BridgeStore;
 mod implementations;
 mod store;
 
-pub use canon::{Canon, InvalidEncoding};
+mod id;
 
+pub use canon::{Canon, InvalidEncoding};
+pub use id::Id32;
 pub use store::{ByteSink, ByteSource, Ident, Sink, Source, Store};

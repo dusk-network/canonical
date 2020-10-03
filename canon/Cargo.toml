@@ -4,10 +4,13 @@ version = "0.1.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 
+[dependencies]
+blake2b_simd = { version = "0.3", default-features = false }
+
 [dev-dependencies]
 canonical_host = { path = "../canon_host" }
 canonical_derive = { path = "../canon_derive" }
 
 [features]
 hosted = []
-host = []
+host = ["blake2b_simd/std"]
