@@ -1,15 +1,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use std::rc::Rc;
-
+use std::borrow::Cow;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::{Canon, Sink, Source, Store};
 
 #[derive(Clone, Debug)]
-/// A Handle to a value that is either local or in storage
-pub enum Handle<T, S: Store> {
+/// A Repr to a value that is either local or in storage
+pub enum Repr<T, S: Store> {
     /// Value is kept reference counted locally
     Value {
         /// The reference counted value on the heap
@@ -26,14 +26,14 @@ pub enum Handle<T, S: Store> {
     },
 }
 
-impl<T, S> Canon<S> for Handle<T, S>
+impl<T, S> Canon<S> for Repr<T, S>
 where
     S: Store,
     T: Canon<S>,
 {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         match self {
-            Handle::Value { rc, cached_ident } => {
+            Repr::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
                 let ident_len = S::Ident::default().as_ref().len();
 
@@ -54,7 +54,7 @@ where
                     sink.copy_bytes(&ident.as_ref());
                 }
             }
-            Handle::Ident { ref ident, .. } => {
+            Repr::Ident { ref ident, .. } => {
                 Canon::<S>::write(&mut 0u8, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
@@ -66,7 +66,7 @@ where
         let len = u8::read(source)?;
         if len > 0 {
             // inlined value
-            Ok(Handle::Value {
+            Ok(Repr::Value {
                 rc: Rc::new(T::read(source)?),
                 cached_ident: RefCell::new(None),
             })
@@ -76,7 +76,7 @@ where
             let slice = ident.as_mut();
             let bytes = source.read_bytes(slice.len());
             slice.copy_from_slice(bytes);
-            Ok(Handle::Ident {
+            Ok(Repr::Ident {
                 ident,
                 store: source.store().clone(),
             })
@@ -86,34 +86,96 @@ where
     fn encoded_len(&self) -> usize {
         let ident_len = S::Ident::default().as_ref().len();
         match &self {
-            Handle::Value { rc, .. } => {
+            Repr::Value { rc, .. } => {
                 // If the length is larger nthan `ident_len` + 1,
                 // The value will not be inlined, and saved as tag + ident
                 1 + core::cmp::max(rc.encoded_len() as usize, ident_len)
             }
-            Handle::Ident { .. } => 1 + ident_len,
+            Repr::Ident { .. } => 1 + ident_len,
         }
     }
 }
 
-impl<T, S> Handle<T, S>
+impl<T, S> Repr<T, S>
 where
     S: Store,
     T: Canon<S> + Clone,
 {
-    /// Construct a new `Handle` from value `t`
+    /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Result<Self, S::Error> {
-        Ok(Handle::Value {
+        Ok(Repr::Value {
             rc: Rc::new(t),
             cached_ident: RefCell::new(None),
         })
     }
 
-    /// Returns the value behind the `Handle`
+    /// Returns the value behind the `Repr`
     pub fn restore(&self) -> Result<T, S::Error> {
         match &self {
-            Handle::Value { rc, .. } => Ok((**rc).clone()),
-            Handle::Ident { ident, store } => store.get(ident),
+            Repr::Value { rc, .. } => Ok((**rc).clone()),
+            Repr::Ident { ident, store } => store.get(ident),
+        }
+    }
+
+    /// Retrieve the value behind this representation
+    pub fn val(&self) -> Result<Cow<T>, S::Error> {
+        match self {
+            Repr::Value { rc, .. } => Ok(Cow::Borrowed(&*rc)),
+            Repr::Ident { ident, store } => {
+                let t = store.get(ident)?;
+                Ok(Cow::Owned(t))
+            }
+        }
+    }
+
+    /// Retrieve a mutable value behind this representation and run a closure on it
+    pub fn val_mut<R, F>(&mut self, f: F) -> Result<R, S::Error>
+    where
+        F: Fn(&mut T) -> Result<R, S::Error>,
+    {
+        match self {
+            Repr::Value {
+                ref mut rc,
+                ref mut cached_ident,
+            } => {
+                // clear cache
+                *cached_ident = RefCell::new(None);
+                f(Rc::make_mut(rc))
+            }
+            Repr::Ident { ident, store } => {
+                let mut t = store.get(ident)?;
+                let ret = f(&mut t);
+                *self = Repr::Value {
+                    rc: Rc::new(t),
+                    cached_ident: RefCell::new(None),
+                };
+                ret
+            }
+        }
+    }
+
+    /// Unwrap or clone the contained item
+    pub fn unwrap_or_clone(self) -> Result<T, S::Error> {
+        match self {
+            Repr::Value { rc, .. } => Ok(match Rc::try_unwrap(rc) {
+                Ok(t) => t,
+                Err(rc) => (*rc).clone(),
+            }),
+            Repr::Ident { ident, store } => store.get(&ident),
+        }
+    }
+
+    /// Get the identifier for the `Repr`
+    pub fn get_id(&self) -> Result<S::Ident, S::Error> {
+        match self {
+            Repr::Value { cached_ident, .. } => {
+                if let Some(ident) = &*cached_ident.borrow() {
+                    Ok((**ident).clone())
+                } else {
+                    todo!()
+                }
+            }
+            Repr::Ident { ident, .. } => Ok(ident.clone()),
         }
     }
 }

@@ -1,7 +1,7 @@
-use canonical::{Canon, Handle, Store};
+use canonical::{Canon, Repr, Store};
 use canonical_derive::Canon;
 
-/// Proof of concept stack structure using a self-referential handle
+/// Proof of concept stack structure using a self-referential repr
 #[derive(Clone, Canon, Debug)]
 pub enum Stack<T, S: Store> {
     /// Represents an empty stack.
@@ -10,8 +10,8 @@ pub enum Stack<T, S: Store> {
     Node {
         /// The value on top of the stack
         value: T,
-        /// A handle referencing the previous state of the stack
-        prev: Handle<Self, S>,
+        /// A repr referencing the previous state of the stack
+        prev: Repr<Self, S>,
     },
 }
 
@@ -30,7 +30,7 @@ where
         let root = core::mem::replace(self, Stack::Empty);
         *self = Stack::Node {
             value: t,
-            prev: Handle::<_, S>::new(root)?,
+            prev: Repr::<_, S>::new(root)?,
         };
         Ok(())
     }

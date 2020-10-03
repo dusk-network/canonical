@@ -26,11 +26,11 @@ impl Counter {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Store};
+    use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
 
     const PAGE_SIZE: usize = 1024 * 4;
 
-    type BS = BridgeStore<[u8; 8]>;
+    type BS = BridgeStore<Id32>;
 
     impl Counter {
         pub fn read_value(&self) -> i32 {

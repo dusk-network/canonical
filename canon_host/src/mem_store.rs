@@ -1,19 +1,18 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-use std::collections::hash_map::{DefaultHasher, HashMap};
+use std::collections::HashMap;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
 use wasmi;
 
-use canonical::{ByteSink, Canon, InvalidEncoding, Sink, Source, Store};
+use canonical::{ByteSink, Canon, Id32, InvalidEncoding, Sink, Source, Store};
 use canonical_derive::Canon;
 
 #[derive(Default, Debug)]
-struct MemStoreInner(HashMap<[u8; 8], Vec<u8>>);
+struct MemStoreInner(HashMap<Id32, Vec<u8>>);
 
 /// An in-memory store implemented with a hashmap
 #[derive(Default, Debug, Clone)]
@@ -60,14 +59,8 @@ impl From<InvalidEncoding> for MemError {
     }
 }
 
-fn hash_of(bytes: &[u8]) -> [u8; 8] {
-    let mut hasher = DefaultHasher::new();
-    bytes[..].hash(&mut hasher);
-    hasher.finish().to_be_bytes()
-}
-
 impl Store for MemStore {
-    type Ident = [u8; 8];
+    type Ident = Id32;
     type Error = MemError;
 
     fn fetch(
@@ -113,16 +106,16 @@ impl Store for MemStore {
 
         debug_assert!(bytes[..].len() == len);
 
-        let hash = hash_of(&bytes[..]);
+        let ident = Self::Ident::from(&bytes[..]);
 
-        self.0.write().0.insert(hash, bytes);
-        Ok(hash)
+        self.0.write().0.insert(ident, bytes);
+        Ok(ident)
     }
 
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
-        let hash = hash_of(bytes);
-        self.0.write().0.insert(hash, bytes.to_vec());
-        Ok(hash)
+        let ident = Self::Ident::from(bytes);
+        self.0.write().0.insert(ident, bytes.to_vec());
+        Ok(ident)
     }
 }
 

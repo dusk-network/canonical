@@ -13,14 +13,14 @@ mod canon;
 #[cfg(feature = "hosted")]
 mod bridge;
 #[cfg(feature = "hosted")]
-mod handle_hosted;
+mod repr_hosted;
 #[cfg(feature = "hosted")]
-pub use handle_hosted::Handle;
+pub use repr_hosted::Repr;
 
 #[cfg(feature = "host")]
-mod handle_host;
+mod repr_host;
 #[cfg(feature = "host")]
-pub use handle_host::Handle;
+pub use repr_host::Repr;
 
 #[cfg(feature = "hosted")]
 pub use bridge::BridgeStore;
@@ -28,6 +28,8 @@ pub use bridge::BridgeStore;
 mod implementations;
 mod store;
 
-pub use canon::{Canon, InvalidEncoding};
+mod id;
 
+pub use canon::{Canon, InvalidEncoding};
+pub use id::Id32;
 pub use store::{ByteSink, ByteSource, Ident, Sink, Source, Store};
