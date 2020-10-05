@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use crate::store::{Sink, Source, Store};
 
 /// The sole error that can be encountered by reading data
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InvalidEncoding;
 
 impl<S: Store> Canon<S> for InvalidEncoding {
@@ -24,7 +24,7 @@ impl<S: Store> Canon<S> for InvalidEncoding {
 }
 
 /// Trait to read/write values as bytes
-pub trait Canon<S: Store>: Sized {
+pub trait Canon<S: Store>: Sized + Clone {
     /// Write the value as bytes to a `Sink`
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error>;
     /// Read the value from bytes in a `Source`

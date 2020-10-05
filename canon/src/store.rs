@@ -3,43 +3,40 @@
 
 use core::hash::Hash;
 
-use crate::canon::{Canon, InvalidEncoding};
+use crate::{Canon, DrySink, InvalidEncoding};
+
+/// Trait for types that takes bytes and produces an identifier
+pub trait IdBuilder<I>: Default {
+    /// Write bytes to the id state
+    fn write_bytes(&mut self, bytes: &[u8]);
+    /// Consume builder and create an Ident
+    fn fin(self) -> I;
+}
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    Default
+    'static
+    + Default
     + AsRef<[u8]>
     + AsMut<[u8]>
-    + for<'any> From<&'any [u8]>
     + Clone
-    + core::fmt::Debug
     + Eq
     + Copy
     + Hash
+    + core::fmt::Debug
 {
-}
-
-impl<T> Ident for T where
-    T: Default
-        + AsRef<[u8]>
-        + AsMut<[u8]>
-        + for<'any> From<&'any [u8]>
-        + Clone
-        + core::fmt::Debug
-        + Eq
-        + Copy
-        + Hash
-{
+    /// Takes bytes to produce an identifier
+    type Builder: IdBuilder<Self>;
 }
 
 /// Trait to implement writing bytes to an underlying storage
 pub trait Sink<S: Store> {
-    /// Request n bytes to be written
-    fn write_bytes(&mut self, n: usize) -> &mut [u8];
     /// Copy bytes from a slice into the `Sink`
     fn copy_bytes(&mut self, bytes: &[u8]);
     /// Recursively create another sink for storing children
-    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error>;
+    fn recur<T: Canon<S>>(&self, t: &T) -> Result<S::Ident, S::Error>;
+    /// Consume the sink and return the ident of written data
+    fn fin(self) -> S::Ident;
 }
 
 /// Trait to implement reading bytes from an underlying storage
@@ -74,6 +71,13 @@ pub trait Store: Clone + 'static {
     /// Put raw bytes in store
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error>;
 
+    /// Calculate the Identity of a type without storing it
+    fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
+        let mut sink = DrySink::new();
+        let _len = t.write(&mut sink);
+        sink.fin().into()
+    }
+
     /// For hosted environments, get a reference to the current store
     #[cfg(feature = "hosted")]
     fn singleton() -> Self;
@@ -97,20 +101,24 @@ where
 }
 
 /// A sink over a slice of bytes
-pub struct ByteSink<'a, S> {
+pub struct ByteSink<'a, S: Store> {
     bytes: &'a mut [u8],
     offset: usize,
-    #[allow(unused)]
     store: S,
+    builder: <S::Ident as Ident>::Builder,
 }
 
-impl<'a, S> ByteSink<'a, S> {
+impl<'a, S> ByteSink<'a, S>
+where
+    S: Store,
+{
     /// Creates a new sink reading from bytes
     pub fn new(bytes: &'a mut [u8], store: S) -> Self {
         ByteSink {
             bytes,
             store,
             offset: 0,
+            builder: Default::default(),
         }
     }
 }
@@ -119,18 +127,19 @@ impl<'a, S> Sink<S> for ByteSink<'a, S>
 where
     S: Store,
 {
-    fn write_bytes(&mut self, _n: usize) -> &mut [u8] {
-        unimplemented!("döden");
-    }
-
     fn copy_bytes(&mut self, bytes: &[u8]) {
+        self.builder.write_bytes(bytes);
         let len = bytes.len();
         self.bytes[self.offset..self.offset + len].copy_from_slice(bytes);
         self.offset += len;
     }
 
-    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error> {
+    fn recur<T: Canon<S>>(&self, t: &T) -> Result<S::Ident, S::Error> {
         self.store.put(t)
+    }
+
+    fn fin(self) -> S::Ident {
+        self.builder.fin()
     }
 }
 

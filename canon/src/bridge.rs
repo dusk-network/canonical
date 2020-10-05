@@ -29,7 +29,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BridgeStoreError {
     InvalidEncoding,
 }

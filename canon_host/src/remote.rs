@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 
 /// A representation of a Module of erased type, with its root state reachable
 /// from the Id in the store.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Remote<S: Store> {
     id: S::Ident,
     store: S,

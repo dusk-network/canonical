@@ -68,7 +68,7 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
 }
 
 /// A type with a corresponding wasm module
-#[derive(Canon, Debug)]
+#[derive(Canon, Debug, Clone)]
 pub struct Wasm<State: Module, S: Store> {
     state: State,
     _marker: PhantomData<S>,

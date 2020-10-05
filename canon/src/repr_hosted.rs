@@ -23,6 +23,7 @@ pub enum Repr<T, S: Store> {
 
 impl<T, S> Canon<S> for Repr<T, S>
 where
+    T: Canon<S>,
     S: Store,
 {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {

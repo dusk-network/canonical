@@ -25,11 +25,12 @@ pub use repr_host::Repr;
 #[cfg(feature = "hosted")]
 pub use bridge::BridgeStore;
 
+mod dry_sink;
+mod id;
 mod implementations;
 mod store;
 
-mod id;
-
 pub use canon::{Canon, InvalidEncoding};
+pub use dry_sink::DrySink;
 pub use id::Id32;
-pub use store::{ByteSink, ByteSource, Ident, Sink, Source, Store};
+pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
