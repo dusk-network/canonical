@@ -6,7 +6,6 @@ edition = "2018"
 readme = "README.md"
 repository = "https://github.com/dusk-network/canonical/canon_collections"
 keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
-categories =["Database implementations", "Encoding", "External FFI bindings", "No standard library", "WebAssembly"]
 description = "Data structures for use with Canonical"
 license = "MPL-2.0"
 
