@@ -14,9 +14,9 @@ license = "MPL-2.0"
 blake2b_simd = { version = "0.3", default-features = false }
 
 [dev-dependencies]
-canonical_host = "0.1.0"
-canonical_derive = "0.1.0"
-canonical_collections = "0.1.0"
+canonical_host = { path = "../canon_host", version = "0.1.0" }
+canonical_derive = { path = "../canon_derive", version = "0.1.0" }
+canonical_collections = { path = "../canon_collections", version = "0.1.0" }
 
 [features]
 hosted = []

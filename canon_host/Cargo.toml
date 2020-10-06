@@ -11,11 +11,11 @@ description = "The plumbing for the host responsible for the wasm host calls."
 license = "MPL-2.0"
 
 [dependencies]
-lazy_static = "*"
-parking_lot = "*"
-canonical = "0.1.0"
-canonical_derive = "0.1.0"
+lazy_static = "1.4"
+parking_lot = "0.11"
 wasmi = "0.6.0"
+canonical = { path = "../canon", version = "0.1.0" }
+canonical_derive = { path = "../canon_derive", version = "0.1.0" }
 
 [dev-dependencies]
 counter = { path = "examples/counter", features = ["host"] }

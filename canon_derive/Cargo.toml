@@ -14,7 +14,7 @@ license = "MPL-2.0"
 proc-macro2 = "1.0.10"
 quote = "1.0.3"
 syn = { version = "1.0.17" }
-canonical = "0.1.0"
+canonical = { path = "../canon", version = "0.1.0" }
 
 [lib]
 proc-macro = true
