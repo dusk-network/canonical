@@ -6,7 +6,7 @@ edition = "2018"
 readme = "README.md"
 repository = "https://github.com/dusk-network/canonical"
 keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
-categories =["Database implementations", "Data structures", "Encoding", "External FFI bindings", "No standard library", "WebAssembly"]
+categories =["Database implementations", "Encoding", "External FFI bindings", "No standard library", "WebAssembly"]
 description = "A serialization library built for no_std environments where you want to deal with recursive datastructures,"
 license = "MPL-2.0"
 
