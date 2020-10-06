@@ -10,6 +10,7 @@ blake2b_simd = { version = "0.3", default-features = false }
 [dev-dependencies]
 canonical_host = { path = "../canon_host" }
 canonical_derive = { path = "../canon_derive" }
+canonical_collections = { path = "../canon_collections" }
 
 [features]
 hosted = []

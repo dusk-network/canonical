@@ -8,7 +8,7 @@ use canonical::{Canon, Store};
 use canonical_collections::Stack;
 use canonical_derive::Canon;
 
-#[derive(Canon, Debug)]
+#[derive(Canon, Debug, Clone)]
 pub struct Storage<S: Store>(Stack<u8, S>);
 
 impl<S: Store> Storage<S> {

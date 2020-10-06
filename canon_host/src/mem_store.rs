@@ -8,7 +8,9 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use wasmi;
 
-use canonical::{ByteSink, Canon, Id32, InvalidEncoding, Sink, Source, Store};
+use canonical::{
+    ByteSink, Canon, DrySink, Id32, InvalidEncoding, Sink, Source, Store,
+};
 use canonical_derive::Canon;
 
 #[derive(Default, Debug)]
@@ -36,7 +38,7 @@ struct MemSource<'a, S> {
     store: S,
 }
 
-#[derive(Canon, Debug)]
+#[derive(Canon, Debug, Clone)]
 pub enum MemError {
     MissingValue,
     InvalidEncoding,
@@ -103,37 +105,34 @@ impl Store for MemStore {
 
         let mut sink = ByteSink::new(&mut bytes, self.clone());
         Canon::<Self>::write(t, &mut sink)?;
-
-        debug_assert!(bytes[..].len() == len);
-
-        let ident = Self::Ident::from(&bytes[..]);
+        let ident = sink.fin();
 
         self.0.write().0.insert(ident, bytes);
         Ok(ident)
     }
 
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
-        let ident = Self::Ident::from(bytes);
+        let mut sink = DrySink::<Self>::new();
+        sink.copy_bytes(bytes);
+        let ident = sink.fin();
         self.0.write().0.insert(ident, bytes.to_vec());
         Ok(ident)
     }
 }
 
 impl<S: Store> Sink<S> for MemSink<S> {
-    fn write_bytes(&mut self, n: usize) -> &mut [u8] {
-        let ofs = self.bytes.len();
-        self.bytes.resize_with(n, || 0);
-        &mut self.bytes[ofs..]
-    }
-
     fn copy_bytes(&mut self, bytes: &[u8]) {
         let ofs = self.bytes.len();
         self.bytes.resize_with(ofs + bytes.len(), || 0);
         self.bytes[ofs..].clone_from_slice(bytes)
     }
 
-    fn recur<T: Canon<S>>(&mut self, t: &T) -> Result<S::Ident, S::Error> {
+    fn recur<T: Canon<S>>(&self, t: &T) -> Result<S::Ident, S::Error> {
         self.store.put(t)
+    }
+
+    fn fin(self) -> S::Ident {
+        todo!()
     }
 }
 
