@@ -3,12 +3,18 @@ authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 name = "canonical_host"
 version = "0.1.0"
+readme = "README.md"
+repository = "https://github.com/dusk-network/canonical/canon_host"
+keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
+categories =["Database implementations", "Encoding", "External FFI bindings", "No standard library", "WebAssembly"]
+description = "The plumbing for the host responsible for the wasm host calls."
+license = "MPL-2.0"
 
 [dependencies]
 lazy_static = "*"
 parking_lot = "*"
-canonical = { path = "../canon" }
-canonical_derive = { path = "../canon_derive" }
+canonical = "0.1.0"
+canonical_derive = "0.1.0"
 wasmi = "0.6.0"
 
 [dev-dependencies]
