@@ -26,6 +26,16 @@ pub enum Repr<T, S: Store> {
     },
 }
 
+impl<T, S> PartialEq for Repr<T, S>
+where
+    S: Store,
+    T: Canon<S>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.get_id() == other.get_id()
+    }
+}
+
 impl<T, S> Canon<S> for Repr<T, S>
 where
     S: Store,
@@ -132,7 +142,7 @@ where
     /// Retrieve a mutable value behind this representation and run a closure on it
     pub fn val_mut<R, F>(&mut self, f: F) -> Result<R, S::Error>
     where
-        F: Fn(&mut T) -> Result<R, S::Error>,
+        F: FnOnce(&mut T) -> Result<R, S::Error>,
     {
         match self {
             Repr::Value {
@@ -167,19 +177,19 @@ where
     }
 
     /// Get the identifier for the `Repr`
-    pub fn get_id(&self) -> Result<S::Ident, S::Error> {
+    pub fn get_id(&self) -> S::Ident {
         match self {
             Repr::Value { cached_ident, rc } => {
                 let mut ident_cell = cached_ident.borrow_mut();
                 if let Some(ident) = &mut *ident_cell {
-                    Ok(*ident.clone())
+                    *ident.clone()
                 } else {
                     let ident = S::ident(&**rc);
                     *ident_cell = Some(Box::new(ident.clone()));
-                    Ok(ident)
+                    ident
                 }
             }
-            Repr::Ident { ident, .. } => Ok(ident.clone()),
+            Repr::Ident { ident, .. } => ident.clone(),
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Collection of canonical datastructures
 
-#![cfg_attr(feature = "hosted", no_std)]
+#![cfg_attr(not(feature = "host"), no_std)]
 #![deny(missing_docs)]
 
 mod stack;

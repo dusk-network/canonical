@@ -11,11 +11,10 @@ license = "MPL-2.0"
 
 [dependencies]
 canonical_derive = { path = "../canon_derive", version = "0.1.0" }
-canonical = { path = "../canon", version = "0.1.0", features = ["host"] }
+canonical = { path = "../canon", version = "0.1.0" }
 
 [dev-dependencies]
 canonical_host = { path = "../canon_host", version = "0.1.0" }
 
 [features]
-hosted = ["canonical/hosted"]
 host = ["canonical/host"]

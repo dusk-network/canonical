@@ -79,7 +79,7 @@ pub trait Store: Clone + 'static {
     }
 
     /// For hosted environments, get a reference to the current store
-    #[cfg(feature = "hosted")]
+    #[cfg(not(feature = "host"))]
     fn singleton() -> Self;
 }
 
