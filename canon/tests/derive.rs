@@ -53,6 +53,9 @@ struct H<T>(T);
 struct I<T>(Vec<T>);
 
 #[derive(Clone, Canon, PartialEq, Debug)]
+struct J(String);
+
+#[derive(Clone, Canon, PartialEq, Debug)]
 struct MonsterStruct<T> {
     a: A,
     b: B,
@@ -63,6 +66,7 @@ struct MonsterStruct<T> {
     g: G,
     h: H<T>,
     i: I<T>,
+    j: J,
 }
 
 #[derive(Clone, Canon, Debug)]
@@ -147,5 +151,6 @@ fn derives() {
         g: G::A { alice: 73, bob: 3 },
         h: H(E::B),
         i: I(vec![E::B, E::B, E::A]),
+        j: J("Happy happy joy joy!".into()),
     });
 }

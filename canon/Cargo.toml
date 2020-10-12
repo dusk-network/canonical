@@ -11,6 +11,7 @@ license = "MPL-2.0"
 
 [dependencies]
 blake2b_simd = { version = "0.3", default-features = false }
+arrayvec = { version = "0.5" }
 
 [dev-dependencies]
 canonical_host = { path = "../canon_host", version = "0.1.0" }

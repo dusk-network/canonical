@@ -35,7 +35,7 @@ where
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
             }
             Repr::Ident(ref ident) => {
-                Canon::<S>::write(&0u8, sink)?;
+                Canon::<S>::write(&0xffu8, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
@@ -44,7 +44,13 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
-        if len > 0 {
+        if len == 0xff {
+            // ident tag
+            let mut ident = <S as Store>::Ident::default();
+            let bytes = source.read_bytes(ident.as_ref().len());
+            ident.as_mut().copy_from_slice(bytes);
+            Ok(Repr::Ident(ident))
+        } else {
             let mut bytes = <S as Store>::Ident::default();
             bytes.as_mut()[0..len as usize]
                 .copy_from_slice(source.read_bytes(len as usize));
@@ -53,11 +59,6 @@ where
                 len,
                 _marker: PhantomData,
             })
-        } else {
-            let mut ident = <S as Store>::Ident::default();
-            let bytes = source.read_bytes(ident.as_ref().len());
-            ident.as_mut().copy_from_slice(bytes);
-            Ok(Repr::Ident(ident))
         }
     }
 

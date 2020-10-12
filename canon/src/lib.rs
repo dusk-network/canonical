@@ -3,10 +3,7 @@
 
 //! Canonical, a no_std, host-allocating serialization library
 #![cfg_attr(feature = "hosted", no_std)]
-#![allow(incomplete_features)]
 #![deny(missing_docs)]
-#![feature(const_generics)]
-#![feature(lang_items)]
 
 mod canon;
 
@@ -15,15 +12,14 @@ mod bridge;
 #[cfg(feature = "hosted")]
 mod repr_hosted;
 #[cfg(feature = "hosted")]
+pub use bridge::BridgeStore;
+#[cfg(feature = "hosted")]
 pub use repr_hosted::Repr;
 
 #[cfg(feature = "host")]
 mod repr_host;
 #[cfg(feature = "host")]
 pub use repr_host::Repr;
-
-#[cfg(feature = "hosted")]
-pub use bridge::BridgeStore;
 
 mod dry_sink;
 mod id;

@@ -71,7 +71,7 @@ pub trait Store: Clone + 'static {
     /// Put raw bytes in store
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error>;
 
-    /// Calculate the Identity of a type without storing it
+    /// Calculate the Identifier of a type without storing it
     fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
         let mut sink = DrySink::new();
         let _len = t.write(&mut sink);

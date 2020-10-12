@@ -14,12 +14,12 @@ pub enum Repr<T, S: Store> {
     Value {
         /// The reference counted value on the heap
         rc: Rc<T>,
-        /// The cached identity of the value, if any
+        /// The cached identifier of the value, if any
         cached_ident: RefCell<Option<Box<S::Ident>>>,
     },
-    /// Value is represented by it's Identity
+    /// Value is represented by it's Identifier
     Ident {
-        /// The value identity
+        /// The value identifier
         ident: S::Ident,
         /// The store where to request the value
         store: S,
@@ -47,15 +47,16 @@ where
                     Canon::<S>::write(&mut (len as u8), sink)?;
                     Canon::<S>::write(&**rc, sink)?;
                 } else {
-                    Canon::<S>::write(&mut 0u8, sink)?;
+                    // write ident tag 0xff
+                    Canon::<S>::write(&0xffu8, sink)?;
                     let ident = sink.recur(&**rc)?;
-
                     *cached_ident.borrow_mut() = Some(Box::new(ident.clone()));
                     sink.copy_bytes(&ident.as_ref());
                 }
             }
             Repr::Ident { ref ident, .. } => {
-                Canon::<S>::write(&mut 0u8, sink)?;
+                // write ident tag 0xff
+                Canon::<S>::write(&0xffu8, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
@@ -64,14 +65,8 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
-        if len > 0 {
-            // inlined value
-            Ok(Repr::Value {
-                rc: Rc::new(T::read(source)?),
-                cached_ident: RefCell::new(None),
-            })
-        } else {
-            // ident
+        if len == 0xff {
+            // ident tag
             let mut ident = S::Ident::default();
             let slice = ident.as_mut();
             let bytes = source.read_bytes(slice.len());
@@ -79,6 +74,12 @@ where
             Ok(Repr::Ident {
                 ident,
                 store: source.store().clone(),
+            })
+        } else {
+            // inlined value
+            Ok(Repr::Value {
+                rc: Rc::new(T::read(source)?),
+                cached_ident: RefCell::new(None),
             })
         }
     }
@@ -168,11 +169,14 @@ where
     /// Get the identifier for the `Repr`
     pub fn get_id(&self) -> Result<S::Ident, S::Error> {
         match self {
-            Repr::Value { cached_ident, .. } => {
-                if let Some(ident) = &*cached_ident.borrow() {
-                    Ok((**ident).clone())
+            Repr::Value { cached_ident, rc } => {
+                let mut ident_cell = cached_ident.borrow_mut();
+                if let Some(ident) = &mut *ident_cell {
+                    Ok(*ident.clone())
                 } else {
-                    todo!()
+                    let ident = S::ident(&**rc);
+                    *ident_cell = Some(Box::new(ident.clone()));
+                    Ok(ident)
                 }
             }
             Repr::Ident { ident, .. } => Ok(ident.clone()),
