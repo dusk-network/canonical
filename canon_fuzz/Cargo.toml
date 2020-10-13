@@ -1,0 +1,10 @@
+[package]
+name = "canonical_fuzz"
+version = "0.1.0"
+authors = ["Kristoffer Ström <kristoffer@rymdkoloni.se>"]
+edition = "2018"
+
+[dependencies]
+canonical = { path = "../canon" , features = ["host"]}
+canonical_host = { path = "../canon_host" }
+arbitrary = { version = "0.3" }
