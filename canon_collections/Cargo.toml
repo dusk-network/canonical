@@ -10,11 +10,11 @@ description = "Data structures for use with Canonical"
 license = "MPL-2.0"
 
 [dependencies]
-canonical_derive = { path = "../canon_derive", version = "0.1.0" }
-canonical = { path = "../canon", version = "0.1.0" }
+canonical_derive = { path = "../canon_derive" }
+canonical = { path = "../canon" }
 
 [dev-dependencies]
-canonical_host = { path = "../canon_host", version = "0.1.0" }
+canonical_host = { path = "../canon_host" }
 
 [features]
 host = ["canonical/host"]

@@ -1,32 +1,34 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
+use arbitrary::Arbitrary;
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
+use canonical_fuzz::{fuzz_canon, fuzz_canon_iterations};
 use canonical_host::MemStore;
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct A {
     a: u64,
     b: u64,
 }
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct A2 {
     a: (),
     b: u8,
 }
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct B(u64, u64);
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct C(u64);
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct D;
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 enum E {
     A,
     B,
@@ -39,43 +41,42 @@ enum F {
     C(Result<u32, u32>),
 }
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 enum G {
     A { alice: u64, bob: u8 },
     B(Option<u32>),
     C,
 }
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct H<T>(T);
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct I<T>(Vec<T>);
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct J(String);
 
-#[derive(Clone, Canon, PartialEq, Debug)]
+#[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct MonsterStruct<T> {
     a: A,
     b: B,
     c: C,
     d: D,
     e: E,
-    f: F,
     g: G,
     h: H<T>,
     i: I<T>,
     j: J,
 }
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon, Debug, Arbitrary)]
 struct StoreIncludedA<S: Store> {
     junk: u32,
     store: S,
 }
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon, Debug, Arbitrary)]
 struct StoreIncludedB<S>
 where
     S: Store,
@@ -147,10 +148,17 @@ fn derives() {
         c: C(22),
         d: D,
         e: E::A,
-        f: F::A(73, [0, 1, 4, 3, 4]),
         g: G::A { alice: 73, bob: 3 },
         h: H(E::B),
         i: I(vec![E::B, E::B, E::A]),
         j: J("Happy happy joy joy!".into()),
     });
+}
+
+#[test]
+fn fuzzing() {
+    let store = MemStore::new();
+
+    fuzz_canon::<A, _>(store.clone());
+    fuzz_canon_iterations::<MonsterStruct<Option<u32>>, _>(128, store);
 }

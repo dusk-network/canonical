@@ -5,6 +5,8 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use arbitrary::{self, Arbitrary};
+
 use crate::{Canon, Sink, Source, Store};
 
 #[derive(Clone, Debug)]
@@ -24,16 +26,6 @@ pub enum Repr<T, S: Store> {
         /// The store where to request the value
         store: S,
     },
-}
-
-impl<T, S> PartialEq for Repr<T, S>
-where
-    S: Store,
-    T: Canon<S>,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.get_id() == other.get_id()
-    }
 }
 
 impl<T, S> Canon<S> for Repr<T, S>
@@ -98,9 +90,15 @@ where
         let ident_len = S::Ident::default().as_ref().len();
         match &self {
             Repr::Value { rc, .. } => {
-                // If the length is larger nthan `ident_len` + 1,
-                // The value will not be inlined, and saved as tag + ident
-                1 + core::cmp::max(rc.encoded_len() as usize, ident_len)
+                let encoded_len = (*rc).encoded_len();
+                if encoded_len <= ident_len {
+                    // inline value
+                    1 + encoded_len
+                } else {
+                    // If the length is larger nthan `ident_len` + 1,
+                    // The value will not be inlined, and saved as tag + ident
+                    1 + core::cmp::max(rc.encoded_len() as usize, ident_len)
+                }
             }
             Repr::Ident { .. } => 1 + ident_len,
         }
@@ -182,14 +180,54 @@ where
             Repr::Value { cached_ident, rc } => {
                 let mut ident_cell = cached_ident.borrow_mut();
                 if let Some(ident) = &mut *ident_cell {
+                    println!("used cache");
                     *ident.clone()
                 } else {
+                    println!("filling cache");
                     let ident = S::ident(&**rc);
                     *ident_cell = Some(Box::new(ident.clone()));
                     ident
                 }
             }
             Repr::Ident { ident, .. } => ident.clone(),
+        }
+    }
+}
+
+impl<T, S> Arbitrary for Repr<T, S>
+where
+    T: 'static + Canon<S> + Arbitrary,
+    S: Store,
+{
+    fn arbitrary(
+        u: &mut arbitrary::Unstructured<'_>,
+    ) -> arbitrary::Result<Self> {
+        #[derive(Arbitrary)]
+        enum Kind {
+            Value,
+            ValueCached,
+            Ident,
+        }
+
+        let t = T::arbitrary(u)?;
+
+        match Kind::arbitrary(u)? {
+            Kind::Value => Ok(Repr::Value {
+                rc: Rc::new(t),
+                cached_ident: RefCell::new(None),
+            }),
+            Kind::ValueCached => {
+                let ident = S::ident(&t);
+                Ok(Repr::Value {
+                    rc: Rc::new(t),
+                    cached_ident: RefCell::new(Some(Box::new(ident))),
+                })
+            }
+            Kind::Ident => {
+                let store = S::default();
+                let ident = store.put(&t).unwrap();
+                Ok(Repr::Ident { ident, store })
+            }
         }
     }
 }

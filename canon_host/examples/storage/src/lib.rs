@@ -40,7 +40,7 @@ mod hosted {
     fn transaction(
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
-        let store = BS::singleton();
+        let store = BS::default();
         let mut source = ByteSource::new(&bytes[..], store.clone());
 
         // read self.

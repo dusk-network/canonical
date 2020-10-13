@@ -49,7 +49,7 @@ pub trait Source<S> {
 
 /// The main trait for storing/transmitting data, in the case of a wasm environment,
 /// this is generally implemented with host calls
-pub trait Store: Clone + 'static {
+pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
@@ -74,13 +74,9 @@ pub trait Store: Clone + 'static {
     /// Calculate the Identifier of a type without storing it
     fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
         let mut sink = DrySink::new();
-        let _len = t.write(&mut sink);
+        t.write(&mut sink).expect("Drysink cannot fail");
         sink.fin().into()
     }
-
-    /// For hosted environments, get a reference to the current store
-    #[cfg(not(feature = "host"))]
-    fn singleton() -> Self;
 }
 
 impl<S> Canon<S> for S

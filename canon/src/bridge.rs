@@ -12,7 +12,7 @@ const BUF_SIZE: usize = 1024 * 4;
 static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
 /// Store usable across ffi-boundraries
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct BridgeStore<I> {
     _marker: PhantomData<I>,
 }
@@ -106,12 +106,6 @@ where
             BUF[0..len].copy_from_slice(bytes);
             b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
             Ok(id)
-        }
-    }
-
-    fn singleton() -> Self {
-        BridgeStore {
-            _marker: PhantomData,
         }
     }
 }

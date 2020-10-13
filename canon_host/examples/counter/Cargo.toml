@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { path = "../../../canon" }
+canonical = { path = "../../../canon", default-features = false }
 canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host" , optional = true }
 

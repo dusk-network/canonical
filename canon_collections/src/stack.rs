@@ -54,7 +54,7 @@ mod test {
     use canonical_host::MemStore;
 
     #[test]
-    fn multiple() {
+    fn trivial() {
         type Int = u64;
 
         let n: Int = 1024;
@@ -79,7 +79,7 @@ mod test {
 
         type Int = u8;
 
-        let n: Int = 128;
+        let n: Int = 16;
 
         let mut list = Stack::new();
 
@@ -110,7 +110,7 @@ mod test {
 
             type Int = u8;
 
-            let n: Int = 128;
+            let n: Int = 16;
 
             let mut list = Stack::new();
 

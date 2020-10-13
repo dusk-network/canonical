@@ -80,7 +80,8 @@ where
 {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Result<Self, S::Error> {
-        let store = S::singleton();
+        // The Default store is always the same in hosted environments
+        let store = S::default();
 
         let len = t.encoded_len();
         let mut buffer = <S as Store>::Ident::default();
@@ -108,11 +109,11 @@ where
                 bytes: ident_bytes, ..
             } => {
                 let mut source =
-                    ByteSource::new(ident_bytes.as_ref(), S::singleton());
+                    ByteSource::new(ident_bytes.as_ref(), S::default());
                 Canon::<S>::read(&mut source)
             }
             Repr::Ident(id) => {
-                let store = S::singleton();
+                let store = S::default();
                 store.get(id)
             }
         }
