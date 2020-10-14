@@ -88,3 +88,30 @@ where
         assert!(canon == restored);
     }
 }
+
+pub fn canon_encoding<C: Canon<MemStore> + Arbitrary + PartialEq + std::fmt::Debug, S: Store>(
+    canon: &C,
+) -> usize {
+    let store = MemStore::new();
+    const BUFFER_SIZE: usize = 1024;
+
+    let mut buffer_a = [0xff; BUFFER_SIZE];
+    let mut buffer_b = [0x00; BUFFER_SIZE];
+
+    let mut sink_a = ByteSink::new(&mut buffer_a, store.clone());
+    let mut sink_b = ByteSink::new(&mut buffer_b, store.clone());
+
+    Canon::write(canon, &mut sink_a).unwrap();
+    Canon::write(canon, &mut sink_b).unwrap();
+
+    let mut len = 0;
+    for i in 0..BUFFER_SIZE {
+        if buffer_a[i] != buffer_b[i] {
+            break;
+        } else {
+            len += 1;
+        }
+    }
+
+    len
+}
