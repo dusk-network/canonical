@@ -89,17 +89,12 @@ where
 
     fn encoded_len(&self) -> usize {
         let ident_len = S::Ident::default().as_ref().len();
+
         match &self {
             Repr::Value { rc, .. } => {
-                let encoded_len = (*rc).encoded_len();
-                if encoded_len <= ident_len {
-                    // inline value
-                    1 + encoded_len
-                } else {
-                    // If the length is larger nthan `ident_len` + 1,
-                    // The value will not be inlined, and saved as tag + ident
-                    1 + core::cmp::max(rc.encoded_len() as usize, ident_len)
-                }
+                // If the length is larger than `ident_len` + 1,
+                // The value will not be inlined, and saved as tag + ident
+                1 + core::cmp::min(rc.encoded_len() as usize, ident_len)
             }
             Repr::Ident { .. } => 1 + ident_len,
         }

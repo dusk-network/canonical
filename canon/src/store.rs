@@ -15,15 +15,7 @@ pub trait IdBuilder<I>: Default {
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    'static
-    + Default
-    + AsRef<[u8]>
-    + AsMut<[u8]>
-    + Clone
-    + Eq
-    + Copy
-    + Hash
-    + core::fmt::Debug
+    'static + Default + AsRef<[u8]> + AsMut<[u8]> + Clone + Eq + Copy + Hash + core::fmt::Debug
 {
     /// Takes bytes to produce an identifier
     type Builder: IdBuilder<Self>;
@@ -56,11 +48,7 @@ pub trait Store: 'static + Clone + Default {
     type Error: From<InvalidEncoding> + core::fmt::Debug;
 
     /// Write bytes associated with `Ident`
-    fn fetch(
-        &self,
-        id: &Self::Ident,
-        into: &mut [u8],
-    ) -> Result<(), Self::Error>;
+    fn fetch(&self, id: &Self::Ident, into: &mut [u8]) -> Result<(), Self::Error>;
 
     /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error>;
