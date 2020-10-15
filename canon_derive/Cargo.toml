@@ -1,6 +1,6 @@
 [package]
 name = "canonical_derive"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
@@ -13,7 +13,7 @@ license = "MPL-2.0"
 proc-macro2 = "1.0.10"
 quote = "1.0.3"
 syn = { version = "1.0.17" }
-canonical = { path = "../canon" }
+canonical = { path = "../canon", version = "0.2.0" }
 
 [lib]
 proc-macro = true
