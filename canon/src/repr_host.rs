@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use arbitrary::{self, Arbitrary};
@@ -105,6 +106,30 @@ where
     }
 }
 
+/// A mutable reference to a represented value
+pub enum ValMut<'a, T> {
+    /// Borrowed value of T
+    Borrowed(&'a mut T),
+}
+
+impl<'a, T> Deref for ValMut<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ValMut::Borrowed(b) => b,
+        }
+    }
+}
+
+impl<'a, T> DerefMut for ValMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            ValMut::Borrowed(b) => b,
+        }
+    }
+}
+
 impl<T, S> Repr<T, S>
 where
     S: Store,
@@ -138,10 +163,7 @@ where
     }
 
     /// Retrieve a mutable value behind this representation and run a closure on it
-    pub fn val_mut<R, F>(&mut self, f: F) -> Result<R, S::Error>
-    where
-        F: FnOnce(&mut T) -> Result<R, S::Error>,
-    {
+    pub fn val_mut(&mut self) -> Result<ValMut<T>, S::Error> {
         match self {
             Repr::Value {
                 ref mut rc,
@@ -149,16 +171,11 @@ where
             } => {
                 // clear cache
                 *cached_ident = RefCell::new(None);
-                f(Rc::make_mut(rc))
+                Ok(ValMut::Borrowed(Rc::make_mut(rc)))
             }
             Repr::Ident { ident, store } => {
-                let mut t = store.get(ident)?;
-                let ret = f(&mut t);
-                *self = Repr::Value {
-                    rc: Rc::new(t),
-                    cached_ident: RefCell::new(None),
-                };
-                ret
+                let _t = store.get(ident)?;
+                todo!()
             }
         }
     }

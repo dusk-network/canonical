@@ -19,7 +19,7 @@ pub use repr_hosted::Repr;
 #[cfg(feature = "host")]
 mod repr_host;
 #[cfg(feature = "host")]
-pub use repr_host::Repr;
+pub use repr_host::{Repr, ValMut};
 
 mod dry_sink;
 mod id;
