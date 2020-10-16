@@ -10,6 +10,8 @@ use arbitrary::{self, Arbitrary};
 
 use crate::{Canon, Sink, Source, Store};
 
+const IDENT_TAG: u8 = 0xff;
+
 #[derive(Clone, Debug)]
 /// A Repr to a value that is either local or in storage
 pub enum Repr<T, S: Store> {
@@ -50,16 +52,14 @@ where
                     Canon::<S>::write(&mut (len as u8), sink)?;
                     Canon::<S>::write(&**rc, sink)?;
                 } else {
-                    // write ident tag 0xff
-                    Canon::<S>::write(&0xffu8, sink)?;
+                    Canon::<S>::write(&IDENT_TAG, sink)?;
                     let ident = sink.recur(&**rc)?;
                     *cached_ident.borrow_mut() = Some(Box::new(ident.clone()));
                     sink.copy_bytes(&ident.as_ref());
                 }
             }
             Repr::Ident { ref ident, .. } => {
-                // write ident tag 0xff
-                Canon::<S>::write(&0xffu8, sink)?;
+                Canon::<S>::write(&IDENT_TAG, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
@@ -68,8 +68,8 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
-        if len == 0xff {
-            // ident tag
+        if len == IDENT_TAG {
+            // ident tag, not a valid length
             let mut ident = S::Ident::default();
             let slice = ident.as_mut();
             let bytes = source.read_bytes(slice.len());
@@ -92,8 +92,8 @@ where
 
         match &self {
             Repr::Value { rc, .. } => {
-                // If the length is larger than `ident_len` + 1,
-                // The value will not be inlined, and saved as tag + ident
+                // If the encoded length is larger than `ident_len`,
+                // The value will not be inlined, and saved as tag + identifier
                 1 + core::cmp::min(rc.encoded_len() as usize, ident_len)
             }
             Repr::Ident { .. } => 1 + ident_len,
@@ -157,7 +157,7 @@ where
         }
     }
 
-    /// Retrieve a mutable value behind this representation and run a closure on it
+    /// Retrieve a mutable value behind this representation
     pub fn val_mut(&mut self) -> Result<ValMut<T>, S::Error> {
         match self {
             Repr::Value {
@@ -192,10 +192,8 @@ where
             Repr::Value { cached_ident, rc } => {
                 let mut ident_cell = cached_ident.borrow_mut();
                 if let Some(ident) = &mut *ident_cell {
-                    println!("used cache");
                     *ident.clone()
                 } else {
-                    println!("filling cache");
                     let ident = S::ident(&**rc);
                     *ident_cell = Some(Box::new(ident.clone()));
                     ident

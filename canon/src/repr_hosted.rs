@@ -5,6 +5,8 @@ use core::marker::PhantomData;
 
 use crate::{ByteSink, ByteSource, Canon, Sink, Source, Store};
 
+const IDENT_TAG: u8 = 0xff;
+
 /// The `Repr` type can be thought of as a host-allocating version of `Box`
 #[derive(Debug, Clone)]
 pub enum Repr<T, S: Store> {
@@ -35,7 +37,7 @@ where
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
             }
             Repr::Ident(ref ident) => {
-                Canon::<S>::write(&0xffu8, sink)?;
+                Canon::<S>::write(&IDENT_TAG, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
@@ -44,8 +46,7 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
-        if len == 0xff {
-            // ident tag
+        if len == IDENT_TAG {
             let mut ident = <S as Store>::Ident::default();
             let bytes = source.read_bytes(ident.as_ref().len());
             ident.as_mut().copy_from_slice(bytes);

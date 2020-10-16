@@ -74,7 +74,6 @@ where
         }
 
         if !valid {
-            println!("content: {:?}", &canon);
             for i in 0..claimed_len {
                 if buffer_a[i] != buffer_b[i] {
                     panic!("claimed {}, wrote {}", claimed_len, i - 1)
