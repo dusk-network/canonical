@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
@@ -11,12 +11,14 @@ license = "MPL-2.0"
 
 [dependencies]
 blake2b_simd = { version = "0.3", default-features = false }
+arrayvec = { version = "0.5", default-features = false }
+arbitrary = { version = "0.3", features = ["derive"], optional = true }
 
 [dev-dependencies]
-canonical_host = { path = "../canon_host", version = "0.1.0" }
-canonical_derive = { path = "../canon_derive", version = "0.1.0" }
-canonical_collections = { path = "../canon_collections", version = "0.1.0" }
+canonical_host = { path = "../canon_host", version = "0.2.1" }
+canonical_derive = { path = "../canon_derive", version = "0.2.1" }
+canonical_collections = { path = "../canon_collections", version = "0.2.1" }
+canonical_fuzz = { path = "../canon_fuzz", version = "0.2.1" }
 
 [features]
-hosted = []
-host = ["blake2b_simd/std"]
+host = ["blake2b_simd/std", "arbitrary"]

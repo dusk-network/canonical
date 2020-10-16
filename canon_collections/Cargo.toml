@@ -1,6 +1,6 @@
 [package]
 name = "canonical_collections"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
@@ -10,12 +10,11 @@ description = "Data structures for use with Canonical"
 license = "MPL-2.0"
 
 [dependencies]
-canonical_derive = { path = "../canon_derive", version = "0.1.0" }
-canonical = { path = "../canon", version = "0.1.0", features = ["host"] }
+canonical_derive = { path = "../canon_derive", version = "0.2.1" }
+canonical = { path = "../canon", version = "0.2.1" }
 
 [dev-dependencies]
-canonical_host = { path = "../canon_host", version = "0.1.0" }
+canonical_host = { path = "../canon_host", version = "0.2.1" }
 
 [features]
-hosted = ["canonical/hosted"]
 host = ["canonical/host"]

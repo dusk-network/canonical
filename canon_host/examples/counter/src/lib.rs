@@ -1,7 +1,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-#![cfg_attr(feature = "hosted", no_std)]
+#![cfg_attr(not(feature = "host"), no_std)]
 #![feature(lang_items)]
 
 use canonical::Canon;
@@ -22,7 +22,7 @@ impl Counter {
     }
 }
 
-#[cfg(feature = "hosted")]
+#[cfg(not(feature = "host"))]
 mod hosted {
     use super::*;
 
@@ -68,7 +68,7 @@ mod hosted {
     }
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
-        let store = BS::singleton();
+        let store = BS::default();
         let mut source = ByteSource::new(&bytes[..], store.clone());
 
         // read self.
@@ -113,7 +113,7 @@ mod hosted {
     fn transaction(
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
-        let store = BS::singleton();
+        let store = BS::default();
         let mut source = ByteSource::new(bytes, store.clone());
 
         // read self.

@@ -5,6 +5,8 @@ use core::marker::PhantomData;
 
 use crate::{ByteSink, ByteSource, Canon, Sink, Source, Store};
 
+const IDENT_TAG: u8 = 0xff;
+
 /// The `Repr` type can be thought of as a host-allocating version of `Box`
 #[derive(Debug, Clone)]
 pub enum Repr<T, S: Store> {
@@ -35,7 +37,7 @@ where
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
             }
             Repr::Ident(ref ident) => {
-                Canon::<S>::write(&0u8, sink)?;
+                Canon::<S>::write(&IDENT_TAG, sink)?;
                 sink.copy_bytes(&ident.as_ref());
             }
         }
@@ -44,7 +46,12 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
-        if len > 0 {
+        if len == IDENT_TAG {
+            let mut ident = <S as Store>::Ident::default();
+            let bytes = source.read_bytes(ident.as_ref().len());
+            ident.as_mut().copy_from_slice(bytes);
+            Ok(Repr::Ident(ident))
+        } else {
             let mut bytes = <S as Store>::Ident::default();
             bytes.as_mut()[0..len as usize]
                 .copy_from_slice(source.read_bytes(len as usize));
@@ -53,11 +60,6 @@ where
                 len,
                 _marker: PhantomData,
             })
-        } else {
-            let mut ident = <S as Store>::Ident::default();
-            let bytes = source.read_bytes(ident.as_ref().len());
-            ident.as_mut().copy_from_slice(bytes);
-            Ok(Repr::Ident(ident))
         }
     }
 
@@ -79,7 +81,8 @@ where
 {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Result<Self, S::Error> {
-        let store = S::singleton();
+        // The Default store is always the same in hosted environments
+        let store = S::default();
 
         let len = t.encoded_len();
         let mut buffer = <S as Store>::Ident::default();
@@ -107,11 +110,11 @@ where
                 bytes: ident_bytes, ..
             } => {
                 let mut source =
-                    ByteSource::new(ident_bytes.as_ref(), S::singleton());
+                    ByteSource::new(ident_bytes.as_ref(), S::default());
                 Canon::<S>::read(&mut source)
             }
             Repr::Ident(id) => {
-                let store = S::singleton();
+                let store = S::default();
                 store.get(id)
             }
         }

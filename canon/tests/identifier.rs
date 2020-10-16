@@ -6,7 +6,7 @@ use canonical_collections::Stack;
 use canonical_host::MemStore;
 
 #[test]
-fn identity_u64() {
+fn identifier_u64() {
     let a: u64 = 328;
 
     let id_a = MemStore::ident(&a);
@@ -19,10 +19,12 @@ fn identity_u64() {
 }
 
 #[test]
-fn identity_stack() {
+fn identifier_stack() {
     let mut stack = Stack::new();
 
-    for i in 0u32..32 {
+    let n = 8;
+
+    for i in 0u64..n {
         stack.push(i).unwrap();
     }
 

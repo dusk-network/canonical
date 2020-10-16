@@ -2,7 +2,6 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use core::marker::PhantomData;
-use core::mem::{self, MaybeUninit};
 
 use crate::{Canon, InvalidEncoding, Sink, Source, Store};
 
@@ -41,46 +40,6 @@ number!(i64, 8);
 
 number!(u128, 16);
 number!(i128, 16);
-
-impl<T, S, const N: usize> Canon<S> for [T; N]
-where
-    T: Canon<S> + Sized,
-    S: Store,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        for i in 0..N {
-            self[i].write(sink)?;
-        }
-        Ok(())
-    }
-
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        // Check issue here for discussion on why this unsafety is neccesary
-        // https://github.com/rust-lang/rust/issues/61956
-        unsafe {
-            let mut arr: [MaybeUninit<T>; N] =
-                MaybeUninit::uninit().assume_init();
-
-            for elem in &mut arr[..] {
-                *elem = MaybeUninit::new(T::read(source)?);
-            }
-
-            let transmuted =
-                mem::transmute_copy::<[MaybeUninit<T>; N], [T; N]>(&arr);
-            mem::forget(arr);
-
-            Ok(transmuted)
-        }
-    }
-
-    fn encoded_len(&self) -> usize {
-        let mut len = 0;
-        for i in 0..N {
-            len += self[i].encoded_len();
-        }
-        len
-    }
-}
 
 impl<S> Canon<S> for bool
 where
@@ -202,7 +161,7 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
     }
 }
 
-macro_rules! canon_tuple_impls {
+macro_rules! tuple {
     ( $( $name:ident )+, $( $idx:tt )+ ) => {
         impl<S: Store, $($name,)+> Canon<S> for ($($name,)+) where $($name: Canon<S>,)+ {
             fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
@@ -216,36 +175,105 @@ macro_rules! canon_tuple_impls {
             }
 
             fn encoded_len(&self) -> usize {
-                let mut n = 0;
-
-                $(n += self.$idx.encoded_len();)+
-                n
+                0 $( + self.$idx.encoded_len())*
             }
         }
     };
 }
 
-canon_tuple_impls! { A B, 0 1 }
-canon_tuple_impls! { A B C, 0 1 2 }
-canon_tuple_impls! { A B C D, 0 1 2 3 }
-canon_tuple_impls! { A B C D E, 0 1 2 3 4 }
-canon_tuple_impls! { A B C D E F, 0 1 2 3 4 5 }
-canon_tuple_impls! { A B C D E F G, 0 1 2 3 4 5 6 }
-canon_tuple_impls! { A B C D E F G H, 0 1 2 3 4 5 6 7 }
-canon_tuple_impls! { A B C D E F G H I, 0 1 2 3 4 5 6 7 8 }
-canon_tuple_impls! { A B C D E F G H I J, 0 1 2 3 4 5 6 7 8 9 }
-canon_tuple_impls! { A B C D E F G H I J K, 0 1 2 3 4 5 6 7 8 9 10 }
-canon_tuple_impls! { A B C D E F G H I J K L, 0 1 2 3 4 5 6 7 8 9 10 11 }
-canon_tuple_impls! { A B C D E F G H I J K L M, 0 1 2 3 4 5 6 7 8 9 10 11 12 }
-canon_tuple_impls! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }
-canon_tuple_impls! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
-canon_tuple_impls! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
+tuple! { A B, 0 1 }
+tuple! { A B C, 0 1 2 }
+tuple! { A B C D, 0 1 2 3 }
+tuple! { A B C D E, 0 1 2 3 4 }
+tuple! { A B C D E F, 0 1 2 3 4 5 }
+tuple! { A B C D E F G, 0 1 2 3 4 5 6 }
+tuple! { A B C D E F G H, 0 1 2 3 4 5 6 7 }
+tuple! { A B C D E F G H I, 0 1 2 3 4 5 6 7 8 }
+tuple! { A B C D E F G H I J, 0 1 2 3 4 5 6 7 8 9 }
+tuple! { A B C D E F G H I J K, 0 1 2 3 4 5 6 7 8 9 10 }
+tuple! { A B C D E F G H I J K L, 0 1 2 3 4 5 6 7 8 9 10 11 }
+tuple! { A B C D E F G H I J K L M, 0 1 2 3 4 5 6 7 8 9 10 11 12 }
+tuple! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }
+tuple! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
+tuple! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
+
+macro_rules! array {
+    ($n:expr) => {
+        impl<T, S> Canon<S> for [T; $n]
+        where
+            T: Canon<S> + Sized,
+            S: Store,
+        {
+            fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+                for i in 0..$n {
+                    self[i].write(sink)?;
+                }
+                Ok(())
+            }
+
+            fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+                let mut array = arrayvec::ArrayVec::new();
+
+                for _ in 0..$n {
+                    array.push(T::read(source)?);
+                }
+
+                Ok(array
+                    .into_inner()
+                    .map_err(|_| ())
+                    .expect("Array not full after N pushes"))
+            }
+
+            fn encoded_len(&self) -> usize {
+                let mut len = 0;
+                for i in 0..$n {
+                    len += self[i].encoded_len();
+                }
+                len
+            }
+        }
+    };
+}
+
+array!(0);
+array!(1);
+array!(2);
+array!(3);
+array!(4);
+array!(5);
+array!(6);
+array!(7);
+array!(8);
+array!(9);
+array!(10);
+array!(11);
+array!(12);
+array!(13);
+array!(14);
+array!(15);
+array!(16);
+array!(17);
+array!(18);
+array!(19);
+array!(20);
+array!(21);
+array!(22);
+array!(23);
+array!(24);
+array!(25);
+array!(26);
+array!(27);
+array!(28);
+array!(29);
+array!(30);
+array!(31);
+array!(32);
 
 #[cfg(feature = "host")]
 mod std_impls {
     use super::*;
 
-    impl<S: Store, T: Canon<S>> Canon<S> for std::vec::Vec<T> {
+    impl<S: Store, T: Canon<S>> Canon<S> for Vec<T> {
         fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
             let len = self.len() as u64;
             len.write(sink)?;
@@ -271,6 +299,26 @@ mod std_impls {
                 len += t.encoded_len()
             }
             len
+        }
+    }
+
+    impl<S: Store> Canon<S> for String {
+        fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+            let bytes = self.as_bytes();
+            let len = bytes.len() as u64;
+            len.write(sink)?;
+            sink.copy_bytes(bytes);
+            Ok(())
+        }
+
+        fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+            let len = u64::read(source)?;
+            let vec: Vec<u8> = source.read_bytes(len as usize).into();
+            String::from_utf8(vec).map_err(|_| InvalidEncoding.into())
+        }
+
+        fn encoded_len(&self) -> usize {
+            Canon::<S>::encoded_len(&0u64) + self.as_bytes().len()
         }
     }
 }

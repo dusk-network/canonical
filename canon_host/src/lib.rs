@@ -13,3 +13,5 @@ pub use remote::Remote;
 
 mod wasm;
 pub use wasm::{Module, Query, Transaction, Wasm};
+
+pub use canonical::Store;

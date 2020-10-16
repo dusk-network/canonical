@@ -1,10 +1,20 @@
 use blake2b_simd::{Params, State as Blake2bState};
 
 use crate::{IdBuilder, Ident};
+use core::fmt;
 
 /// A 32 byte Identifier based on the Blake2b hash algorithm
-#[derive(Hash, PartialEq, Eq, Debug, Copy, Default, Clone)]
+#[derive(Hash, PartialEq, Eq, Copy, Default, Clone)]
 pub struct Id32([u8; 32]);
+
+impl fmt::Debug for Id32 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?
+        }
+        Ok(())
+    }
+}
 
 pub struct Id32Builder(Blake2bState);
 

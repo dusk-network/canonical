@@ -15,15 +15,7 @@ pub trait IdBuilder<I>: Default {
 
 /// Restrictions on types acting as identifiers
 pub trait Ident:
-    'static
-    + Default
-    + AsRef<[u8]>
-    + AsMut<[u8]>
-    + Clone
-    + Eq
-    + Copy
-    + Hash
-    + core::fmt::Debug
+    'static + Default + AsRef<[u8]> + AsMut<[u8]> + Clone + Eq + Copy + Hash + core::fmt::Debug
 {
     /// Takes bytes to produce an identifier
     type Builder: IdBuilder<Self>;
@@ -49,18 +41,14 @@ pub trait Source<S> {
 
 /// The main trait for storing/transmitting data, in the case of a wasm environment,
 /// this is generally implemented with host calls
-pub trait Store: Clone + 'static {
+pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
     type Error: From<InvalidEncoding> + core::fmt::Debug;
 
     /// Write bytes associated with `Ident`
-    fn fetch(
-        &self,
-        id: &Self::Ident,
-        into: &mut [u8],
-    ) -> Result<(), Self::Error>;
+    fn fetch(&self, id: &Self::Ident, into: &mut [u8]) -> Result<(), Self::Error>;
 
     /// Get a value from storage, given an identifier
     fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error>;
@@ -71,16 +59,12 @@ pub trait Store: Clone + 'static {
     /// Put raw bytes in store
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error>;
 
-    /// Calculate the Identity of a type without storing it
+    /// Calculate the Identifier of a type without storing it
     fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
         let mut sink = DrySink::new();
-        let _len = t.write(&mut sink);
+        t.write(&mut sink).expect("Drysink cannot fail");
         sink.fin().into()
     }
-
-    /// For hosted environments, get a reference to the current store
-    #[cfg(feature = "hosted")]
-    fn singleton() -> Self;
 }
 
 impl<S> Canon<S> for S

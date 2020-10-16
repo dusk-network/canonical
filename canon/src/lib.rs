@@ -2,28 +2,24 @@
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! Canonical, a no_std, host-allocating serialization library
-#![cfg_attr(feature = "hosted", no_std)]
-#![allow(incomplete_features)]
+#![cfg_attr(not(feature = "host"), no_std)]
 #![deny(missing_docs)]
-#![feature(const_generics)]
-#![feature(lang_items)]
 
 mod canon;
 
-#[cfg(feature = "hosted")]
+#[cfg(not(feature = "host"))]
 mod bridge;
-#[cfg(feature = "hosted")]
+#[cfg(not(feature = "host"))]
 mod repr_hosted;
-#[cfg(feature = "hosted")]
+#[cfg(not(feature = "host"))]
+pub use bridge::BridgeStore;
+#[cfg(not(feature = "host"))]
 pub use repr_hosted::Repr;
 
 #[cfg(feature = "host")]
 mod repr_host;
 #[cfg(feature = "host")]
-pub use repr_host::Repr;
-
-#[cfg(feature = "hosted")]
-pub use bridge::BridgeStore;
+pub use repr_host::{Repr, ValMut};
 
 mod dry_sink;
 mod id;
