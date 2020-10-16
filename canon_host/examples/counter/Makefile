@@ -1,9 +1,9 @@
 NAME=counter
 
-all: opt
-
-release:
-	cargo build --target wasm32-unknown-unknown --release
-
-opt: release
-	wasm-opt --strip --strip-producers -Oz ../../../target/wasm32-unknown-unknown/release/$(NAME).wasm -o $(NAME).wasm
+all: ## Generate the optimized WASM for the contract given
+	@cargo rustc \
+		--manifest-path=./Cargo.toml \
+		--release \
+		--target wasm32-unknown-unknown \
+		-- -C link-args=-s
+	@cp ../../../target/wasm32-unknown-unknown/release/$(NAME).wasm .
