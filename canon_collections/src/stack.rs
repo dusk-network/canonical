@@ -26,13 +26,12 @@ where
     }
 
     /// Pushes a value to the stack
-    pub fn push(&mut self, t: T) -> Result<(), S::Error> {
+    pub fn push(&mut self, t: T) {
         let root = core::mem::replace(self, Stack::Empty);
         *self = Stack::Node {
             value: t,
-            prev: Repr::<_, S>::new(root)?,
+            prev: Repr::<_, S>::new(root),
         };
-        Ok(())
     }
 
     /// Pops a value from the stack, if any and returns it
@@ -62,7 +61,7 @@ mod test {
         let mut list = Stack::<_, MemStore>::new();
 
         for i in 0..n {
-            list.push(i).unwrap();
+            list.push(i);
         }
 
         for i in 0..n {
@@ -84,7 +83,7 @@ mod test {
         let mut list = Stack::new();
 
         for i in 0..n {
-            list.push(i).unwrap()
+            list.push(i)
         }
 
         let id = store.put(&list).unwrap();
@@ -115,7 +114,7 @@ mod test {
             let mut list = Stack::new();
 
             for i in 0..n {
-                list.push(tuple(i)).unwrap();
+                list.push(tuple(i));
             }
 
             let id = store.put(&list).unwrap();

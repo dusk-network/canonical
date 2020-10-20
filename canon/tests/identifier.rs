@@ -25,7 +25,7 @@ fn identifier_stack() {
     let n = 8;
 
     for i in 0u64..n {
-        stack.push(i).unwrap();
+        stack.push(i);
     }
 
     let id_a: Id32 = MemStore::ident(&stack);

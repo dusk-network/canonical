@@ -131,11 +131,11 @@ where
     T: Canon<S> + Clone,
 {
     /// Construct a new `Repr` from value `t`
-    pub fn new(t: T) -> Result<Self, S::Error> {
-        Ok(Repr::Value {
+    pub fn new(t: T) -> Self {
+        Repr::Value {
             rc: Rc::new(t),
             cached_ident: RefCell::new(None),
-        })
+        }
     }
 
     /// Returns the value behind the `Repr`

@@ -28,7 +28,7 @@ mod hosted {
     type BS = BridgeStore<Id32>;
 
     impl Storage<BS> {
-        pub fn push(&mut self, value: u8) -> Result<(), <BS as Store>::Error> {
+        pub fn push(&mut self, value: u8) {
             self.0.push(value)
         }
 
@@ -52,7 +52,6 @@ mod hosted {
             // push
             0xaaa => {
                 let t: u8 = Canon::<BS>::read(&mut source)?;
-
                 let res = slf.push(t);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 // return new state
@@ -109,9 +108,7 @@ mod host {
     type TransactionIndex = u16;
 
     impl<S: Store> Storage<S> {
-        pub fn push(
-            i: u8,
-        ) -> Transaction<(TransactionIndex, u8), Result<(), S::Error>> {
+        pub fn push(i: u8) -> Transaction<(TransactionIndex, u8), ()> {
             Transaction::new((0xaaa, i))
         }
 

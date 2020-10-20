@@ -80,7 +80,7 @@ where
     T: Canon<S>,
 {
     /// Construct a new `Repr` from value `t`
-    pub fn new(t: T) -> Result<Self, S::Error> {
+    pub fn new(t: T) -> Self {
         // The Default store is always the same in hosted environments
         let store = S::default();
 
@@ -90,16 +90,18 @@ where
         // can we inline the value?
         if len <= buffer.as_ref().len() {
             let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
-            t.write(&mut sink)?;
+            // TODO: Handle this as a host error
+            t.write(&mut sink).unwrap();
 
-            Ok(Repr::Inline {
+            Repr::Inline {
                 bytes: buffer,
                 len: len as u8,
                 _marker: PhantomData,
-            })
+            }
         } else {
-            let id = store.put(&t)?;
-            Ok(Repr::Ident(id))
+            // TODO: Handle errors in Host
+            let id = store.put(&t).unwrap();
+            Repr::Ident(id)
         }
     }
 
