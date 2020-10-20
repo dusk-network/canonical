@@ -25,7 +25,6 @@ fn storage() {
         cast.transact(&Storage::<Mem>::push(val), store.clone())
             .unwrap()
             .unwrap()
-            .unwrap()
     }
 
     // pop n values

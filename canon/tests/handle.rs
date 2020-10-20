@@ -10,7 +10,7 @@ use canonical_host::MemStore;
 #[test]
 fn zero_sized_reprs() {
     let store = MemStore::new();
-    let repr = Repr::new(()).unwrap();
+    let repr = Repr::new(());
 
     let id = store.put(&repr).unwrap();
 

@@ -83,7 +83,7 @@ where
     T: Canon<S>,
 {
     /// Construct a new `Repr` from value `t`
-    pub fn new(t: T) -> Result<Self, S::Error> {
+    pub fn new(t: T) -> Self {
         // The Default store is always the same in hosted environments
         let store = S::default();
 
@@ -93,16 +93,20 @@ where
         // can we inline the value?
         if len <= buffer.as_ref().len() {
             let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
-            t.write(&mut sink)?;
+            t.write(&mut sink)
+                .expect("Pre-checked buffer of sufficient length");
 
-            Ok(Repr::Inline {
+            Repr::Inline {
                 bytes: buffer,
                 len: len as u8,
                 _marker: PhantomData,
-            })
+            }
         } else {
-            let id = store.put(&t)?;
-            Ok(Repr::Ident(id))
+            // Here we assume that we can put something in the host.
+            // If this actually returns an error from the BridgeStore,
+            // we panic and let the host deal with it.
+            let id = store.put(&t).expect("BridgeStore should never fail");
+            Repr::Ident(id)
         }
     }
 
