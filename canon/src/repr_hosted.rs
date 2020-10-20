@@ -90,8 +90,8 @@ where
         // can we inline the value?
         if len <= buffer.as_ref().len() {
             let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
-            // TODO: Handle this as a host error
-            t.write(&mut sink).unwrap();
+            t.write(&mut sink)
+                .expect("Pre-checked buffer of sufficient length");
 
             Repr::Inline {
                 bytes: buffer,
@@ -99,8 +99,10 @@ where
                 _marker: PhantomData,
             }
         } else {
-            // TODO: Handle errors in Host
-            let id = store.put(&t).unwrap();
+            // Here we assume that we can put something in the host.
+            // If this actually returns an error from the BridgeStore,
+            // we panic and let the host deal with it.
+            let id = store.put(&t).expect("BridgeStore should never fail");
             Repr::Ident(id)
         }
     }
