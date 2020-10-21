@@ -4,13 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::borrow::Cow;
+// Here in feature `host` we can use std
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use arbitrary::{self, Arbitrary};
 
+use crate::cow::Cow;
 use crate::{Canon, Sink, Source, Store};
 
 const IDENT_TAG: u8 = 0xff;

@@ -24,12 +24,14 @@ mod repr_host;
 #[cfg(feature = "host")]
 pub use repr_host::{Repr, ValMut};
 
+mod cow;
 mod dry_sink;
 mod id;
 mod implementations;
 mod store;
 
 pub use canon::{Canon, InvalidEncoding};
+pub use cow::Cow;
 pub use dry_sink::DrySink;
 pub use id::Id32;
 pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
