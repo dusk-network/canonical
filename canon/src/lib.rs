@@ -6,6 +6,7 @@
 
 //! Canonical, a no_std, host-allocating serialization library
 #![cfg_attr(not(feature = "host"), no_std)]
+#![feature(min_const_generics)]
 #![deny(missing_docs)]
 
 mod canon;

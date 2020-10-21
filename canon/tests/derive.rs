@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![feature(min_const_generics)]
+
 use arbitrary::Arbitrary;
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
@@ -88,6 +90,11 @@ where
     store: S,
 }
 
+#[derive(Clone, Canon, Debug, Arbitrary, PartialEq)]
+struct ConstGenerics<const N: isize> {
+    test: u32,
+}
+
 //////////////
 
 fn serialize_deserialize<
@@ -156,6 +163,12 @@ fn derives() {
         i: I(vec![E::B, E::B, E::A]),
         j: J("Happy happy joy joy!".into()),
     });
+}
+
+#[test]
+fn const_generics() {
+    let a: ConstGenerics<-1> = ConstGenerics { test: 3 };
+    serialize_deserialize(a);
 }
 
 #[test]
