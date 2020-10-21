@@ -272,6 +272,37 @@ array!(30);
 array!(31);
 array!(32);
 
+use const_arrayvec::ArrayVec;
+
+impl<S: Store, T: Canon<S>, const N: usize> Canon<S> for ArrayVec<T, N> {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        let len = self.len() as u64;
+        len.write(sink)?;
+        for t in self.iter() {
+            t.write(sink)?;
+        }
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let mut vec: ArrayVec<T, N> = ArrayVec::new();
+        let len = u64::read(source)?;
+        for _ in 0..len {
+            vec.push(T::read(source)?);
+        }
+        Ok(vec)
+    }
+
+    fn encoded_len(&self) -> usize {
+        // length of length
+        let mut len = Canon::<S>::encoded_len(&0u64);
+        for t in self.iter() {
+            len += t.encoded_len()
+        }
+        len
+    }
+}
+
 #[cfg(feature = "host")]
 mod std_impls {
     use super::*;
