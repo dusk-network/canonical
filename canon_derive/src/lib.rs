@@ -57,7 +57,13 @@ fn add_store_bound(mut generics: Generics) -> Generics {
         paren_token: None,
     });
     let mut bounds = Punctuated::new();
-    bounds.push(store_trait);
+
+    // Insert at beginning, to not trip up const generics.
+    //
+    // Note that lifetimes should technically go at the beginning,
+    // but the derive macro does not support types with lifetimes anyway.
+
+    bounds.insert(0, store_trait);
 
     let param = TypeParam {
         attrs: vec![],
@@ -68,7 +74,7 @@ fn add_store_bound(mut generics: Generics) -> Generics {
         default: None,
     };
 
-    generics.params.push(GenericParam::Type(param));
+    generics.params.insert(0, GenericParam::Type(param));
     generics
 }
 
