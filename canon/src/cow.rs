@@ -1,7 +1,16 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
 use core::ops::{Deref, DerefMut};
 
+/// No-std compatible alternative to `std::Cow`
 pub enum Cow<'a, T> {
+    /// An owned instance of `T`
     Owned(T),
+    /// A borrowed instance of `T`
     Borrowed(&'a T),
 }
 
