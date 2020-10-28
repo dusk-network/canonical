@@ -8,15 +8,15 @@
 #![feature(lang_items)]
 
 use canonical::{Canon, Store};
-use canonical_collections::Stack;
 use canonical_derive::Canon;
+use nstack::NStack;
 
 #[derive(Canon, Debug, Clone)]
-pub struct Storage<S: Store>(Stack<u8, S>);
+pub struct Storage<S: Store>(NStack<u8, (), S>);
 
 impl<S: Store> Storage<S> {
     pub fn new() -> Self {
-        Storage(Stack::new())
+        Storage(NStack::new())
     }
 }
 

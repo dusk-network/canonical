@@ -5,6 +5,5 @@ members = [
     "canon_host",
     "canon_host/examples/counter",
     "canon_host/examples/storage",		
-    "canon_collections",
     "canon_fuzz",
 ]

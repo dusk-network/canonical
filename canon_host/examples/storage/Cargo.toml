@@ -8,11 +8,10 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-canonical = { path = "../../../canon" }
-canonical_derive = { path = "../../../canon_derive" }
-canonical_collections = { path = "../../../canon_collections" }
-
-canonical_host = { path = "../../../canon_host", optional = true }
+canonical = "0.4.0"
+canonical_derive = "0.4.0"
+canonical_host = { version = "0.4.0", optional = true }
+nstack = { path = "../../../../nstack" }
 
 [features]
-host = ["canonical/host", "canonical_collections/host", "canonical_host"]
+host = ["canonical/host", "canonical_host"]
