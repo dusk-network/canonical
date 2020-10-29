@@ -5,8 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use canonical::{Id32, Store};
-use canonical_collections::Stack;
 use canonical_host::MemStore;
+use nstack::NStack;
 
 #[test]
 fn identifier_u64() {
@@ -23,12 +23,12 @@ fn identifier_u64() {
 
 #[test]
 fn identifier_stack() {
-    let mut stack = Stack::new();
+    let mut stack = NStack::<_, (), _>::new();
 
     let n = 8;
 
     for i in 0u64..n {
-        stack.push(i);
+        stack.push(i).unwrap();
     }
 
     let id_a: Id32 = MemStore::ident(&stack);

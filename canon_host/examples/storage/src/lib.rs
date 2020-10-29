@@ -20,6 +20,36 @@ impl<S: Store> Storage<S> {
     }
 }
 
+extern "C" {
+    fn sig(ofs: &u8, len: i32);
+}
+
+pub fn signal(msg: &str) {
+    unsafe {
+        let bytes = msg.as_bytes();
+        sig(&bytes[0], bytes.len() as i32);
+    }
+}
+
+trait ResultExt {
+    type Output;
+    fn unwrap_or_signal(self, msg: &str) -> Self::Output;
+}
+
+impl<T, E> ResultExt for Result<T, E> {
+    type Output = T;
+
+    fn unwrap_or_signal(self, msg: &str) -> T {
+        match self {
+            Ok(t) => t,
+            Err(_) => {
+                signal(msg);
+                loop {}
+            }
+        }
+    }
+}
+
 #[cfg(not(feature = "host"))]
 mod hosted {
     use super::*;
@@ -31,7 +61,7 @@ mod hosted {
     type BS = BridgeStore<Id32>;
 
     impl Storage<BS> {
-        pub fn push(&mut self, value: u8) {
+        pub fn push(&mut self, value: u8) -> Result<(), <BS as Store>::Error> {
             self.0.push(value)
         }
 
@@ -85,12 +115,14 @@ mod hosted {
     }
 
     mod panic_handling {
+        use super::signal;
         use core::panic::PanicInfo;
 
         #[panic_handler]
         fn panic(_: &PanicInfo) -> ! {
             // overflow stack
-            panic!()
+            signal("oh no panic is happen");
+            loop {}
         }
 
         #[lang = "eh_personality"]

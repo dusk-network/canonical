@@ -16,6 +16,8 @@ use canonical::{
 };
 use canonical_derive::Canon;
 
+use crate::wasm::Signal;
+
 #[derive(Default, Debug)]
 struct MemStoreInner(HashMap<Id32, Vec<u8>>);
 
@@ -45,6 +47,7 @@ struct MemSource<'a, S> {
 pub enum MemError {
     MissingValue,
     InvalidEncoding,
+    Signal(Signal),
 }
 
 impl fmt::Display for MemError {
@@ -52,6 +55,7 @@ impl fmt::Display for MemError {
         match self {
             Self::MissingValue => write!(f, "Missing Value"),
             Self::InvalidEncoding => write!(f, "InvalidEncoding"),
+            Self::Signal(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -61,6 +65,12 @@ impl wasmi::HostError for MemError {}
 impl From<InvalidEncoding> for MemError {
     fn from(_: InvalidEncoding) -> Self {
         MemError::InvalidEncoding
+    }
+}
+
+impl From<Signal> for MemError {
+    fn from(signal: Signal) -> Self {
+        MemError::Signal(signal)
     }
 }
 

@@ -4,18 +4,33 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::fmt;
 use std::marker::PhantomData;
 
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 use wasmi;
 
-const B_GET: usize = 0;
-const B_PUT: usize = 1;
+const GET: usize = 0;
+const PUT: usize = 1;
+const SIG: usize = 2;
+
+#[derive(Canon, Clone, Debug)]
+pub struct Signal(String);
+
+impl fmt::Display for Signal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 struct CanonImports<S>(S);
 
-impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
+impl<S> wasmi::ImportResolver for CanonImports<S>
+where
+    S: Store,
+    S::Error: From<Signal>,
+{
     fn resolve_func(
         &self,
         _module_name: &str,
@@ -23,11 +38,11 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
         _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
         match field_name {
-            "b_get" => Ok(wasmi::FuncInstance::alloc_host(
+            "get" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(&[wasmi::ValueType::I32][..], None),
-                B_GET,
+                GET,
             )),
-            "b_put" => Ok(wasmi::FuncInstance::alloc_host(
+            "put" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(
                     &[
                         wasmi::ValueType::I32,
@@ -36,9 +51,16 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
                     ][..],
                     None,
                 ),
-                B_PUT,
+                PUT,
             )),
-            _ => panic!("yoo"),
+            "sig" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
+                    None,
+                ),
+                SIG,
+            )),
+            _ => panic!("yoo {}", field_name),
         }
     }
 
@@ -92,6 +114,7 @@ impl<'a, S> wasmi::Externals for Externals<'a, S>
 where
     S: Store,
     S::Error: wasmi::HostError,
+    S::Error: From<Signal>,
 {
     fn invoke_index(
         &mut self,
@@ -99,7 +122,7 @@ where
         args: wasmi::RuntimeArgs,
     ) -> Result<Option<wasmi::RuntimeValue>, wasmi::Trap> {
         match index {
-            B_GET => {
+            GET => {
                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
                     let ofs = ofs as usize;
                     self.memory.with_direct_access_mut(|mem| {
@@ -116,7 +139,7 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
-            B_PUT => {
+            PUT => {
                 if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len), wasmi::RuntimeValue::I32(ret_addr)] =
                     args.as_ref()[..]
                 {
@@ -132,6 +155,25 @@ where
                                 .copy_from_slice(id.as_ref());
                         }
                         Ok(None)
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
+            SIG => {
+                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len)] =
+                    args.as_ref()[..]
+                {
+                    let ofs = ofs as usize;
+                    let len = len as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        let bytes = &mem[ofs..ofs + len];
+                        let string =
+                            String::from_utf8_lossy(&bytes).to_string();
+                        let signal = Signal(string);
+                        Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
+                            S::Error::from(signal),
+                        ))))
                     })
                 } else {
                     todo!("error out for wrong argument types")
@@ -203,6 +245,7 @@ where
     State: Canon<S> + Module + core::fmt::Debug,
     S: Store,
     S::Error: wasmi::HostError,
+    S::Error: From<Signal>,
 {
     /// Creates a new Wasm wrapper over an initial state.
     pub fn new(state: State) -> Self {
@@ -269,6 +312,7 @@ where
         A: Canon<S>,
         R: Canon<S>,
         S::Error: wasmi::HostError,
+        S::Error: From<Signal>,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;

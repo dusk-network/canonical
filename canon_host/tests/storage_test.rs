@@ -15,7 +15,7 @@ fn storage() {
 
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 
-    let n = 16;
+    let n = 5;
 
     let mut cast = remote.cast_mut::<Wasm<Storage<Mem>, Mem>>().unwrap();
 

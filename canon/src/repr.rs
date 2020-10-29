@@ -18,7 +18,10 @@ use arbitrary::{self, Arbitrary};
 use cfg_if::cfg_if;
 
 use crate::cow::{Cow, CowMut};
-use crate::{ByteSink, ByteSource, Canon, Sink, Source, Store};
+use crate::{ByteSource, Canon, Sink, Source, Store};
+
+#[cfg(not(feature = "host"))]
+use crate::ByteSink;
 
 const IDENT_TAG: u8 = 0xff;
 
@@ -292,7 +295,9 @@ where
                 }
             }
             Repr::Ident { ident, .. } => ident.clone(),
-            Repr::Inline { .. } => todo!(),
+            Repr::Inline { .. } => {
+                todo!();
+            }
         }
     }
 }

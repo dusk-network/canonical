@@ -74,7 +74,7 @@ where
             let id_len = slice.len();
             // first copy the id into the buffer
             into[0..id_len].copy_from_slice(slice);
-            b_get(&mut into[0]);
+            get(&mut into[0]);
             Ok(())
         }
     }
@@ -84,8 +84,8 @@ where
             let slice = id.as_ref();
             let id_len = slice.len();
             BUF[0..id_len].copy_from_slice(slice);
-            b_get(&mut BUF[0]);
-            // b_get has written T into the buffer
+            get(&mut BUF[0]);
+            // get has written T into the buffer
             let mut source = ByteSource::new(&BUF[..], self.clone());
             Canon::<Self>::read(&mut source)
         }
@@ -97,7 +97,7 @@ where
             let mut sink = ByteSink::new(&mut BUF, self.clone());
             Canon::<Self>::write(t, &mut sink)?;
             let mut id = Self::Ident::default();
-            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
+            put(&mut BUF[0], len, &mut id.as_mut()[0]);
             Ok(id)
         }
     }
@@ -107,13 +107,13 @@ where
             let mut id = Self::Ident::default();
             let len = bytes.len();
             BUF[0..len].copy_from_slice(bytes);
-            b_put(&mut BUF[0], len, &mut id.as_mut()[0]);
+            put(&mut BUF[0], len, &mut id.as_mut()[0]);
             Ok(id)
         }
     }
 }
 
 extern "C" {
-    pub fn b_put(buf: &mut u8, len: usize, ret: &mut u8);
-    pub fn b_get(buf: &mut u8);
+    pub fn put(buf: &mut u8, len: usize, ret: &mut u8);
+    pub fn get(buf: &mut u8);
 }
