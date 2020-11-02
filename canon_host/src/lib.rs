@@ -9,12 +9,12 @@
 #![deny(missing_docs)]
 
 mod mem_store;
-pub use mem_store::MemStore;
+pub use mem_store::{MemError, MemStore};
 
 mod remote;
 pub use remote::Remote;
 
 mod wasm;
-pub use wasm::{Module, Query, Transaction, Wasm};
+pub use wasm::{Module, Query, Signal, Transaction, Wasm};
 
 pub use canonical::Store;

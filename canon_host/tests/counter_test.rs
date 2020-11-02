@@ -20,7 +20,6 @@ fn query() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::read_value(), store.clone())
-            .unwrap()
             .unwrap(),
         99
     );
@@ -30,7 +29,6 @@ fn query() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::is_even(), store.clone())
-            .unwrap()
             .unwrap(),
         false
     );
@@ -42,7 +40,6 @@ fn query() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::xor_values(a, b), store.clone())
-            .unwrap()
             .unwrap(),
         99 ^ a ^ b
     );
@@ -60,7 +57,6 @@ fn transaction() {
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
     assert!(cast
         .transact(&Counter::compare_and_swap(99, 32), store.clone())
-        .unwrap()
         .unwrap());
 
     cast.commit().unwrap();
@@ -71,15 +67,12 @@ fn transaction() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::read_value(), store.clone())
-            .unwrap()
             .unwrap(),
         32
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::increment(), store.clone())
-        .unwrap()
-        .unwrap();
+    cast.transact(&Counter::increment(), store.clone()).unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
@@ -87,15 +80,12 @@ fn transaction() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::read_value(), store.clone())
-            .unwrap()
             .unwrap(),
         33
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::decrement(), store.clone())
-        .unwrap()
-        .unwrap();
+    cast.transact(&Counter::decrement(), store.clone()).unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
@@ -103,15 +93,12 @@ fn transaction() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::read_value(), store.clone())
-            .unwrap()
             .unwrap(),
         32
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::adjust(-10), store.clone())
-        .unwrap()
-        .unwrap();
+    cast.transact(&Counter::adjust(-10), store.clone()).unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
@@ -119,7 +106,6 @@ fn transaction() {
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
             .query(&Counter::read_value(), store.clone())
-            .unwrap()
             .unwrap(),
         22
     );

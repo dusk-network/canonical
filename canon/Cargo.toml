@@ -19,7 +19,7 @@ cfg-if = "1.0.0"
 canonical_host = { path = "../canon_host", version = "0.4.0" }
 canonical_derive = { path = "../canon_derive", version = "0.4.0" }
 canonical_fuzz = { path = "../canon_fuzz", version = "0.4.0" }
-nstack = { path = "../../nstack" }
+nstack = "0.6"
 
 [features]
 host = ["blake2b_simd/std", "arbitrary"]

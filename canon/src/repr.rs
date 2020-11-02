@@ -250,7 +250,7 @@ where
             }
             Repr::Ident { ident, store } => {
                 let _t = store.get(ident)?;
-                todo!()
+                todo!("oh how are you")
             }
             Repr::Inline { bytes, .. } => {
                 let mut source = ByteSource::new(bytes.as_ref(), S::default());
@@ -296,7 +296,7 @@ where
             }
             Repr::Ident { ident, .. } => ident.clone(),
             Repr::Inline { .. } => {
-                todo!();
+                todo!("there's no way!");
             }
         }
     }
@@ -334,7 +334,7 @@ where
             }
             Kind::Ident => {
                 let store = S::default();
-                let ident = store.put(&t).unwrap();
+                let ident = store.put(&t).expect("could not put t");
                 Ok(Repr::Ident { ident, store })
             }
         }

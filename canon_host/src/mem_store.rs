@@ -43,11 +43,21 @@ struct MemSource<'a, S> {
     store: S,
 }
 
-#[derive(Canon, Debug, Clone)]
+#[derive(Canon, Debug, Clone, PartialEq)]
+/// Errors that can happen using the MemStore.
 pub enum MemError {
+    /// Value missing in the store
     MissingValue,
+    /// Invalid data
     InvalidEncoding,
+    /// Signal thrown by module
     Signal(Signal),
+}
+
+impl From<wasmi::Error> for MemError {
+    fn from(err: wasmi::Error) -> MemError {
+        MemError::Signal(err.into())
+    }
 }
 
 impl fmt::Display for MemError {
@@ -145,7 +155,7 @@ impl<S: Store> Sink<S> for MemSink<S> {
     }
 
     fn fin(self) -> S::Ident {
-        todo!()
+        todo!("this is unreasonable")
     }
 }
 

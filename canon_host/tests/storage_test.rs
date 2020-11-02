@@ -15,7 +15,7 @@ fn storage() {
 
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 
-    let n = 5;
+    let n = 4;
 
     let mut cast = remote.cast_mut::<Wasm<Storage<Mem>, Mem>>().unwrap();
 
@@ -23,7 +23,6 @@ fn storage() {
     for i in 0..n {
         let val = i + 0xb0;
         cast.transact(&Storage::<Mem>::push(val), store.clone())
-            .unwrap()
             .unwrap()
     }
 
@@ -34,7 +33,6 @@ fn storage() {
         assert_eq!(
             cast.transact(&Storage::<Mem>::pop(), store.clone())
                 .unwrap()
-                .unwrap()
                 .unwrap(),
             Some(val)
         )
@@ -43,7 +41,6 @@ fn storage() {
     // empty
     assert_eq!(
         cast.transact(&Storage::<Mem>::pop(), store.clone())
-            .unwrap()
             .unwrap()
             .unwrap(),
         None

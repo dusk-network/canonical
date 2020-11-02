@@ -14,8 +14,9 @@ lazy_static = "1.4"
 parking_lot = "0.11"
 wasmi = "0.6.0"
 canonical = { path = "../canon", features = ["host"] }
-canonical_derive = { path = "../canon_derive" }
+canonical_derive = { path = "../canon_derive", version = "0.4" }
 
 [dev-dependencies]
 counter = { path = "examples/counter", features = ["host"], version = "0.1.0" }
 storage = { path = "examples/storage", features = ["host"], version = "0.1.0" }
+panic = { path = "examples/panic", features = ["host"], version = "0.1.0" }

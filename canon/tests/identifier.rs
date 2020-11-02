@@ -4,9 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Id32, Store};
+use canonical::Store;
 use canonical_host::MemStore;
-use nstack::NStack;
 
 #[test]
 fn identifier_u64() {
@@ -19,23 +18,4 @@ fn identifier_u64() {
     let id_b = store.put(&a).unwrap();
 
     assert!(id_a == id_b);
-}
-
-#[test]
-fn identifier_stack() {
-    let mut stack = NStack::<_, (), _>::new();
-
-    let n = 8;
-
-    for i in 0u64..n {
-        stack.push(i).unwrap();
-    }
-
-    let id_a: Id32 = MemStore::ident(&stack);
-
-    let store = MemStore::new();
-
-    let id_b = store.put(&stack).unwrap();
-
-    assert_eq!(id_a, id_b);
 }

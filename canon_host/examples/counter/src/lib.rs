@@ -103,7 +103,7 @@ mod hosted {
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("oh why would you"),
         }
     }
 
@@ -162,7 +162,7 @@ mod hosted {
                 // return result
                 Canon::<BS>::write(&res, &mut sink)
             }
-            _ => panic!(""),
+            _ => panic!("panic is unique"),
         }
     }
 

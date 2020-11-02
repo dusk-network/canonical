@@ -104,7 +104,7 @@ mod hosted {
                 Canon::<BS>::write(&res, &mut sink)?;
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("the tranasact"),
         }
     }
 
@@ -119,9 +119,10 @@ mod hosted {
         use core::panic::PanicInfo;
 
         #[panic_handler]
-        fn panic(_: &PanicInfo) -> ! {
-            // overflow stack
-            signal("oh no panic is happen");
+        fn panic(panic_info: &PanicInfo) -> ! {
+            if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                signal(s);
+            }
             loop {}
         }
 

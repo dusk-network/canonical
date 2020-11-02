@@ -15,12 +15,47 @@ const GET: usize = 0;
 const PUT: usize = 1;
 const SIG: usize = 2;
 
-#[derive(Canon, Clone, Debug)]
-pub struct Signal(String);
+#[derive(Canon, Clone, Debug, PartialEq)]
+/// A panic signal that can be sent from a module.
+pub enum Signal {
+    /// Signal originated as a panic
+    Panic(String),
+    /// Signal originated as an error
+    Error(String),
+}
 
 impl fmt::Display for Signal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match self {
+            Signal::Panic(s) => write!(f, "Panic {}", s),
+            Signal::Error(s) => write!(f, "Error {}", s),
+        }
+    }
+}
+
+impl Signal {
+    /// Create a new signal
+    pub fn panic<S: Into<String>>(s: S) -> Self {
+        Signal::Panic(s.into())
+    }
+}
+
+impl wasmi::HostError for Signal {}
+
+// We do this rather complicated dance to sneak our custom error out of a rather
+// uwieldly nested set of enums.
+impl From<wasmi::Error> for Signal {
+    fn from(err: wasmi::Error) -> Self {
+        match err {
+            wasmi::Error::Trap(ref trap) => match trap.kind() {
+                wasmi::TrapKind::Host(h) => match h.downcast_ref::<Signal>() {
+                    Some(s) => s.clone(),
+                    None => todo!(),
+                },
+                _ => Signal::Error(String::from(format!("{}", err))),
+            },
+            _ => Signal::Error(String::from(format!("{}", err))),
+        }
     }
 }
 
@@ -170,9 +205,9 @@ where
                         let bytes = &mem[ofs..ofs + len];
                         let string =
                             String::from_utf8_lossy(&bytes).to_string();
-                        let signal = Signal(string);
+                        let signal = Signal::panic(string);
                         Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
-                            S::Error::from(signal),
+                            signal,
                         ))))
                     })
                 } else {
@@ -260,10 +295,11 @@ where
         &self,
         query: &Query<A, R>,
         store: S,
-    ) -> Result<Result<R, S::Error>, wasmi::Error>
+    ) -> Result<R, S::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
+        S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
@@ -271,7 +307,7 @@ where
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
-        Ok(match instance.export_by_name("memory") {
+        match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
                     let mut sink = ByteSink::new(&mut mem[..], store.clone());
@@ -299,7 +335,7 @@ where
                 })
             }
             _ => panic!("no memory"),
-        })
+        }
     }
 
     /// Perform the provided transaction in the wasm module
@@ -307,19 +343,20 @@ where
         &mut self,
         transaction: &Transaction<A, R>,
         store: S,
-    ) -> Result<Result<R, S::Error>, wasmi::Error>
+    ) -> Result<R, S::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
         S::Error: wasmi::HostError,
         S::Error: From<Signal>,
+        S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
         let module = wasmi::Module::from_buffer(State::BYTECODE)?;
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
-        Ok(match instance.export_by_name("memory") {
+        match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
                     let mut sink = ByteSink::new(mem, store.clone());
@@ -346,6 +383,6 @@ where
                 })
             }
             _ => todo!("no memory"),
-        })
+        }
     }
 }

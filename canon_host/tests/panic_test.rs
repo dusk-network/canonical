@@ -1,0 +1,32 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
+use canonical_host::{MemError, MemStore, Remote, Signal, Wasm};
+
+use panic::Panico;
+
+#[test]
+fn panic() {
+    let store = MemStore::new();
+    let wasm_counter = Wasm::new(Panico);
+
+    let remote = Remote::new(wasm_counter, &store).unwrap();
+    let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
+
+    match cast.query(&Panico::panic_a(), store.clone()) {
+        Err(MemError::Signal(sig)) => {
+            assert_eq!(sig, Signal::panic("panicked at \'let\'s panic!\', canon_host/examples/panic/src/lib.rs:37:13\n"));
+        }
+        _ => panic!(),
+    }
+
+    match cast.query(&Panico::panic_b(), store.clone()) {
+        Err(MemError::Signal(sig)) => {
+            assert_eq!(sig, Signal::panic("panicked at \'let\'s panic differently!\', canon_host/examples/panic/src/lib.rs:41:13\n"));
+        }
+        _ => panic!(),
+    }
+}
