@@ -7,16 +7,20 @@
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(lang_items)]
 
+use core::marker::PhantomData;
+
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
-use nstack::NStack;
 
 #[derive(Canon, Debug, Clone)]
-pub struct Storage<S: Store>(NStack<u8, (), S>);
+pub struct Storage<S>(PhantomData<S>);
 
-impl<S: Store> Storage<S> {
+impl<S> Storage<S>
+where
+    S: Store,
+{
     pub fn new() -> Self {
-        Storage(NStack::new())
+        Storage(PhantomData)
     }
 }
 
@@ -61,12 +65,12 @@ mod hosted {
     type BS = BridgeStore<Id32>;
 
     impl Storage<BS> {
-        pub fn push(&mut self, value: u8) -> Result<(), <BS as Store>::Error> {
-            self.0.push(value)
+        pub fn push(&mut self, _value: u8) -> Result<(), <BS as Store>::Error> {
+            todo!()
         }
 
         pub fn pop(&mut self) -> Result<Option<u8>, <BS as Store>::Error> {
-            self.0.pop()
+            todo!()
         }
     }
 
@@ -134,11 +138,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod host {
     use super::*;
-    use canonical_host::{Module, Transaction};
-
-    impl<S: Store> Module for Storage<S> {
-        const BYTECODE: &'static [u8] = include_bytes!("../storage.wasm");
-    }
+    use canonical_host::Transaction;
 
     // transactions
     type TransactionIndex = u16;

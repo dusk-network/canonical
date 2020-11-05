@@ -2,6 +2,7 @@
 members = [
     "canon",
     "canon_derive",
+    "canon_module",		
     "canon_host",
     "canon_fuzz",
     "canon_host/examples/counter",

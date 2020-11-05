@@ -39,7 +39,7 @@ where
         if let Cow::Owned(ref mut t) = self {
             t
         } else {
-            unreachable!()
+            unreachable!("onkel")
         }
     }
 }

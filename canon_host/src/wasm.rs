@@ -129,8 +129,9 @@ where
 
 /// A type with a corresponding wasm module
 #[derive(Canon, Debug, Clone)]
-pub struct Wasm<State: Module, S: Store> {
+pub struct Wasm<State, S: Store> {
     state: State,
+    bytecode: Vec<u8>,
     _marker: PhantomData<S>,
 }
 
@@ -219,14 +220,6 @@ where
     }
 }
 
-/// Helper trait for wasm bytecode
-///
-/// TODO: remove this in favor of code being stored in the Wasm wrapper itself.
-pub trait Module {
-    /// The wasm bytecode associated with this type
-    const BYTECODE: &'static [u8];
-}
-
 /// Represents the type of a query
 #[derive(Debug)]
 pub struct Query<A, R> {
@@ -277,15 +270,16 @@ impl<A, R> Transaction<A, R> {
 
 impl<State, S> Wasm<State, S>
 where
-    State: Canon<S> + Module + core::fmt::Debug,
+    State: Canon<S> + core::fmt::Debug,
     S: Store,
     S::Error: wasmi::HostError,
     S::Error: From<Signal>,
 {
     /// Creates a new Wasm wrapper over an initial state.
-    pub fn new(state: State) -> Self {
+    pub fn new(state: State, bytecode: &[u8]) -> Self {
         Wasm {
             state,
+            bytecode: Vec::from(bytecode),
             _marker: PhantomData,
         }
     }
@@ -302,7 +296,7 @@ where
         S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
-        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
@@ -352,7 +346,7 @@ where
         S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
-        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 

@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 use arbitrary::{Arbitrary, Unstructured};
 use canonical::{ByteSink, Canon, Store};
 
-const FUZZ_ITERATIONS: usize = 1024;
+const FUZZ_ITERATIONS: usize = 64;
 
 fn hash<T: Hash>(t: T) -> u64 {
     let mut hasher = DefaultHasher::new();

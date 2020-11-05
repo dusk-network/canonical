@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 canonical = { path = "../../../canon" }
 canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host" , optional = true }
+canonical_module = { path = "../../../canon_module" }
 
 [features]
-host = ["canonical/host", "canonical_host"]
+host = ["canonical/host", "canonical_host", "canonical_module/host"]

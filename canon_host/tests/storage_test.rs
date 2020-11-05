@@ -8,10 +8,14 @@ use canonical_host::{MemStore as Mem, Remote, Wasm};
 use storage::Storage;
 
 #[test]
+#[ignore]
 fn storage() {
     let store = Mem::new();
 
-    let wasm_counter = Wasm::new(Storage::new());
+    let wasm_counter = Wasm::new(
+        Storage::<Mem>::new(),
+        include_bytes!("../examples/storage/storage.wasm"),
+    );
 
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 

@@ -8,10 +8,12 @@ use canonical_host::{MemError, MemStore, Remote, Signal, Wasm};
 
 use panic::Panico;
 
+#[ignore]
 #[test]
 fn panic() {
     let store = MemStore::new();
-    let wasm_counter = Wasm::new(Panico);
+    let wasm_counter =
+        Wasm::new(Panico, include_bytes!("../examples/panic/panic.wasm"));
 
     let remote = Remote::new(wasm_counter, &store).unwrap();
     let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
