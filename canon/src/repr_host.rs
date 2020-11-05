@@ -142,6 +142,20 @@ where
         }
     }
 
+    /// Converts an implementation of a representation to a provided Canon implementation
+    pub fn into_canon<U>(self) -> Repr<U, S>
+    where
+        T: Into<U>,
+    {
+        match self {
+            Repr::Value { rc, cached_ident } => Repr::Value {
+                rc: Rc::new(rc.as_ref().clone().into()),
+                cached_ident,
+            },
+            Repr::Ident { ident, store } => Repr::Ident { ident, store },
+        }
+    }
+
     /// Returns the value behind the `Repr`
     pub fn restore(&self) -> Result<T, S::Error> {
         match &self {

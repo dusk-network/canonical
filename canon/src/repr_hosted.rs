@@ -110,6 +110,25 @@ where
         }
     }
 
+    /// Converts an implementation of a representation to a provided Canon implementation
+    ///
+    /// No type conversion for the inline representation is performed, so this must be used with
+    /// care
+    pub unsafe fn into_canon<U>(self) -> Repr<U, S> {
+        match self {
+            Repr::Inline {
+                bytes,
+                len,
+                _marker,
+            } => Repr::Inline {
+                bytes,
+                len,
+                _marker: PhantomData,
+            },
+            Repr::Ident(i) => Repr::Ident(i),
+        }
+    }
+
     /// Restore the value from the repr
     pub fn restore(&self) -> Result<T, S::Error> {
         match self {
