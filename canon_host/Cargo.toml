@@ -18,5 +18,3 @@ canonical_derive = { path = "../canon_derive", version = "0.4" }
 
 [dev-dependencies]
 counter = { path = "examples/counter", features = ["host"], version = "0.1.0" }
-storage = { path = "examples/storage", features = ["host"], version = "0.1.0" }
-panic = { path = "examples/panic", features = ["host"], version = "0.1.0" }

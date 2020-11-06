@@ -9,6 +9,7 @@
 #[cfg(feature = "host")]
 use core::cell::RefCell;
 use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
 
 #[cfg(feature = "host")]
 use std::rc::Rc;
@@ -17,7 +18,6 @@ use std::rc::Rc;
 use arbitrary::{self, Arbitrary};
 use cfg_if::cfg_if;
 
-use crate::cow::{Cow, CowMut};
 use crate::{ByteSource, Canon, Sink, Source, Store};
 
 #[cfg(not(feature = "host"))]
@@ -220,24 +220,24 @@ where
     }
 
     /// Retrieve the value behind this representation
-    pub fn val(&self) -> Result<Cow<T>, S::Error> {
+    pub fn val(&self) -> Result<Val<T>, S::Error> {
         match self {
             #[cfg(feature = "host")]
-            Repr::Value { rc, .. } => Ok(Cow::Borrowed(&*rc)),
+            Repr::Value { rc, .. } => Ok(Val::Borrowed(&*rc)),
             Repr::Ident { ident, store } => {
                 let t = store.get(ident)?;
-                Ok(Cow::Owned(t))
+                Ok(Val::Owned(t))
             }
             Repr::Inline { bytes, .. } => {
                 let mut source = ByteSource::new(bytes.as_ref(), S::default());
                 let t = Canon::<S>::read(&mut source)?;
-                Ok(Cow::Owned(t))
+                Ok(Val::Owned(t))
             }
         }
     }
 
     /// Retrieve a mutable value behind this representation
-    pub fn val_mut(&mut self) -> Result<CowMut<T, S>, S::Error> {
+    pub fn val_mut(&mut self) -> Result<ValMut<T, S>, S::Error> {
         match self {
             #[cfg(feature = "host")]
             Repr::Value {
@@ -246,7 +246,7 @@ where
             } => {
                 // clear cache
                 *cached_ident = RefCell::new(None);
-                Ok(CowMut::Borrowed(Rc::make_mut(rc)))
+                Ok(ValMut::Borrowed(Rc::make_mut(rc)))
             }
             Repr::Ident { ident, store } => {
                 let _t = store.get(ident)?;
@@ -255,7 +255,7 @@ where
             Repr::Inline { bytes, .. } => {
                 let mut source = ByteSource::new(bytes.as_ref(), S::default());
                 let t = Canon::<S>::read(&mut source)?;
-                Ok(CowMut::Owned {
+                Ok(ValMut::Owned {
                     value: t,
                     writeback: self,
                 })
@@ -298,6 +298,83 @@ where
             Repr::Inline { .. } => {
                 todo!("there's no way!");
             }
+        }
+    }
+}
+
+/// No-std compatible alternative to `std::Val`
+pub enum Val<'a, T> {
+    /// An owned instance of `T`
+    Owned(T),
+    /// A borrowed instance of `T`
+    Borrowed(&'a T),
+}
+
+impl<'a, T> Deref for Val<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        match self {
+            Val::Borrowed(t) => t,
+            Val::Owned(t) => &t,
+        }
+    }
+}
+
+impl<'a, T> DerefMut for Val<'a, T>
+where
+    T: Clone,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        if let Val::Borrowed(t) = self {
+            *self = Val::Owned(t.clone())
+        }
+        if let Val::Owned(ref mut t) = self {
+            t
+        } else {
+            unreachable!("onkel")
+        }
+    }
+}
+
+/// A mutable value derived from a Repr
+pub enum ValMut<'a, T, S>
+where
+    S: Store,
+{
+    /// An owned instance of `T`
+    Owned {
+        /// The owned value itself
+        value: T,
+        /// Where to write back the changed value
+        writeback: &'a mut Repr<T, S>,
+    },
+    /// A borrowed instance of `T`
+    Borrowed(&'a mut T),
+}
+
+impl<'a, T, S> Deref for ValMut<'a, T, S>
+where
+    S: Store,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ValMut::Borrowed(b) => b,
+            ValMut::Owned { value, .. } => &value,
+        }
+    }
+}
+
+impl<'a, T, S> DerefMut for ValMut<'a, T, S>
+where
+    S: Store,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            ValMut::Borrowed(b) => b,
+            ValMut::Owned { ref mut value, .. } => value,
         }
     }
 }

@@ -48,7 +48,6 @@ fn query() {
     );
 }
 
-#[ignore]
 #[test]
 fn transaction() {
     let store = MemStore::new();

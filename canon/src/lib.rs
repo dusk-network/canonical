@@ -11,9 +11,11 @@
 #![deny(missing_docs)]
 
 mod canon;
+mod dry_sink;
+mod id;
+mod implementations;
 mod repr;
-
-pub use repr::Repr;
+mod store;
 
 #[cfg(not(feature = "host"))]
 mod bridge;
@@ -21,14 +23,8 @@ mod bridge;
 #[cfg(not(feature = "host"))]
 pub use bridge::BridgeStore;
 
-mod cow;
-mod dry_sink;
-mod id;
-mod implementations;
-mod store;
-
 pub use canon::{Canon, InvalidEncoding};
-pub use cow::{Cow, CowMut};
 pub use dry_sink::DrySink;
 pub use id::Id32;
+pub use repr::{Repr, Val, ValMut};
 pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
