@@ -152,6 +152,8 @@ impl<S: Store> Canon<S> for () {
 
 impl<S: Store> Canon<S> for ! {
     fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
+        // This will never be called, since ! cannot be instantiated,
+        // we're free to return ! ourselves, which is the type of the infinite loop
         loop {}
     }
 
