@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
@@ -16,9 +16,9 @@ arbitrary = { version = "0.3", features = ["derive"], optional = true }
 cfg-if = "1.0.0"
 
 [dev-dependencies]
-canonical_host = { path = "../canon_host", version = "0.4.0" }
-canonical_derive = { path = "../canon_derive", version = "0.4.0" }
-canonical_fuzz = { path = "../canon_fuzz", version = "0.4.0" }
+canonical_host = { path = "../canon_host", version = "0.4" }
+canonical_derive = { path = "../canon_derive", version = "0.4" }
+canonical_fuzz = { path = "../canon_fuzz", version = "0.4" }
 nstack = "0.6"
 
 [features]
