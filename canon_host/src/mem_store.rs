@@ -16,6 +16,8 @@ use canonical::{
 };
 use canonical_derive::Canon;
 
+use crate::wasm::Signal;
+
 #[derive(Default, Debug)]
 struct MemStoreInner(HashMap<Id32, Vec<u8>>);
 
@@ -41,10 +43,21 @@ struct MemSource<'a, S> {
     store: S,
 }
 
-#[derive(Canon, Debug, Clone)]
+#[derive(Canon, Debug, Clone, PartialEq)]
+/// Errors that can happen using the MemStore.
 pub enum MemError {
+    /// Value missing in the store
     MissingValue,
+    /// Invalid data
     InvalidEncoding,
+    /// Signal thrown by module
+    Signal(Signal),
+}
+
+impl From<wasmi::Error> for MemError {
+    fn from(err: wasmi::Error) -> MemError {
+        MemError::Signal(err.into())
+    }
 }
 
 impl fmt::Display for MemError {
@@ -52,6 +65,7 @@ impl fmt::Display for MemError {
         match self {
             Self::MissingValue => write!(f, "Missing Value"),
             Self::InvalidEncoding => write!(f, "InvalidEncoding"),
+            Self::Signal(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -61,6 +75,12 @@ impl wasmi::HostError for MemError {}
 impl From<InvalidEncoding> for MemError {
     fn from(_: InvalidEncoding) -> Self {
         MemError::InvalidEncoding
+    }
+}
+
+impl From<Signal> for MemError {
+    fn from(signal: Signal) -> Self {
+        MemError::Signal(signal)
     }
 }
 
@@ -135,7 +155,7 @@ impl<S: Store> Sink<S> for MemSink<S> {
     }
 
     fn fin(self) -> S::Ident {
-        todo!()
+        todo!("this is unreasonable")
     }
 }
 

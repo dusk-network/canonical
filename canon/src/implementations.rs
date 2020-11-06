@@ -150,6 +150,22 @@ impl<S: Store> Canon<S> for () {
     }
 }
 
+impl<S: Store> Canon<S> for ! {
+    fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
+        // This will never be called, since ! cannot be instantiated,
+        // we're free to return ! ourselves, which is the type of the infinite loop
+        loop {}
+    }
+
+    fn read(_: &mut impl Source<S>) -> Result<Self, S::Error> {
+        loop {}
+    }
+
+    fn encoded_len(&self) -> usize {
+        loop {}
+    }
+}
+
 impl<S: Store, T> Canon<S> for PhantomData<T> {
     fn write(&self, _: &mut impl Sink<S>) -> Result<(), S::Error> {
         Ok(())

@@ -176,5 +176,5 @@ fn fuzzing() {
     let store = MemStore::new();
 
     fuzz_canon::<A, _>(store.clone());
-    fuzz_canon_iterations::<MonsterStruct<Option<u32>>, _>(128, store);
+    fuzz_canon_iterations::<MonsterStruct<Option<u32>>, _>(32, store);
 }

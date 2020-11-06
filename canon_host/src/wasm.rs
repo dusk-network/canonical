@@ -4,18 +4,68 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::fmt;
 use std::marker::PhantomData;
 
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 use wasmi;
 
-const B_GET: usize = 0;
-const B_PUT: usize = 1;
+const GET: usize = 0;
+const PUT: usize = 1;
+const SIG: usize = 2;
+
+#[derive(Canon, Clone, Debug, PartialEq)]
+/// A panic signal that can be sent from a module.
+pub enum Signal {
+    /// Signal originated as a panic
+    Panic(String),
+    /// Signal originated as an error
+    Error(String),
+}
+
+impl fmt::Display for Signal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Signal::Panic(s) => write!(f, "Panic {}", s),
+            Signal::Error(s) => write!(f, "Error {}", s),
+        }
+    }
+}
+
+impl Signal {
+    /// Create a new signal
+    pub fn panic<S: Into<String>>(s: S) -> Self {
+        Signal::Panic(s.into())
+    }
+}
+
+impl wasmi::HostError for Signal {}
+
+// We do this rather complicated dance to sneak our custom error out of a rather
+// uwieldly nested set of enums.
+impl From<wasmi::Error> for Signal {
+    fn from(err: wasmi::Error) -> Self {
+        match err {
+            wasmi::Error::Trap(ref trap) => match trap.kind() {
+                wasmi::TrapKind::Host(h) => match h.downcast_ref::<Signal>() {
+                    Some(s) => s.clone(),
+                    None => todo!(),
+                },
+                _ => Signal::Error(String::from(format!("{}", err))),
+            },
+            _ => Signal::Error(String::from(format!("{}", err))),
+        }
+    }
+}
 
 struct CanonImports<S>(S);
 
-impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
+impl<S> wasmi::ImportResolver for CanonImports<S>
+where
+    S: Store,
+    S::Error: From<Signal>,
+{
     fn resolve_func(
         &self,
         _module_name: &str,
@@ -23,11 +73,11 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
         _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
         match field_name {
-            "b_get" => Ok(wasmi::FuncInstance::alloc_host(
+            "get" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(&[wasmi::ValueType::I32][..], None),
-                B_GET,
+                GET,
             )),
-            "b_put" => Ok(wasmi::FuncInstance::alloc_host(
+            "put" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(
                     &[
                         wasmi::ValueType::I32,
@@ -36,9 +86,16 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
                     ][..],
                     None,
                 ),
-                B_PUT,
+                PUT,
             )),
-            _ => panic!("yoo"),
+            "sig" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
+                    None,
+                ),
+                SIG,
+            )),
+            _ => panic!("yoo {}", field_name),
         }
     }
 
@@ -72,8 +129,9 @@ impl<S: Store> wasmi::ImportResolver for CanonImports<S> {
 
 /// A type with a corresponding wasm module
 #[derive(Canon, Debug, Clone)]
-pub struct Wasm<State: Module, S: Store> {
+pub struct Wasm<State, S: Store> {
     state: State,
+    bytecode: Vec<u8>,
     _marker: PhantomData<S>,
 }
 
@@ -92,6 +150,7 @@ impl<'a, S> wasmi::Externals for Externals<'a, S>
 where
     S: Store,
     S::Error: wasmi::HostError,
+    S::Error: From<Signal>,
 {
     fn invoke_index(
         &mut self,
@@ -99,7 +158,7 @@ where
         args: wasmi::RuntimeArgs,
     ) -> Result<Option<wasmi::RuntimeValue>, wasmi::Trap> {
         match index {
-            B_GET => {
+            GET => {
                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
                     let ofs = ofs as usize;
                     self.memory.with_direct_access_mut(|mem| {
@@ -116,7 +175,7 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
-            B_PUT => {
+            PUT => {
                 if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len), wasmi::RuntimeValue::I32(ret_addr)] =
                     args.as_ref()[..]
                 {
@@ -137,17 +196,28 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
+            SIG => {
+                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len)] =
+                    args.as_ref()[..]
+                {
+                    let ofs = ofs as usize;
+                    let len = len as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        let bytes = &mem[ofs..ofs + len];
+                        let string =
+                            String::from_utf8_lossy(&bytes).to_string();
+                        let signal = Signal::panic(string);
+                        Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
+                            signal,
+                        ))))
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
             _ => panic!("invalid index"),
         }
     }
-}
-
-/// Helper trait for wasm bytecode
-///
-/// TODO: remove this in favor of code being stored in the Wasm wrapper itself.
-pub trait Module {
-    /// The wasm bytecode associated with this type
-    const BYTECODE: &'static [u8];
 }
 
 /// Represents the type of a query
@@ -200,14 +270,16 @@ impl<A, R> Transaction<A, R> {
 
 impl<State, S> Wasm<State, S>
 where
-    State: Canon<S> + Module + core::fmt::Debug,
+    State: Canon<S> + core::fmt::Debug,
     S: Store,
     S::Error: wasmi::HostError,
+    S::Error: From<Signal>,
 {
     /// Creates a new Wasm wrapper over an initial state.
-    pub fn new(state: State) -> Self {
+    pub fn new(state: State, bytecode: &[u8]) -> Self {
         Wasm {
             state,
+            bytecode: Vec::from(bytecode),
             _marker: PhantomData,
         }
     }
@@ -217,18 +289,19 @@ where
         &self,
         query: &Query<A, R>,
         store: S,
-    ) -> Result<Result<R, S::Error>, wasmi::Error>
+    ) -> Result<R, S::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
+        S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
-        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
-        Ok(match instance.export_by_name("memory") {
+        match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
                     let mut sink = ByteSink::new(&mut mem[..], store.clone());
@@ -256,7 +329,7 @@ where
                 })
             }
             _ => panic!("no memory"),
-        })
+        }
     }
 
     /// Perform the provided transaction in the wasm module
@@ -264,18 +337,20 @@ where
         &mut self,
         transaction: &Transaction<A, R>,
         store: S,
-    ) -> Result<Result<R, S::Error>, wasmi::Error>
+    ) -> Result<R, S::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
         S::Error: wasmi::HostError,
+        S::Error: From<Signal>,
+        S::Error: From<wasmi::Error>,
     {
         let imports = CanonImports(store.clone());
-        let module = wasmi::Module::from_buffer(State::BYTECODE)?;
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
 
-        Ok(match instance.export_by_name("memory") {
+        match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
                     let mut sink = ByteSink::new(mem, store.clone());
@@ -302,6 +377,6 @@ where
                 })
             }
             _ => todo!("no memory"),
-        })
+        }
     }
 }

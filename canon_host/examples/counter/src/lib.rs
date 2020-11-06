@@ -188,11 +188,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod host {
     use super::*;
-    use canonical_host::{Module, Query, Transaction};
-
-    impl Module for Counter {
-        const BYTECODE: &'static [u8] = include_bytes!("../counter.wasm");
-    }
+    use canonical_host::{Query, Transaction};
 
     // queries
     type QueryIndex = u16;

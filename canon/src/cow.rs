@@ -6,6 +6,9 @@
 
 use core::ops::{Deref, DerefMut};
 
+use crate::repr::Repr;
+use crate::store::Store;
+
 /// No-std compatible alternative to `std::Cow`
 pub enum Cow<'a, T> {
     /// An owned instance of `T`
@@ -36,7 +39,49 @@ where
         if let Cow::Owned(ref mut t) = self {
             t
         } else {
-            unreachable!()
+            unreachable!("onkel")
+        }
+    }
+}
+
+/// A mutable value derived from a Repr
+pub enum CowMut<'a, T, S>
+where
+    S: Store,
+{
+    /// An owned instance of `T`
+    Owned {
+        /// The owned value itself
+        value: T,
+        /// Where to write back the changed value
+        writeback: &'a mut Repr<T, S>,
+    },
+    /// A borrowed instance of `T`
+    Borrowed(&'a mut T),
+}
+
+impl<'a, T, S> Deref for CowMut<'a, T, S>
+where
+    S: Store,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            CowMut::Borrowed(b) => b,
+            CowMut::Owned { value, .. } => &value,
+        }
+    }
+}
+
+impl<'a, T, S> DerefMut for CowMut<'a, T, S>
+where
+    S: Store,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            CowMut::Borrowed(b) => b,
+            CowMut::Owned { ref mut value, .. } => value,
         }
     }
 }
