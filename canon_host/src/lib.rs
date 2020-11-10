@@ -16,5 +16,3 @@ pub use remote::Remote;
 
 mod wasm;
 pub use wasm::{Query, Signal, Transaction, Wasm};
-
-pub use canonical::Store;

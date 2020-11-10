@@ -5,5 +5,7 @@ members = [
     "canon_module",		
     "canon_host",
     "canon_fuzz",
-    "canon_host/examples/counter",
+    "module_examples",		
+    "module_examples/modules/counter",
+    "module_examples/modules/nstack",
 ]
