@@ -11,3 +11,4 @@ canonical_host = "0.4"
 
 counter = { path = "modules/counter", features = ["host"], version = "0.1.0" }
 nstack_module = { path = "modules/nstack", features = ["host"], version = "0.1.0" }
+panic = { path = "modules/panic", features = ["host"], version = "0.1.0" }

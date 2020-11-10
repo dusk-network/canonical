@@ -8,4 +8,5 @@ members = [
     "module_examples",		
     "module_examples/modules/counter",
     "module_examples/modules/nstack",
+		"module_examples/modules/panic",	
 ]
