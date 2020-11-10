@@ -4,48 +4,46 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{MemStore as MS, Remote, Wasm};
+use canonical_host::{MemStore as MS, Wasm};
 
 use nstack_module::Stack;
 
 #[test]
 fn push_pop() {
     let store = MS::new();
-    let wasm_module = Wasm::new(
+    let mut wasm_stack = Wasm::new(
         Stack::new(),
         include_bytes!("../modules/nstack/nstack_module.wasm"),
     );
-    let mut remote = Remote::new(wasm_module, &store).unwrap();
 
-    let n = 1;
+    let n = 4;
 
     // push n numbers
 
     for i in 0..n {
-        let mut cast = remote.cast_mut::<Wasm<Stack<MS>, MS>>().unwrap();
-        cast.transact(&Stack::<MS>::push(i), store.clone()).unwrap();
-        cast.commit().unwrap();
+        wasm_stack
+            .transact(&Stack::<MS>::push(i), store.clone())
+            .unwrap();
     }
 
-    // // pop n numbers
+    // pop n numbers
 
-    // for i in 0..n {
-    //     let inv = n - i - 1;
-
-    //     let mut cast = remote.cast_mut::<Wasm<Stack, MS>>().unwrap();
-    //     assert_eq!(
-    //         cast.transact(&Stack::pop(), store.clone()).unwrap(),
-    //         Some(inv)
-    //     );
-    //     cast.commit().unwrap();
-    // }
+    for i in 0..n {
+        let inv = n - i - 1;
+        assert_eq!(
+            wasm_stack
+                .transact(&Stack::<MS>::pop(), store.clone())
+                .unwrap(),
+            Some(inv)
+        );
+    }
 
     // assert empty
 
-    let mut cast = remote.cast_mut::<Wasm<Stack<MS>, MS>>().unwrap();
-
     assert_eq!(
-        cast.transact(&Stack::<MS>::pop(), store.clone()).unwrap(),
+        wasm_stack
+            .transact(&Stack::<MS>::pop(), store.clone())
+            .unwrap(),
         None
     );
 }

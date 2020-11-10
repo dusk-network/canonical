@@ -61,6 +61,10 @@ mod hosted {
             0 => {
                 let to_push = Canon::<BS>::read(&mut source)?;
                 slf.push(to_push)?;
+                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                // new self
+                Canon::<BS>::write(&slf, &mut sink)?;
+                // result is ()
                 Ok(())
             }
             // pop (&mut self) -> Option<i32>
