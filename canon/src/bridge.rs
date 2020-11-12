@@ -15,7 +15,7 @@ const BUF_SIZE: usize = 1024 * 4;
 static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
 /// Store usable across ffi-boundraries
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct BridgeStore<I> {
     _marker: PhantomData<I>,
 }

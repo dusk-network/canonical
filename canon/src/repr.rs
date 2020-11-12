@@ -102,6 +102,7 @@ where
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
         let len = u8::read(source)?;
+
         if len == IDENT_TAG {
             // ident tag, not a valid length
             let mut ident = S::Ident::default();
@@ -120,22 +121,14 @@ where
                         cached_ident: RefCell::new(None),
                     })
                 } else {
-                    let len = u8::read(source)?;
-                    if len == IDENT_TAG {
-                        let mut ident = <S as Store>::Ident::default();
-                        let bytes = source.read_bytes(ident.as_ref().len());
-                        ident.as_mut().copy_from_slice(bytes);
-                        Ok(Repr::Ident { ident, store: S::default() })
-                    } else {
-                        let mut bytes = <S as Store>::Ident::default();
-                        bytes.as_mut()[0..len as usize]
-                            .copy_from_slice(source.read_bytes(len as usize));
-                        Ok(Repr::Inline {
-                            bytes,
-                            len,
-                            _marker: PhantomData,
-                        })
-                    }
+                    let mut bytes = <S as Store>::Ident::default();
+                    bytes.as_mut()[0..len as usize]
+                        .copy_from_slice(source.read_bytes(len as usize));
+                    Ok(Repr::Inline {
+                        bytes,
+                        len,
+                        _marker: PhantomData,
+                    })
                 }
             }
         }
@@ -249,14 +242,17 @@ where
                 Ok(ValMut::Borrowed(Rc::make_mut(rc)))
             }
             Repr::Ident { ident, store } => {
-                let _t = store.get(ident)?;
-                todo!("oh how are you")
+                let t = store.get(ident)?;
+                Ok(ValMut::Owned {
+                    value: Some(t),
+                    writeback: self,
+                })
             }
             Repr::Inline { bytes, .. } => {
                 let mut source = ByteSource::new(bytes.as_ref(), S::default());
                 let t = Canon::<S>::read(&mut source)?;
                 Ok(ValMut::Owned {
-                    value: t,
+                    value: Some(t),
                     writeback: self,
                 })
             }
@@ -296,13 +292,13 @@ where
             }
             Repr::Ident { ident, .. } => ident.clone(),
             Repr::Inline { .. } => {
-                todo!("there's no way!");
+                todo!();
             }
         }
     }
 }
 
-/// No-std compatible alternative to `std::Val`
+/// A reference to a value
 pub enum Val<'a, T> {
     /// An owned instance of `T`
     Owned(T),
@@ -340,12 +336,14 @@ where
 /// A mutable value derived from a Repr
 pub enum ValMut<'a, T, S>
 where
+    T: Canon<S>,
     S: Store,
 {
     /// An owned instance of `T`
     Owned {
-        /// The owned value itself
-        value: T,
+        /// The owned value itself, wrapped in an option to be able to move
+        /// it on drop.
+        value: Option<T>,
         /// Where to write back the changed value
         writeback: &'a mut Repr<T, S>,
     },
@@ -355,6 +353,7 @@ where
 
 impl<'a, T, S> Deref for ValMut<'a, T, S>
 where
+    T: Canon<S>,
     S: Store,
 {
     type Target = T;
@@ -362,19 +361,40 @@ where
     fn deref(&self) -> &Self::Target {
         match self {
             ValMut::Borrowed(b) => b,
-            ValMut::Owned { value, .. } => &value,
+            ValMut::Owned { value, .. } => {
+                value.as_ref().expect("Always Some until dropped")
+            }
         }
     }
 }
 
 impl<'a, T, S> DerefMut for ValMut<'a, T, S>
 where
+    T: Canon<S>,
     S: Store,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             ValMut::Borrowed(b) => b,
-            ValMut::Owned { ref mut value, .. } => value,
+            ValMut::Owned { ref mut value, .. } => {
+                value.as_mut().expect("Always Some until dropped")
+            }
+        }
+    }
+}
+
+impl<'a, T, S> Drop for ValMut<'a, T, S>
+where
+    S: Store,
+    T: Canon<S>,
+{
+    fn drop(&mut self) {
+        match self {
+            ValMut::Owned { value, writeback } => {
+                let value = value.take().expect("Always Some until drop");
+                **writeback = Repr::<T, S>::new(value);
+            }
+            _ => (),
         }
     }
 }

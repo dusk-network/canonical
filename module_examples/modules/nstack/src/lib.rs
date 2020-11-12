@@ -12,12 +12,15 @@ use canonical_derive::Canon;
 use microkelvin::Cardinality;
 use nstack::NStack;
 
-#[derive(Clone, Canon, Debug)]
+#[derive(Clone, Canon)]
 pub struct Stack<S: Store> {
     inner: NStack<i32, Cardinality, S>,
 }
 
-impl<S: Store + Store> Stack<S> {
+impl<S: Store> Stack<S>
+where
+    S: Store,
+{
     pub fn new() -> Self {
         Stack {
             inner: NStack::new(),
@@ -49,6 +52,7 @@ mod hosted {
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
+
         let mut source = ByteSource::new(&bytes[..], store.clone());
 
         // read self.
@@ -75,6 +79,7 @@ mod hosted {
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // result
                 Canon::<BS>::write(&ret, &mut sink)?;
+
                 Ok(())
             }
             _ => panic!(""),
@@ -87,17 +92,66 @@ mod hosted {
         transaction(bytes).unwrap()
     }
 
-    // mod panic_handling {
-    //     use core::panic::PanicInfo;
+    mod panic_handling {
+        pub fn signal(msg: &str) {
+            let bytes = msg.as_bytes();
+            let len = bytes.len() as u32;
+            unsafe { sig(&bytes[0], len) }
+        }
 
-    //     #[panic_handler]
-    //     fn panic(_: &PanicInfo) -> ! {
-    //         loop {}
-    //     }
+        extern "C" {
+            fn sig(msg: &u8, len: u32);
+        }
 
-    //     #[lang = "eh_personality"]
-    //     extern "C" fn eh_personality() {}
-    // }
+        use core::fmt::{self, Write};
+        use core::mem;
+        use core::panic::PanicInfo;
+
+        impl Write for PanicMsg {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                let bytes = s.as_bytes();
+                let len = bytes.len();
+                self.buf[self.ofs..self.ofs + len].copy_from_slice(bytes);
+                self.ofs += len;
+                Ok(())
+            }
+        }
+
+        struct PanicMsg {
+            ofs: usize,
+            buf: [u8; 1024 * 32],
+        }
+
+        impl AsRef<str> for PanicMsg {
+            fn as_ref(&self) -> &str {
+                // std::str includes the following defition, but not core:
+                //
+                // pub const unsafe fn from_utf8_unchecked(v: &[u8]) -> &str {
+                //     // SAFETY: the caller must guarantee that the bytes `v` are valid UTF-8.
+                //     // Also relies on `&str` and `&[u8]` having the same layout.
+                //     unsafe { mem::transmute(v) }
+                // }
+                unsafe { mem::transmute::<&[u8], &str>(&self.buf[0..self.ofs]) }
+            }
+        }
+
+        #[panic_handler]
+        fn panic(info: &PanicInfo) -> ! {
+            let mut msg = PanicMsg {
+                ofs: 0,
+                buf: [0u8; 1024 * 32],
+            };
+
+            writeln!(msg, "{}", info).ok();
+
+            signal(msg.as_ref());
+
+            loop {}
+        }
+
+        #[lang = "eh_personality"]
+        extern "C" fn eh_personality() {}
+    }
 }
 
 #[cfg(feature = "host")]

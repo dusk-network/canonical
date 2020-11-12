@@ -17,9 +17,3 @@ nstack = "0.6"
 
 [features]
 host = ["canonical_host"]
-
-[patch.crates-io]
-canonical = { path = "../canon" }
-canonical_derive = { path = "../canon_derive" }
-canonical_host = { path = "../canon_host" }
-canonical_fuzz = { path = "../canon_fuzz" }
