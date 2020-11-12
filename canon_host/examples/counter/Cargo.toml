@@ -12,5 +12,6 @@ canonical = { path = "../../../canon", default-features = false }
 canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host" , optional = true }
 
+
 [features]
 host = ["canonical_host"]

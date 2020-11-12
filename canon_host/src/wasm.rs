@@ -9,11 +9,14 @@ use std::marker::PhantomData;
 
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
+use dusk_bls12_381::BlsScalar;
+use poseidon252::sponge::sponge::sponge_hash;
 use wasmi;
 
 const GET: usize = 0;
 const PUT: usize = 1;
 const SIG: usize = 2;
+const P_HASH: usize = 3;
 
 #[derive(Canon, Clone, Debug, PartialEq)]
 /// A panic signal that can be sent from a module.
@@ -94,6 +97,17 @@ where
                     None,
                 ),
                 SIG,
+            )),
+            "p_hash" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                P_HASH,
             )),
             _ => panic!("yoo {}", field_name),
         }
@@ -210,6 +224,34 @@ where
                         Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
                             signal,
                         ))))
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
+            P_HASH => {
+                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len), wasmi::RuntimeValue::I32(ret_addr)] =
+                    args.as_ref()[..]
+                {
+                    let ofs = ofs as usize;
+                    let len = len as usize;
+                    let ret_addr = ret_addr as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        let bytes = &mem[ofs..ofs + len];
+                        // Chunk bytes to BlsSclar byte-size
+                        let inp: Vec<BlsScalar> = bytes
+                            .chunks(32usize)
+                            .map(|scalar_bytes| {
+                                let mut array = [0u8; 32];
+                                array.copy_from_slice(&scalar_bytes[..]);
+                                BlsScalar::from_bytes(&array).unwrap()
+                            })
+                            .collect();
+                        let result = sponge_hash(&inp);
+                        mem[ret_addr..ret_addr + 32]
+                            .copy_from_slice(&result.to_bytes()[..]);
+                        // Read Scalars from Chunks
+                        Ok(None)
                     })
                 } else {
                     todo!("error out for wrong argument types")
