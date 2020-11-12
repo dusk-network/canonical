@@ -109,7 +109,7 @@ where
                 ),
                 P_HASH,
             )),
-            _ => panic!("yoo {}", field_name),
+            _ => panic!("Unknown host fn {}", field_name),
         }
     }
 
