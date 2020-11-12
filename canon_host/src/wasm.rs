@@ -14,6 +14,7 @@ use wasmi;
 const GET: usize = 0;
 const PUT: usize = 1;
 const SIG: usize = 2;
+const DBG: usize = 999;
 
 #[derive(Canon, Clone, Debug, PartialEq)]
 /// A panic signal that can be sent from a module.
@@ -95,6 +96,13 @@ where
                 ),
                 SIG,
             )),
+            "debug" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
+                    None,
+                ),
+                DBG,
+            )),
             _ => panic!("yoo {}", field_name),
         }
     }
@@ -128,11 +136,21 @@ where
 }
 
 /// A type with a corresponding wasm module
-#[derive(Canon, Debug, Clone)]
+#[derive(Canon, Clone)]
 pub struct Wasm<State, S: Store> {
     state: State,
     bytecode: Vec<u8>,
     _marker: PhantomData<S>,
+}
+
+impl<S, State> core::fmt::Debug for Wasm<State, S>
+where
+    State: core::fmt::Debug,
+    S: Store,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "Wasm {:?}", self.state)
+    }
 }
 
 struct Externals<'a, S> {
@@ -215,6 +233,23 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
+            DBG => {
+                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len)] =
+                    args.as_ref()[..]
+                {
+                    let ofs = ofs as usize;
+                    let len = len as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        let bytes = &mem[ofs..ofs + len];
+                        let string =
+                            String::from_utf8_lossy(&bytes).to_string();
+                        println!("HOSTED: {}", string);
+                        Ok(None)
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
             _ => panic!("invalid index"),
         }
     }
@@ -270,7 +305,7 @@ impl<A, R> Transaction<A, R> {
 
 impl<State, S> Wasm<State, S>
 where
-    State: Canon<S> + core::fmt::Debug,
+    State: Canon<S>,
     S: Store,
     S::Error: wasmi::HostError,
     S::Error: From<Signal>,
@@ -373,7 +408,8 @@ where
                 memref.with_direct_access_mut(|mem| {
                     let mut source = ByteSource::new(&mem[..], store.clone());
                     self.state = State::read(&mut source)?;
-                    R::read(&mut source)
+                    let res = R::read(&mut source)?;
+                    Ok(res)
                 })
             }
             _ => todo!("no memory"),

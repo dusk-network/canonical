@@ -1,0 +1,18 @@
+[package]
+authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
+edition = "2018"
+name = "canonical_module_examples"
+version = "0.1.0"
+license = "MPL-2.0"
+
+[dev-dependencies]
+canonical = { path = "../canon", version = "0.4", features = ["host"] }
+canonical_host = { path = "../canon_host", version = "0.4" }
+
+counter = { path = "modules/counter", features = ["host"], version = "0.1.0" }
+nstack_module = { path = "modules/nstack", features = ["host"], version = "0.1.0" }
+panic = { path = "modules/panic", features = ["host"], version = "0.1.0" }
+
+[dependencies]
+microkelvin = "0.5.2"
+nstack = "0.6.2"

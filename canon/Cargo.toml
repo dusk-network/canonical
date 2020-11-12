@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
@@ -19,7 +19,6 @@ cfg-if = "1.0.0"
 canonical_host = { path = "../canon_host", version = "0.4" }
 canonical_derive = { path = "../canon_derive", version = "0.4" }
 canonical_fuzz = { path = "../canon_fuzz", version = "0.4" }
-nstack = "0.6"
 
 [features]
 host = ["blake2b_simd/std", "arbitrary"]

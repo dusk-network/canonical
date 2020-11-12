@@ -1,4 +1,4 @@
-SUBDIRS := $(wildcard canon_host/examples/*)
+SUBDIRS := $(wildcard ./module_examples/modules/*)
 
 all: $(SUBDIRS)
 

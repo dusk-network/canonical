@@ -5,5 +5,14 @@ members = [
     "canon_module",		
     "canon_host",
     "canon_fuzz",
-    "canon_host/examples/counter",
+    "module_examples",		
+    "module_examples/modules/counter",
+    "module_examples/modules/nstack",
+		"module_examples/modules/panic",	
 ]
+
+[patch.crates-io]
+canonical = { path = "canon" }
+canonical_host = { path = "canon_host" }
+canonical_derive = { path = "canon_derive" }
+canonical_fuzz = { path = "canon_fuzz" }

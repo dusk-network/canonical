@@ -8,6 +8,6 @@ description = "Fuzzing helpers for Canonical encodings"
 license = "MPL-2.0"
 
 [dependencies]
-canonical = { path = "../canon" , features = ["host"], version = "0.4" }
+canonical = { path = "../canon", features = ["host"], version = "0.4" }
 canonical_host = { path = "../canon_host", version = "0.4" }
 arbitrary = { version = "0.3" }

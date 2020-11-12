@@ -2,7 +2,7 @@
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 name = "canonical_host"
-version = "0.4.1"
+version = "0.4.2"
 readme = "README.md"
 repository = "https://github.com/dusk-network/canonical/canon_host"
 keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
@@ -15,6 +15,3 @@ parking_lot = "0.11"
 wasmi = "0.6.0"
 canonical = { path = "../canon", features = ["host"], version = "0.4" }
 canonical_derive = { path = "../canon_derive", version = "0.4" }
-
-[dev-dependencies]
-counter = { path = "examples/counter", features = ["host"], version = "0.1.0" }

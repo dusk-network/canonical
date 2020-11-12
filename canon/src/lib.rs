@@ -11,6 +11,7 @@
 #![deny(missing_docs)]
 
 mod canon;
+mod debug;
 mod dry_sink;
 mod id;
 mod implementations;
@@ -24,6 +25,7 @@ mod bridge;
 pub use bridge::BridgeStore;
 
 pub use canon::{Canon, InvalidEncoding};
+pub use debug::{DebugMsg, _debug};
 pub use dry_sink::DrySink;
 pub use id::Id32;
 pub use repr::{Repr, Val, ValMut};
