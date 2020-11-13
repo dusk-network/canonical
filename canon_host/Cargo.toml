@@ -15,5 +15,5 @@ parking_lot = "0.11"
 wasmi = "0.7.0"
 canonical = { path = "../canon", features = ["host"], version = "0.4" }
 canonical_derive = { path = "../canon_derive", version = "0.4" }
-poseidon252 = {git = "https://github.com/dusk-network/poseidon252", branch = "min_nost", features = ["default", "canon", "canon_host"]}
+poseidon252 = {git = "https://github.com/dusk-network/poseidon252", branch = "std_test_carlos", features = ["canon", "canon_host"]}
 dusk-bls12_381 = {version = "0.3", features = ["canon"]}
