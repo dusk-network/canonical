@@ -13,7 +13,7 @@ fn query() {
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
-        include_bytes!("../examples/counter/counter.wasm"),
+        include_bytes!("../modules/counter/counter.wasm"),
     );
 
     let remote = Remote::new(wasm_counter, &store).unwrap();
@@ -53,7 +53,7 @@ fn transaction() {
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
-        include_bytes!("../examples/counter/counter.wasm"),
+        include_bytes!("../modules/counter/counter.wasm"),
     );
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 

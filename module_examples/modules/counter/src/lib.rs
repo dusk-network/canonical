@@ -173,10 +173,59 @@ mod hosted {
     }
 
     mod panic_handling {
+        pub fn signal(msg: &str) {
+            let bytes = msg.as_bytes();
+            let len = bytes.len() as u32;
+            unsafe { sig(&bytes[0], len) }
+        }
+
+        extern "C" {
+            fn sig(msg: &u8, len: u32);
+        }
+
+        use core::fmt::{self, Write};
+        use core::mem;
         use core::panic::PanicInfo;
 
+        impl Write for PanicMsg {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                let bytes = s.as_bytes();
+                let len = bytes.len();
+                self.buf[self.ofs..self.ofs + len].copy_from_slice(bytes);
+                self.ofs += len;
+                Ok(())
+            }
+        }
+
+        struct PanicMsg {
+            ofs: usize,
+            buf: [u8; 1024],
+        }
+
+        impl AsRef<str> for PanicMsg {
+            fn as_ref(&self) -> &str {
+                // std::str includes the following defition, but not core:
+                //
+                // pub const unsafe fn from_utf8_unchecked(v: &[u8]) -> &str {
+                //     // SAFETY: the caller must guarantee that the bytes `v` are valid UTF-8.
+                //     // Also relies on `&str` and `&[u8]` having the same layout.
+                //     unsafe { mem::transmute(v) }
+                // }
+                unsafe { mem::transmute::<&[u8], &str>(&self.buf[0..self.ofs]) }
+            }
+        }
+
         #[panic_handler]
-        fn panic(_: &PanicInfo) -> ! {
+        fn panic(info: &PanicInfo) -> ! {
+            let mut msg = PanicMsg {
+                ofs: 0,
+                buf: [0u8; 1024],
+            };
+
+            writeln!(msg, "{}", info).ok();
+
+            signal(msg.as_ref());
+
             loop {}
         }
 

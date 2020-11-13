@@ -4,15 +4,3 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! The host library responsible for running and connecting modules
-
-#![deny(missing_docs)]
-
-mod mem_store;
-pub use mem_store::{MemError, MemStore};
-
-mod remote;
-pub use remote::Remote;
-
-mod wasm;
-pub use wasm::{Query, Signal, Transaction, Wasm};

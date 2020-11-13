@@ -11,7 +11,7 @@ use canonical_host::MemStore;
 fn identifier_u64() {
     let a: u64 = 328;
 
-    let id_a = MemStore::ident(&a);
+    let id_a = <MemStore as Store>::ident(&a);
 
     let store = MemStore::new();
 
