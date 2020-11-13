@@ -11,6 +11,9 @@
 mod mem_store;
 pub use mem_store::{MemError, MemStore};
 
+mod disk_store;
+pub use disk_store::{DiskError, DiskStore};
+
 mod remote;
 pub use remote::Remote;
 
