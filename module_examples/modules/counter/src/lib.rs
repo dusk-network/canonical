@@ -179,6 +179,7 @@ mod hosted {
             unsafe { sig(&bytes[0], len) }
         }
 
+        #[link(wasm_import_module = "canon")]
         extern "C" {
             fn sig(msg: &u8, len: u32);
         }

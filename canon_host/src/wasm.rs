@@ -61,14 +61,13 @@ impl From<wasmi::Error> for Signal {
 
 struct CanonImports<S>(S);
 
-impl<S> wasmi::ImportResolver for CanonImports<S>
+impl<S> wasmi::ModuleImportResolver for CanonImports<S>
 where
     S: Store,
     S::Error: From<Signal>,
 {
     fn resolve_func(
         &self,
-        _module_name: &str,
         field_name: &str,
         _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
@@ -108,7 +107,6 @@ where
 
     fn resolve_global(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::GlobalDescriptor,
     ) -> Result<wasmi::GlobalRef, wasmi::Error> {
@@ -117,7 +115,6 @@ where
 
     fn resolve_memory(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::MemoryDescriptor,
     ) -> Result<wasmi::MemoryRef, wasmi::Error> {
@@ -126,7 +123,6 @@ where
 
     fn resolve_table(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::TableDescriptor,
     ) -> Result<wasmi::TableRef, wasmi::Error> {
@@ -329,7 +325,12 @@ where
         R: Canon<S>,
         S::Error: From<wasmi::Error>,
     {
-        let imports = CanonImports(store.clone());
+        let canon_module = CanonImports(store.clone());
+        let imports =
+            wasmi::ImportsBuilder::new().with_resolver("canon", &canon_module);
+
+        // let imports = CanonImports(store.clone());
+
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
         let instance =
@@ -377,7 +378,10 @@ where
         S::Error: From<Signal>,
         S::Error: From<wasmi::Error>,
     {
-        let imports = CanonImports(store.clone());
+        let canon_module = CanonImports(store.clone());
+        let imports =
+            wasmi::ImportsBuilder::new().with_resolver("canon", &canon_module);
+
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();

@@ -23,6 +23,7 @@ macro_rules! debug {
 
 #[cfg(not(feature = "host"))]
 mod hosted {
+    #[link(wasm_import_module = "canon")]
     extern "C" {
         fn debug(msg: &u8, len: u32);
     }
