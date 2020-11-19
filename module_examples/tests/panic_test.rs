@@ -4,7 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{MemError, MemStore, Remote, Signal, Wasm};
+use canonical_host::{
+    ExternalResolver, MemError, MemStore, Remote, Signal, Wasm,
+};
 
 use panic::Panico;
 
@@ -17,7 +19,11 @@ fn panic() {
     let remote = Remote::new(wasm_counter, &store).unwrap();
     let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
 
-    match cast.query(&Panico::panic_a(), store.clone()) {
+    match cast.query(
+        &Panico::panic_a(),
+        store.clone(),
+        None::<ExternalResolver>,
+    ) {
         Err(MemError::Signal(sig)) => {
             assert_eq!(sig, Signal::panic("panicked at \'let\'s panic!\', module_examples/modules/panic/src/lib.rs:27:13\n"));
         }

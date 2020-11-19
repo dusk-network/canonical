@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{MemStore as MS, Wasm};
+use canonical_host::{ExternalResolver, MemStore as MS, Wasm};
 
 use microkelvin::Cardinality;
 use nstack::NStack;
@@ -27,7 +27,11 @@ fn push_pop() {
         n_stack.push(i).unwrap();
 
         wasm_stack
-            .transact(&Stack::<MS>::push(i), store.clone())
+            .transact(
+                &Stack::<MS>::push(i),
+                store.clone(),
+                None::<ExternalResolver>,
+            )
             .unwrap();
     }
 
@@ -37,7 +41,11 @@ fn push_pop() {
         let inv = n - i - 1;
 
         let popped = wasm_stack
-            .transact(&Stack::<MS>::pop(), store.clone())
+            .transact(
+                &Stack::<MS>::pop(),
+                store.clone(),
+                None::<ExternalResolver>,
+            )
             .unwrap();
 
         assert_eq!(popped, Some(inv))

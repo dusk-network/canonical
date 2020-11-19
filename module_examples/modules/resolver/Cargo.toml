@@ -1,0 +1,16 @@
+[package]
+name = "resolver"
+version = "0.1.0"
+authors = ["zer0 <matteo@dusk-network.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+canonical = { version = "0.4", default-features = false }
+canonical_derive = "0.4"
+canonical_host = { version = "0.4", optional = true }
+
+[features]
+host = ["canonical_host"]

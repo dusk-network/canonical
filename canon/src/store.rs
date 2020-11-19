@@ -50,8 +50,8 @@ pub trait Source<S> {
     fn store(&self) -> &S;
 }
 
-/// The main trait for storing/transmitting data, in the case of a wasm environment,
-/// this is generally implemented with host calls
+/// The main trait for storing/transmitting data, in the case of a wasm
+/// environment, this is generally implemented with host calls
 pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
     type Ident: Ident;
