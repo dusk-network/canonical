@@ -10,6 +10,7 @@ use std::marker::PhantomData;
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
+use dusk_plonk::prelude::*;
 use poseidon252::sponge::sponge::sponge_hash;
 use wasmi;
 
@@ -17,6 +18,8 @@ const GET: usize = 0;
 const PUT: usize = 1;
 const SIG: usize = 2;
 const P_HASH: usize = 3;
+const VERIFY_BID_PROOF: usize = 4;
+const VERIFY: usize = 5;
 const DBG: usize = 999;
 
 #[derive(Canon, Clone, Debug, PartialEq)]
@@ -110,6 +113,30 @@ where
                 ),
                 P_HASH,
             )),
+            "verify" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                VERIFY,
+            )),
+            "verify_bid_proof" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                VERIFY_BID_PROOF,
+            )),
             "debug" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(
                     &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
@@ -117,7 +144,6 @@ where
                 ),
                 DBG,
             )),
-            _ => panic!("yoo {}", field_name),
             _ => panic!("Unknown host fn {}", field_name),
         }
     }
@@ -293,6 +319,59 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
+            VERIFY => {
+                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(ret_addr)] =
+                    args.as_ref()[..]
+                {
+                    let ofs = ofs as usize;
+                    let len = Proof::serialised_size() as usize;
+                    let ret_addr = ret_addr as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        let bytes = &mem[ofs..ofs + len];
+                        // Chunk bytes to BlsSclar byte-size
+                        let proof = Proof::from_bytes(&bytes[..]).unwrap();
+
+                        mem[ret_addr] = 1u8;
+                        // Read Scalars from Chunks
+                        Ok(None)
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
+            /*VERIFY_PROOF => {
+                if let [wasmi::RuntimeValue::I32(ofs_proof), wasmi::RuntimeValue::I32(ofs_pp), wasmi::RuntimeValue::I32(len_pp), wasmi::RuntimeValue::I32(ofs_vk), wasmi::RuntimeValue::I32(len_vk), wasmi::RuntimeValue::I32(ret_addr)] =
+                    args.as_ref()[..]
+                {
+                    let ofs_proof = ofs_proof as usize;
+                    let ofs_pp = ofs_pp as usize;
+                    let len_pp = len_pp as usize;
+                    let ofs_vk = ofs_vk as usize;
+                    let len_vk = len_vk as usize;
+                    let ret_addr = ret_addr as usize;
+                    // Generate Proof
+                    self.memory.with_direct_access_mut(|mem| {
+                        // Generate Proof
+                        let proof_bytes = &mem
+                            [ofs_proof..ofs_proof + Proof::serialised_size()];
+                        let proof = Proof::from_bytes(&proof_bytes).unwrap();
+                        // Generate Pub Params
+                        let pp_bytes = &mem[ofs_pp..ofs_pp + len_pp];
+                        let pub_params =
+                            PublicParameters::from_bytes(&pp_bytes).unwrap();
+                        // Generate VK
+                        let vk_bytes = &mem[ofs_vk..ofs_vk + len_vk];
+                        let vk = VerifierKey::from_bytes(&vk_bytes).unwrap();
+                        // Verify the proof and return true or false.
+                        let mut verifier = Verifier::new(b"Test");
+                        verifier.verifier_key = vk;
+                        verifier.verify(&proof, &op_key, &pi);
+                    });
+                    Ok(None)
+                } else {
+                    todo!("Handle this")
+                }
+            }*/
             _ => panic!("invalid index"),
         }
     }
