@@ -12,6 +12,7 @@ use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
 use dusk_plonk::prelude::*;
 use poseidon252::sponge::sponge::sponge_hash;
+use schnorr::single_key::{PublicKey, Signature};
 use wasmi;
 
 const GET: usize = 0;
@@ -20,6 +21,7 @@ const SIG: usize = 2;
 const P_HASH: usize = 3;
 const VERIFY_BID_PROOF: usize = 4;
 const VERIFY: usize = 5;
+const VERIFY_SIG: usize = 6;
 const DBG: usize = 999;
 
 #[derive(Canon, Clone, Debug, PartialEq)]
@@ -115,10 +117,7 @@ where
             )),
             "verify" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(
-                    &[
-                        wasmi::ValueType::I32,
-                        wasmi::ValueType::I32,
-                    ][..],
+                    &[wasmi::ValueType::I32, wasmi::ValueType::I32][..],
                     None,
                 ),
                 VERIFY,
@@ -136,6 +135,18 @@ where
                     None,
                 ),
                 VERIFY_BID_PROOF,
+            )),
+            "verify_sig" => Ok(wasmi::FuncInstance::alloc_host(
+                wasmi::Signature::new(
+                    &[
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                        wasmi::ValueType::I32,
+                    ][..],
+                    None,
+                ),
+                VERIFY_SIG,
             )),
             "debug" => Ok(wasmi::FuncInstance::alloc_host(
                 wasmi::Signature::new(
@@ -333,6 +344,37 @@ where
 
                         mem[ret_addr] = 1u8;
                         // Read Scalars from Chunks
+                        Ok(None)
+                    })
+                } else {
+                    todo!("error out for wrong argument types")
+                }
+            }
+            VERIFY_SIG => {
+                if let [wasmi::RuntimeValue::I32(pk), wasmi::RuntimeValue::I32(sig), wasmi::RuntimeValue::I32(msg), wasmi::RuntimeValue::I32(ret_addr)] =
+                    args.as_ref()[..]
+                {
+                    let pk = pk as usize;
+                    let sig = sig as usize;
+                    let msg = msg as usize;
+                    let ret_addr = ret_addr as usize;
+                    self.memory.with_direct_access_mut(|mem| {
+                        // Build Pk
+                        let mut bytes32 = [0u8; 32];
+                        let mut bytes64 = [0u8; 64];
+                        bytes32[0..32].copy_from_slice(&mem[pk..pk + 32]);
+                        let pk = PublicKey::from_bytes(&bytes32).unwrap();
+                        // Build Sig
+                        bytes64[0..64].copy_from_slice(&mem[sig..sig + 64]);
+                        let sig = Signature::from_bytes(&bytes64).unwrap();
+                        // Build Msg
+                        bytes32[0..32].copy_from_slice(&mem[msg..msg + 32]);
+                        let msg = BlsScalar::from_bytes(&bytes32).unwrap();
+                        // Perform the signature verification
+                        match sig.verify(&pk, msg) {
+                            Ok(()) => mem[ret_addr] = 1u8,
+                            _ => mem[ret_addr] = 0u8,
+                        };
                         Ok(None)
                     })
                 } else {
