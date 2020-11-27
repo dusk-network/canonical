@@ -24,7 +24,7 @@ fn panic() {
         _ => panic!(),
     }
 
-    match cast.query(&Panico::panic_b(), store.clone()) {
+    match cast.query(&Panico::panic_b(), store) {
         Err(MemError::Signal(sig)) => {
             assert_eq!(sig, Signal::panic("panicked at \'let\'s panic differently!\', module_examples/modules/panic/src/lib.rs:31:13\n"));
         }

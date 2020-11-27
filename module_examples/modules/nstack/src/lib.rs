@@ -28,6 +28,15 @@ where
     }
 }
 
+impl<S: Store> Default for Stack<S>
+where
+    S: Store,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(not(feature = "host"))]
 mod hosted {
     use super::*;

@@ -78,7 +78,7 @@ pub trait Store: 'static + Clone + Default {
     fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
         let mut sink = DrySink::new();
         t.write(&mut sink).expect("Drysink cannot fail");
-        sink.fin().into()
+        sink.fin()
     }
 }
 

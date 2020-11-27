@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![allow(clippy::empty_loop)]
 use core::marker::PhantomData;
 
 use crate::{Canon, InvalidEncoding, Sink, Source, Store};
@@ -217,6 +218,26 @@ tuple! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
 tuple! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
 
 macro_rules! array {
+    (0) => {
+        impl<T, S> Canon<S> for [T; 0]
+        where
+            T: Canon<S> + Sized,
+            S: Store,
+        {
+            fn write(&self, _sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+                Ok(())
+            }
+
+            fn read(_source: &mut impl Source<S>) -> Result<Self, S::Error> {
+                Ok(Self::default())
+            }
+
+            fn encoded_len(&self) -> usize {
+                0
+            }
+        }
+    };
+
     ($n:expr) => {
         impl<T, S> Canon<S> for [T; $n]
         where

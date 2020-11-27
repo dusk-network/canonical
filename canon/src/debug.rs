@@ -64,6 +64,13 @@ pub struct DebugMsg {
     buf: [u8; 1024 * 16],
 }
 
+impl Default for DebugMsg {
+    #[doc(hidden)]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DebugMsg {
     #[doc(hidden)]
     pub fn new() -> Self {
@@ -80,6 +87,7 @@ impl DebugMsg {
 
     #[doc(hidden)]
     pub fn as_str(&self) -> &str {
-        unsafe { core::mem::transmute::<&[u8], &str>(&self.buf[0..self.ofs]) }
+        core::str::from_utf8(&self.buf[0..self.ofs])
+            .unwrap_or("DebugMsg.as_str failed.")
     }
 }

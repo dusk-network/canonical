@@ -42,7 +42,7 @@ fn query() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::xor_values(a, b), store.clone())
+            .query(&Counter::xor_values(a, b), store)
             .unwrap(),
         99 ^ a ^ b
     );
@@ -111,7 +111,7 @@ fn transaction() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store.clone())
+            .query(&Counter::read_value(), store)
             .unwrap(),
         22
     );

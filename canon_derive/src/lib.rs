@@ -126,7 +126,7 @@ fn mentions_store(generics: &Generics) -> Option<Ident> {
             }
         }
     }
-    return None;
+    None
 }
 
 #[proc_macro_derive(Canon)]
@@ -141,7 +141,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         input.generics.clone(),
         store_bound_name
             .clone()
-            .unwrap_or(Ident::new("__S", input.span())),
+            .unwrap_or_else(|| Ident::new("__S", input.span())),
     );
 
     let (_, ty_generics, where_clause) = generics.split_for_impl();
@@ -154,9 +154,8 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         generics.clone()
     };
 
-    let __s = store_bound_name
-        .clone()
-        .unwrap_or(Ident::new("__S", input.span()));
+    let __s =
+        store_bound_name.unwrap_or_else(|| Ident::new("__S", input.span()));
 
     let (read, write, length) = match input.data {
         Data::Struct(ref data) => match data.fields {
@@ -263,30 +262,24 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink)?; }
                         });
 
-                        let fields_lengths =
-                            fields.unnamed.iter().enumerate().map(|(i, f)| {
-                                let ident =
-                                    Ident::new(FIELD_NAMES[i], f.span());
-                                quote_spanned! { f.span() => + Canon::<#__s>::encoded_len(#ident)}
-                            });
+                        let fields_lengths = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                            let ident = Ident::new(FIELD_NAMES[i], f.span());
+                            quote_spanned! { f.span() => + Canon::<#__s>::encoded_len(#ident)}
+                        });
 
                         let fields_bind2 = fields_bind.clone();
 
                         reads.push(
-                            quote! { #tag => Ok( #name :: #ident ( #( #fields_read ),* ) ) , }
+                            quote! { #tag => Ok( #name :: #ident ( #( #fields_read ),* ) ) , },
                         );
 
-                        writes.push(
-                            quote! { #name :: #ident ( #( #fields_bind ),* ) =>
-                            { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } },
-                        );
+                        writes.push(quote! { #name :: #ident ( #( #fields_bind ),* ) =>
+                        { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } });
 
-                        lengths.push(
-                            quote! { #name :: #ident ( #( #fields_bind2 ),* ) => {
-                                1 #( #fields_lengths )*
-                            },
-                            }
-                        );
+                        lengths.push(quote! { #name :: #ident ( #( #fields_bind2 ),* ) => {
+                            1 #( #fields_lengths )*
+                        },
+                        });
                     }
                     Fields::Named(ref fields) => {
                         let fields_read = fields.named.iter().map(|f| {
@@ -306,29 +299,24 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             quote_spanned! { f.span() => Canon::<#__s>::write(#ident, sink)?; }
                         });
 
-                        let fields_lengths =
-                            fields.named.iter().map(|f| {
-                                let ident = &f.ident;
-                                quote_spanned! { f.span() => + Canon::<#__s>::encoded_len(#ident) }
-                            });
+                        let fields_lengths = fields.named.iter().map(|f| {
+                            let ident = &f.ident;
+                            quote_spanned! { f.span() => + Canon::<#__s>::encoded_len(#ident) }
+                        });
 
                         let fields_bind2 = fields_bind.clone();
 
                         reads.push(
-                            quote! { #tag => Ok( #name :: #ident { #( #fields_read ),* } ) , }
+                            quote! { #tag => Ok( #name :: #ident { #( #fields_read ),* } ) , },
                         );
 
-                        writes.push(
-                            quote! { #name :: #ident { #( #fields_bind ),* } =>
-                            { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } },
-                        );
+                        writes.push(quote! { #name :: #ident { #( #fields_bind ),* } =>
+                        { Canon::<#__s>::write(& #tag, sink)?; #( #fields_assign )* } });
 
-                        lengths.push(
-                            quote! { #name :: #ident { #( #fields_bind2 ),* } => {
-                                1 #( #fields_lengths )*
-                            },
-                            }
-                        );
+                        lengths.push(quote! { #name :: #ident { #( #fields_bind2 ),* } => {
+                            1 #( #fields_lengths )*
+                        },
+                        });
                     }
                 }
             }

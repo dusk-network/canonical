@@ -16,6 +16,12 @@ impl<S: Store> DrySink<S> {
     }
 }
 
+impl<S: Store> Default for DrySink<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S> Sink<S> for DrySink<S>
 where
     S: Store,

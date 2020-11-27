@@ -9,7 +9,6 @@ use std::marker::PhantomData;
 
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
-use wasmi;
 
 const GET: usize = 0;
 const PUT: usize = 1;
@@ -53,9 +52,9 @@ impl From<wasmi::Error> for Signal {
                     Some(s) => s.clone(),
                     None => todo!(),
                 },
-                _ => Signal::Error(String::from(format!("{}", err))),
+                _ => Signal::Error(format!("{}", err)),
             },
-            _ => Signal::Error(String::from(format!("{}", err))),
+            _ => Signal::Error(format!("{}", err)),
         }
     }
 }
@@ -348,13 +347,11 @@ where
                 let mut externals = Externals::new(&store, &memref);
 
                 // Perform the query call
-                match instance.invoke_export(
+                instance.invoke_export(
                     "q",
                     &[wasmi::RuntimeValue::I32(0)],
                     &mut externals,
-                )? {
-                    _ => (),
-                };
+                )?;
 
                 memref.with_direct_access_mut(|mem| {
                     // read and return value returned from the invoked query
@@ -397,13 +394,11 @@ where
 
                 let mut externals = Externals::new(&store, &memref);
 
-                match instance.invoke_export(
+                instance.invoke_export(
                     "t",
                     &[wasmi::RuntimeValue::I32(0)],
                     &mut externals,
-                )? {
-                    _ => (),
-                };
+                )?;
 
                 memref.with_direct_access_mut(|mem| {
                     let mut source = ByteSource::new(&mem[..], store.clone());

@@ -90,7 +90,8 @@ where
 
 impl<S: Store> Canon<S> for Remote<S> {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        Ok(sink.copy_bytes(self.id.as_ref()))
+        sink.copy_bytes(self.id.as_ref());
+        Ok(())
     }
 
     fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {

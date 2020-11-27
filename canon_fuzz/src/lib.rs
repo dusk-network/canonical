@@ -103,7 +103,7 @@ where
     let mut buffer_b = vec![0x00; buffer_size];
 
     let mut sink_a = ByteSink::new(&mut buffer_a, store.clone());
-    let mut sink_b = ByteSink::new(&mut buffer_b, store.clone());
+    let mut sink_b = ByteSink::new(&mut buffer_b, store);
 
     Canon::write(canon, &mut sink_a).unwrap();
     Canon::write(canon, &mut sink_b).unwrap();

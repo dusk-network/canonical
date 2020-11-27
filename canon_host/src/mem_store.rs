@@ -9,7 +9,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use wasmi;
 
 use canonical::{
     ByteSink, Canon, DrySink, Id32, InvalidEncoding, Sink, Source, Store,
