@@ -8,7 +8,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use wasmi;
 
 use appendix::Index;
 

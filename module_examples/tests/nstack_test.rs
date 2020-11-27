@@ -46,9 +46,7 @@ fn push_pop() {
     // assert empty
 
     assert_eq!(
-        wasm_stack
-            .transact(&Stack::<MS>::pop(), store.clone())
-            .unwrap(),
+        wasm_stack.transact(&Stack::<MS>::pop(), store).unwrap(),
         None
     );
 }

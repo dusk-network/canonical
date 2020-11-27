@@ -75,12 +75,12 @@ where
 
                 if len <= ident_len {
                     // inline value
-                    Canon::<S>::write(&mut (len as u8), sink)?;
+                    Canon::<S>::write(&(len as u8), sink)?;
                     Canon::<S>::write(&**rc, sink)?;
                 } else {
                     Canon::<S>::write(&IDENT_TAG, sink)?;
                     let ident = sink.recur(&**rc)?;
-                    *cached_ident.borrow_mut() = Some(Box::new(ident.clone()));
+                    *cached_ident.borrow_mut() = Some(Box::new(ident));
                     sink.copy_bytes(&ident.as_ref());
                 }
             }
@@ -286,11 +286,11 @@ where
                     *ident.clone()
                 } else {
                     let ident = S::ident(&**rc);
-                    *ident_cell = Some(Box::new(ident.clone()));
+                    *ident_cell = Some(Box::new(ident));
                     ident
                 }
             }
-            Repr::Ident { ident, .. } => ident.clone(),
+            Repr::Ident { ident, .. } => *ident,
             Repr::Inline { .. } => {
                 todo!();
             }
@@ -389,12 +389,9 @@ where
     T: Canon<S>,
 {
     fn drop(&mut self) {
-        match self {
-            ValMut::Owned { value, writeback } => {
-                let value = value.take().expect("Always Some until drop");
-                **writeback = Repr::<T, S>::new(value);
-            }
-            _ => (),
+        if let ValMut::Owned { value, writeback } = self {
+            let value = value.take().expect("Always Some until drop");
+            **writeback = Repr::<T, S>::new(value);
         }
     }
 }

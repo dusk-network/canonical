@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![allow(clippy::unit_cmp)]
+
 use canonical::{Repr, Store};
 use canonical_host::MemStore;
 
