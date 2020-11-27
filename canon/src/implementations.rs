@@ -182,10 +182,12 @@ impl<S: Store, T> Canon<S> for PhantomData<T> {
 }
 
 macro_rules! tuple {
-    ( $( $name:ident )+, $( $idx:tt )+ ) => {
+    ( $($name:ident)+) => (
         impl<S: Store, $($name,)+> Canon<S> for ($($name,)+) where $($name: Canon<S>,)+ {
+            #[allow(non_snake_case)]
             fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-                $(self.$idx.write(sink)?;)+
+                let ($(ref $name,)+) = *self;
+                $($name.write(sink)?;)+
 
                 Ok(())
             }
@@ -194,28 +196,32 @@ macro_rules! tuple {
                 Ok(($($name::read(source)?,)+))
             }
 
+            #[allow(non_snake_case)]
             fn encoded_len(&self) -> usize {
-                0 $( + self.$idx.encoded_len())*
+                let ($(ref $name,)+) = *self;
+                // 0 $( + self.$idx.encoded_len())*
+                0 $(+ $name.encoded_len())*
             }
+
         }
-    };
+    );
 }
 
-tuple! { A B, 0 1 }
-tuple! { A B C, 0 1 2 }
-tuple! { A B C D, 0 1 2 3 }
-tuple! { A B C D E, 0 1 2 3 4 }
-tuple! { A B C D E F, 0 1 2 3 4 5 }
-tuple! { A B C D E F G, 0 1 2 3 4 5 6 }
-tuple! { A B C D E F G H, 0 1 2 3 4 5 6 7 }
-tuple! { A B C D E F G H I, 0 1 2 3 4 5 6 7 8 }
-tuple! { A B C D E F G H I J, 0 1 2 3 4 5 6 7 8 9 }
-tuple! { A B C D E F G H I J K, 0 1 2 3 4 5 6 7 8 9 10 }
-tuple! { A B C D E F G H I J K L, 0 1 2 3 4 5 6 7 8 9 10 11 }
-tuple! { A B C D E F G H I J K L M, 0 1 2 3 4 5 6 7 8 9 10 11 12 }
-tuple! { A B C D E F G H I J K L M N, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }
-tuple! { A B C D E F G H I J K L M N O, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 }
-tuple! { A B C D E F G H I J K L M N O P, 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
+tuple! { A B }
+tuple! { A B C }
+tuple! { A B C D }
+tuple! { A B C D E }
+tuple! { A B C D E F }
+tuple! { A B C D E F G }
+tuple! { A B C D E F G H }
+tuple! { A B C D E F G H I }
+tuple! { A B C D E F G H I J }
+tuple! { A B C D E F G H I J K }
+tuple! { A B C D E F G H I J K L }
+tuple! { A B C D E F G H I J K L M }
+tuple! { A B C D E F G H I J K L M N }
+tuple! { A B C D E F G H I J K L M N O }
+tuple! { A B C D E F G H I J K L M N O P }
 
 macro_rules! array {
     (0) => {
