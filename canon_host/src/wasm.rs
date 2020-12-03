@@ -346,8 +346,6 @@ where
         imports.push_resolver("canon", &canon_module);
         imports.push_resolver("env", &resolver);
 
-        // let imports = CanonImports(store.clone());
-
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
         let instance =

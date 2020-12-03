@@ -67,7 +67,6 @@ mod hosted {
         }
 
         use core::fmt::{self, Write};
-        use core::mem;
         use core::panic::PanicInfo;
 
         impl Write for PanicMsg {
@@ -87,14 +86,8 @@ mod hosted {
 
         impl AsRef<str> for PanicMsg {
             fn as_ref(&self) -> &str {
-                // std::str includes the following defition, but not core:
-                //
-                // pub const unsafe fn from_utf8_unchecked(v: &[u8]) -> &str {
-                //     // SAFETY: the caller must guarantee that the bytes `v` are valid UTF-8.
-                //     // Also relies on `&str` and `&[u8]` having the same layout.
-                //     unsafe { mem::transmute(v) }
-                // }
-                unsafe { mem::transmute::<&[u8], &str>(&self.buf[0..self.ofs]) }
+                core::str::from_utf8(&self.buf[0..self.ofs])
+                    .unwrap_or("PanicMsg.as_ref failed.")
             }
         }
 
