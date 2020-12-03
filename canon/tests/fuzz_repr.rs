@@ -10,7 +10,8 @@ use canonical_derive::Canon;
 use canonical_fuzz::fuzz_canon;
 use canonical_host::MemStore;
 
-// We don't want PartialEq on the Repr for performance reasons, so in the test we use a newtype
+// We don't want PartialEq on the Repr for performance reasons, so in the test
+// we use a newtype
 #[derive(Clone, Canon, Debug)]
 struct ReprWrap<T, S: Store>(Repr<T, S>);
 

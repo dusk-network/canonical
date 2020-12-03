@@ -2,13 +2,14 @@
 members = [
     "canon",
     "canon_derive",
-    "canon_module",		
+    "canon_module",
     "canon_host",
     "canon_fuzz",
-    "module_examples",		
+    "module_examples",
     "module_examples/modules/counter",
     "module_examples/modules/nstack",
-		"module_examples/modules/panic",	
+    "module_examples/modules/panic",
+    "module_examples/modules/resolver",
 ]
 
 [patch.crates-io]

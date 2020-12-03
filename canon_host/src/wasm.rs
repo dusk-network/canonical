@@ -24,6 +24,18 @@ pub enum Signal {
     Error(String),
 }
 
+/// Super trait that requires both wasmi::Externals and
+/// wasmi::ModuleImportResolver
+pub trait ExternalsResolver:
+    wasmi::Externals + wasmi::ModuleImportResolver
+{
+}
+
+impl<T: wasmi::Externals + wasmi::ModuleImportResolver> ExternalsResolver
+    for T
+{
+}
+
 impl fmt::Display for Signal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -61,14 +73,13 @@ impl From<wasmi::Error> for Signal {
 
 struct CanonImports<S>(S);
 
-impl<S> wasmi::ImportResolver for CanonImports<S>
+impl<S> wasmi::ModuleImportResolver for CanonImports<S>
 where
     S: Store,
     S::Error: From<Signal>,
 {
     fn resolve_func(
         &self,
-        _module_name: &str,
         field_name: &str,
         _signature: &wasmi::Signature,
     ) -> Result<wasmi::FuncRef, wasmi::Error> {
@@ -108,7 +119,6 @@ where
 
     fn resolve_global(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::GlobalDescriptor,
     ) -> Result<wasmi::GlobalRef, wasmi::Error> {
@@ -117,7 +127,6 @@ where
 
     fn resolve_memory(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::MemoryDescriptor,
     ) -> Result<wasmi::MemoryRef, wasmi::Error> {
@@ -126,7 +135,6 @@ where
 
     fn resolve_table(
         &self,
-        _module_name: &str,
         _field_name: &str,
         _descriptor: &wasmi::TableDescriptor,
     ) -> Result<wasmi::TableRef, wasmi::Error> {
@@ -152,22 +160,24 @@ where
     }
 }
 
-struct Externals<'a, S> {
+struct Externals<'a, S, E> {
     store: &'a S,
     memory: &'a wasmi::MemoryRef,
+    ext: E,
 }
 
-impl<'a, S> Externals<'a, S> {
-    fn new(store: &'a S, memory: &'a wasmi::MemoryRef) -> Self {
-        Externals { store, memory }
+impl<'a, S, E> Externals<'a, S, E> {
+    fn new(store: &'a S, memory: &'a wasmi::MemoryRef, ext: E) -> Self {
+        Externals { store, memory, ext }
     }
 }
 
-impl<'a, S> wasmi::Externals for Externals<'a, S>
+impl<'a, S, I> wasmi::Externals for Externals<'a, S, I>
 where
     S: Store,
     S::Error: wasmi::HostError,
     S::Error: From<Signal>,
+    I: wasmi::Externals,
 {
     fn invoke_index(
         &mut self,
@@ -249,7 +259,7 @@ where
                     todo!("error out for wrong argument types")
                 }
             }
-            _ => panic!("invalid index"),
+            _ => self.ext.invoke_index(index, args),
         }
     }
 }
@@ -319,17 +329,23 @@ where
     }
 
     /// Perform the provided query in the wasm module
-    pub fn query<A, R>(
+    pub fn query<A, R, E>(
         &self,
         query: &Query<A, R>,
         store: S,
+        resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
         R: Canon<S>,
         S::Error: From<wasmi::Error>,
+        E: ExternalsResolver,
     {
-        let imports = CanonImports(store.clone());
+        let mut imports = wasmi::ImportsBuilder::default();
+        let canon_module = CanonImports(store.clone());
+        imports.push_resolver("canon", &canon_module);
+        imports.push_resolver("env", &resolver);
+
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
         let instance =
@@ -344,7 +360,7 @@ where
                     Canon::<S>::write(query.args(), &mut sink)
                 })?;
 
-                let mut externals = Externals::new(&store, &memref);
+                let mut externals = Externals::new(&store, &memref, resolver);
 
                 // Perform the query call
                 instance.invoke_export(
@@ -365,10 +381,11 @@ where
     }
 
     /// Perform the provided transaction in the wasm module
-    pub fn transact<A, R>(
+    pub fn transact<A, R, E>(
         &mut self,
         transaction: &Transaction<A, R>,
         store: S,
+        resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
@@ -376,8 +393,13 @@ where
         S::Error: wasmi::HostError,
         S::Error: From<Signal>,
         S::Error: From<wasmi::Error>,
+        E: ExternalsResolver,
     {
-        let imports = CanonImports(store.clone());
+        let mut imports = wasmi::ImportsBuilder::default();
+        let canon_module = CanonImports(store.clone());
+        imports.push_resolver("canon", &canon_module);
+        imports.push_resolver("env", &resolver);
+
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
         let instance =
             wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
@@ -392,7 +414,7 @@ where
                     Canon::<S>::write(transaction.args(), &mut sink)
                 })?;
 
-                let mut externals = Externals::new(&store, &memref);
+                let mut externals = Externals::new(&store, &memref, resolver);
 
                 instance.invoke_export(
                     "t",

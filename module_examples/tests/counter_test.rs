@@ -4,12 +4,16 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{MemStore, Remote, Wasm};
+mod common;
+use common::no_externals;
 
+use canonical_host::{MemStore, Remote, Wasm};
 use counter::Counter;
 
 #[test]
 fn query() {
+    let host_externals = no_externals();
+
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
@@ -22,7 +26,7 @@ fn query() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store.clone())
+            .query(&Counter::read_value(), store.clone(), host_externals)
             .unwrap(),
         99
     );
@@ -31,7 +35,7 @@ fn query() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::is_even(), store.clone())
+            .query(&Counter::is_even(), store.clone(), host_externals)
             .unwrap(),
         false
     );
@@ -42,7 +46,7 @@ fn query() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::xor_values(a, b), store)
+            .query(&Counter::xor_values(a, b), store, host_externals)
             .unwrap(),
         99 ^ a ^ b
     );
@@ -50,6 +54,8 @@ fn query() {
 
 #[test]
 fn transaction() {
+    let host_externals = no_externals();
+
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
@@ -62,7 +68,11 @@ fn transaction() {
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
     assert!(cast
-        .transact(&Counter::compare_and_swap(99, 32), store.clone())
+        .transact(
+            &Counter::compare_and_swap(99, 32),
+            store.clone(),
+            host_externals
+        )
         .unwrap());
 
     cast.commit().unwrap();
@@ -72,46 +82,49 @@ fn transaction() {
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store.clone())
+            .query(&Counter::read_value(), store.clone(), host_externals)
             .unwrap(),
         32
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::increment(), store.clone()).unwrap();
+    cast.transact(&Counter::increment(), store.clone(), host_externals)
+        .unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store.clone())
+            .query(&Counter::read_value(), store.clone(), host_externals)
             .unwrap(),
         33
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::decrement(), store.clone()).unwrap();
+    cast.transact(&Counter::decrement(), store.clone(), host_externals)
+        .unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store.clone())
+            .query(&Counter::read_value(), store.clone(), host_externals)
             .unwrap(),
         32
     );
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::adjust(-10), store.clone()).unwrap();
+    cast.transact(&Counter::adjust(-10), store.clone(), host_externals)
+        .unwrap();
     cast.commit().unwrap();
 
     assert_eq!(
         remote
             .cast::<Wasm<Counter, MemStore>>()
             .unwrap()
-            .query(&Counter::read_value(), store)
+            .query(&Counter::read_value(), store, host_externals)
             .unwrap(),
         22
     );

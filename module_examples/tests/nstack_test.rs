@@ -4,6 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+mod common;
+use common::no_externals;
+
 use canonical_host::{MemStore as MS, Wasm};
 
 use microkelvin::Cardinality;
@@ -12,6 +15,8 @@ use nstack_module::Stack;
 
 #[test]
 fn push_pop() {
+    let host_externals = no_externals();
+
     let bytes = include_bytes!("../modules/nstack/nstack_module.wasm");
 
     let store = MS::new();
@@ -27,7 +32,7 @@ fn push_pop() {
         n_stack.push(i).unwrap();
 
         wasm_stack
-            .transact(&Stack::<MS>::push(i), store.clone())
+            .transact(&Stack::<MS>::push(i), store.clone(), host_externals)
             .unwrap();
     }
 
@@ -37,7 +42,7 @@ fn push_pop() {
         let inv = n - i - 1;
 
         let popped = wasm_stack
-            .transact(&Stack::<MS>::pop(), store.clone())
+            .transact(&Stack::<MS>::pop(), store.clone(), host_externals)
             .unwrap();
 
         assert_eq!(popped, Some(inv))
@@ -46,7 +51,9 @@ fn push_pop() {
     // assert empty
 
     assert_eq!(
-        wasm_stack.transact(&Stack::<MS>::pop(), store).unwrap(),
+        wasm_stack
+            .transact(&Stack::<MS>::pop(), store, host_externals)
+            .unwrap(),
         None
     );
 }

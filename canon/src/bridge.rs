@@ -113,6 +113,7 @@ where
     }
 }
 
+#[link(wasm_import_module = "canon")]
 extern "C" {
     pub fn put(buf: &mut u8, len: usize, ret: &mut u8);
     pub fn get(buf: &mut u8);

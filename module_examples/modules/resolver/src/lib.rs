@@ -27,6 +27,10 @@ impl Counter {
 
 #[cfg(not(feature = "host"))]
 mod hosted {
+    extern "C" {
+        fn host_function(n: i32) -> i32;
+    }
+
     use super::*;
 
     use canonical::{BridgeStore, ByteSink, ByteSource, Id32, Store};
@@ -40,33 +44,8 @@ mod hosted {
             self.value
         }
 
-        pub fn xor_values(&self, a: i32, b: i32) -> i32 {
-            self.value ^ a ^ b
-        }
-
-        pub fn is_even(&self) -> bool {
-            self.value % 2 == 0
-        }
-
-        pub fn increment(&mut self) {
-            self.value += 1;
-        }
-
-        pub fn decrement(&mut self) {
-            self.value -= 1;
-        }
-
         pub fn adjust(&mut self, by: i32) {
-            self.value += by;
-        }
-
-        pub fn compare_and_swap(&mut self, expected: i32, new: i32) -> bool {
-            if self.value == expected {
-                self.value = new;
-                true
-            } else {
-                false
-            }
+            self.value += unsafe { host_function(by) };
         }
     }
 
@@ -84,22 +63,6 @@ mod hosted {
             0 => {
                 let ret = slf.read_value();
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                Canon::<BS>::write(&ret, &mut sink)?;
-                Ok(())
-            }
-            // xor_values (&Self, a: i32, b: i32) -> i32
-            1 => {
-                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
-                let ret = slf.xor_values(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                Canon::<BS>::write(&ret, &mut sink)?;
-                Ok(())
-            }
-            // xor_value (&Self) -> bool
-            2 => {
-                let ret = slf.is_even();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
@@ -124,24 +87,6 @@ mod hosted {
         // read transaction id
         let qid: u16 = Canon::<BS>::read(&mut source)?;
         match qid {
-            // increment (&Self)
-            0 => {
-                slf.increment();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                // return new state
-                Canon::<BS>::write(&slf, &mut sink)?;
-                // no return value
-                Ok(())
-            }
-            1 => {
-                // no args
-                slf.decrement();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                // return new state
-                Canon::<BS>::write(&slf, &mut sink)?;
-                // no return value
-                Ok(())
-            }
             2 => {
                 // read arg
                 let by: i32 = Canon::<BS>::read(&mut source)?;
@@ -151,16 +96,6 @@ mod hosted {
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
                 Ok(())
-            }
-            3 => {
-                // read multiple args
-                let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
-                let res = slf.compare_and_swap(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
-                // return new state
-                Canon::<BS>::write(&slf, &mut sink)?;
-                // return result
-                Canon::<BS>::write(&res, &mut sink)
             }
             _ => panic!(""),
         }
@@ -240,40 +175,14 @@ mod host {
         pub fn read_value() -> Query<QueryIndex, i32> {
             Query::new(0)
         }
-
-        pub fn xor_values(
-            a: i32,
-            b: i32,
-        ) -> Query<(QueryIndex, i32, i32), i32> {
-            Query::new((1, a, b))
-        }
-
-        pub fn is_even() -> Query<QueryIndex, bool> {
-            Query::new(2)
-        }
     }
 
     // transactions
     type TransactionIndex = u16;
 
     impl Counter {
-        pub fn increment() -> Transaction<TransactionIndex, ()> {
-            Transaction::new(0)
-        }
-
-        pub fn decrement() -> Transaction<TransactionIndex, ()> {
-            Transaction::new(1)
-        }
-
         pub fn adjust(by: i32) -> Transaction<(TransactionIndex, i32), ()> {
             Transaction::new((2, by))
-        }
-
-        pub fn compare_and_swap(
-            current: i32,
-            new: i32,
-        ) -> Transaction<(TransactionIndex, i32, i32), bool> {
-            Transaction::new((3, current, new))
         }
     }
 }
