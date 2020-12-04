@@ -17,3 +17,6 @@ canonical = { path = "../canon", features = ["host"], version = "0.4" }
 canonical_derive = { path = "../canon_derive", version = "0.4" }
 appendix = { version = "0.2" }
 tempfile = "3.1"
+
+[dev-dependencies]
+counter = { path = "../module_examples/modules/counter/" }

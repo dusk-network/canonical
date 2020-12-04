@@ -17,12 +17,9 @@ pub struct Remote<S: Store> {
 
 impl<S: Store> Remote<S> {
     /// Create a new remote given the initial State and store reference
-    pub fn new<T: Canon<S>>(from: T, store: &S) -> Result<Self, S::Error> {
+    pub fn new<T: Canon<S>>(from: T, store: S) -> Result<Self, S::Error> {
         let id = store.put(&from)?;
-        Ok(Remote {
-            id,
-            store: store.clone(),
-        })
+        Ok(Remote { id, store })
     }
 
     /// Attempt casting this Remote to type `T`

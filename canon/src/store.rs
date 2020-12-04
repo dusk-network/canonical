@@ -39,7 +39,7 @@ pub trait Sink<S: Store> {
     /// Recursively create another sink for storing children
     fn recur<T: Canon<S>>(&self, t: &T) -> Result<S::Ident, S::Error>;
     /// Consume the sink and return the ident of written data
-    fn fin(self) -> S::Ident;
+    fn fin(self) -> Result<S::Ident, S::Error>;
 }
 
 /// Trait to implement reading bytes from an underlying storage
@@ -78,7 +78,7 @@ pub trait Store: 'static + Clone + Default {
     fn ident<T: Canon<Self>>(t: &T) -> Self::Ident {
         let mut sink = DrySink::new();
         t.write(&mut sink).expect("Drysink cannot fail");
-        sink.fin()
+        sink.fin().expect("Drysink cannot fail")
     }
 }
 
@@ -137,8 +137,8 @@ where
         self.store.put(t)
     }
 
-    fn fin(self) -> S::Ident {
-        self.builder.fin()
+    fn fin(self) -> Result<S::Ident, S::Error> {
+        Ok(self.builder.fin())
     }
 }
 

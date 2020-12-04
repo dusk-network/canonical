@@ -127,7 +127,7 @@ impl Store for MemStore {
 
         let mut sink = ByteSink::new(&mut bytes, self.clone());
         Canon::<Self>::write(t, &mut sink)?;
-        let ident = sink.fin();
+        let ident = sink.fin()?;
 
         self.0.write().0.insert(ident, bytes);
         Ok(ident)
@@ -136,7 +136,7 @@ impl Store for MemStore {
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
         let mut sink = DrySink::<Self>::new();
         sink.copy_bytes(bytes);
-        let ident = sink.fin();
+        let ident = sink.fin()?;
         self.0.write().0.insert(ident, bytes.to_vec());
         Ok(ident)
     }
@@ -153,8 +153,8 @@ impl<S: Store> Sink<S> for MemSink<S> {
         self.store.put(t)
     }
 
-    fn fin(self) -> S::Ident {
-        todo!("this is unreasonable")
+    fn fin(self) -> Result<S::Ident, S::Error> {
+        self.store.put_raw(&self.bytes[..])
     }
 }
 

@@ -78,7 +78,7 @@ mod hosted {
         let slf: Counter = Canon::<BS>::read(&mut source)?;
 
         // read query id
-        let qid: u16 = Canon::<BS>::read(&mut source)?;
+        let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
             0 => {
@@ -253,27 +253,24 @@ mod host {
         }
     }
 
-    // transactions
-    type TransactionIndex = u16;
-
     impl Counter {
-        pub fn increment() -> Transaction<TransactionIndex, ()> {
-            Transaction::new(0)
+        pub fn increment() -> Transaction<(), (), 0> {
+            Transaction::new(())
         }
 
-        pub fn decrement() -> Transaction<TransactionIndex, ()> {
-            Transaction::new(1)
+        pub fn decrement() -> Transaction<(), (), 1> {
+            Transaction::new(())
         }
 
-        pub fn adjust(by: i32) -> Transaction<(TransactionIndex, i32), ()> {
-            Transaction::new((2, by))
+        pub fn adjust(by: i32) -> Transaction<i32, (), 2> {
+            Transaction::new(by)
         }
 
         pub fn compare_and_swap(
             current: i32,
             new: i32,
-        ) -> Transaction<(TransactionIndex, i32, i32), bool> {
-            Transaction::new((3, current, new))
+        ) -> Transaction<(i32, i32), bool, 3> {
+            Transaction::new((current, new))
         }
     }
 }

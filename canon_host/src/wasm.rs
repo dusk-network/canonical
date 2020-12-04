@@ -290,14 +290,14 @@ impl<A, R> Query<A, R> {
 
 /// Represents the type of a transaction
 #[derive(Debug)]
-pub struct Transaction<A, R> {
+pub struct Transaction<A, R, const ID: u8> {
     /// Arguments, in form of a tuple or single value
     args: A,
     /// The expected return type
     _return: PhantomData<R>,
 }
 
-impl<A, R> Transaction<A, R> {
+impl<A, R, const N: u8> Transaction<A, R, N> {
     /// Create a new transaction
     pub fn new(args: A) -> Self {
         Transaction {
@@ -309,6 +309,11 @@ impl<A, R> Transaction<A, R> {
     /// Returns a reference to the transactions arguments
     pub fn args(&self) -> &A {
         &self.args
+    }
+
+    /// Consumes transaction and returns the argument
+    pub fn into_args(self) -> A {
+        self.args
     }
 }
 
@@ -381,9 +386,9 @@ where
     }
 
     /// Perform the provided transaction in the wasm module
-    pub fn transact<A, R, E>(
+    pub fn transact<A, R, E, const N: u8>(
         &mut self,
-        transaction: &Transaction<A, R>,
+        transaction: &Transaction<A, R, N>,
         store: S,
         resolver: E,
     ) -> Result<R, S::Error>

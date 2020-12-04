@@ -7,9 +7,9 @@ members = [
     "canon_fuzz",
     "module_examples",
     "module_examples/modules/counter",
-    "module_examples/modules/nstack",
-    "module_examples/modules/panic",
-    "module_examples/modules/resolver",
+    # "module_examples/modules/nstack",
+    # "module_examples/modules/panic",
+    # "module_examples/modules/resolver",
 ]
 
 [patch.crates-io]

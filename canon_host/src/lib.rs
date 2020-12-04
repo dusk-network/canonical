@@ -7,12 +7,16 @@
 //! The host library responsible for running and connecting modules
 
 #![deny(missing_docs)]
+#![feature(min_const_generics)]
 
 mod mem_store;
 pub use mem_store::{MemError, MemStore};
 
 mod disk_store;
 pub use disk_store::{DiskError, DiskStore};
+
+mod root;
+pub use root::Root;
 
 mod remote;
 pub use remote::Remote;

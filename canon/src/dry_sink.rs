@@ -36,10 +36,11 @@ where
     {
         let mut sink = DrySink::new();
         t.write(&mut sink)?;
-        Ok(sink.fin())
+        sink.fin()
     }
 
-    fn fin(self) -> S::Ident {
-        self.0.fin()
+    /// Consume the sink and return the ident of written data
+    fn fin(self) -> Result<S::Ident, S::Error> {
+        Ok(self.0.fin())
     }
 }

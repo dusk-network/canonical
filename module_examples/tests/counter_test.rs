@@ -20,7 +20,7 @@ fn query() {
         include_bytes!("../modules/counter/counter.wasm"),
     );
 
-    let remote = Remote::new(wasm_counter, &store).unwrap();
+    let remote = Remote::new(wasm_counter, store.clone()).unwrap();
 
     assert_eq!(
         remote
@@ -61,7 +61,7 @@ fn transaction() {
         Counter::new(99),
         include_bytes!("../modules/counter/counter.wasm"),
     );
-    let mut remote = Remote::new(wasm_counter, &store).unwrap();
+    let mut remote = Remote::new(wasm_counter, store.clone()).unwrap();
 
     // note, there's no reason to do compare and swap here,
     // just for testing return values from transactions

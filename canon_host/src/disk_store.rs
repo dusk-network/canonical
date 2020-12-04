@@ -16,6 +16,7 @@ use canonical::{
 };
 use canonical_derive::Canon;
 
+use crate::root::Persistent;
 use crate::wasm::Signal;
 
 use std::fs::{create_dir, File, OpenOptions};
@@ -49,6 +50,16 @@ impl DiskStore {
     /// Creates a new DiskStore
     pub fn new<P: Into<PathBuf>>(path: P) -> io::Result<Self> {
         Ok(DiskStore(Arc::new(RwLock::new(DiskStoreInner::new(path)?))))
+    }
+}
+
+impl Persistent for DiskStore {
+    fn set_root(&mut self, root: Self::Ident) {
+        todo!()
+    }
+
+    fn get_root(&self) -> Option<Self::Ident> {
+        None
     }
 }
 
@@ -193,7 +204,7 @@ impl Store for DiskStore {
 
         let mut sink = ByteSink::new(&mut bytes, self.clone());
         Canon::<Self>::write(t, &mut sink)?;
-        let ident = sink.fin();
+        let ident = sink.fin()?;
 
         if self
             .0
@@ -218,7 +229,7 @@ impl Store for DiskStore {
     fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
         let mut sink = DrySink::<Self>::new();
         sink.copy_bytes(bytes);
-        let ident = sink.fin();
+        let ident = sink.fin()?;
 
         if self
             .0
@@ -252,8 +263,8 @@ impl<S: Store> Sink<S> for DiskSink<S> {
         self.store.put(t)
     }
 
-    fn fin(self) -> S::Ident {
-        todo!("this is unreasonable")
+    fn fin(self) -> Result<S::Ident, S::Error> {
+        self.store.put_raw(&self.bytes[..])
     }
 }
 

@@ -4,56 +4,56 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-mod common;
-use common::no_externals;
+// mod common;
+// use common::no_externals;
 
-use canonical_host::{MemStore as MS, Wasm};
+// use canonical_host::{MemStore as MS, Wasm};
 
-use microkelvin::Cardinality;
-use nstack::NStack;
-use nstack_module::Stack;
+// use microkelvin::Cardinality;
+// use nstack::NStack;
+// use nstack_module::Stack;
 
-#[test]
-fn push_pop() {
-    let host_externals = no_externals();
+// #[test]
+// fn push_pop() {
+//     let host_externals = no_externals();
 
-    let bytes = include_bytes!("../modules/nstack/nstack_module.wasm");
+//     let bytes = include_bytes!("../modules/nstack/nstack_module.wasm");
 
-    let store = MS::new();
+//     let store = MS::new();
 
-    let mut n_stack = NStack::<_, Cardinality, MS>::new();
-    let mut wasm_stack = Wasm::new(Stack::new(), bytes);
+//     let mut n_stack = NStack::<_, Cardinality, MS>::new();
+//     let mut wasm_stack = Wasm::new(Stack::new(), bytes);
 
-    let n = 64;
+//     let n = 64;
 
-    // push n numbers
+//     // push n numbers
 
-    for i in 0..n {
-        n_stack.push(i).unwrap();
+//     for i in 0..n {
+//         n_stack.push(i).unwrap();
 
-        wasm_stack
-            .transact(&Stack::<MS>::push(i), store.clone(), host_externals)
-            .unwrap();
-    }
+//         wasm_stack
+//             .transact(&Stack::<MS>::push(i), store.clone(), host_externals)
+//             .unwrap();
+//     }
 
-    // pop n numbers
+//     // pop n numbers
 
-    for i in 0..n {
-        let inv = n - i - 1;
+//     for i in 0..n {
+//         let inv = n - i - 1;
 
-        let popped = wasm_stack
-            .transact(&Stack::<MS>::pop(), store.clone(), host_externals)
-            .unwrap();
+//         let popped = wasm_stack
+//             .transact(&Stack::<MS>::pop(), store.clone(), host_externals)
+//             .unwrap();
 
-        assert_eq!(popped, Some(inv))
-    }
+//         assert_eq!(popped, Some(inv))
+//     }
 
-    // assert empty
+//     // assert empty
 
-    assert_eq!(
-        wasm_stack
-            .transact(&Stack::<MS>::pop(), store, host_externals)
-            .unwrap(),
-        None
-    );
-}
+//     assert_eq!(
+//         wasm_stack
+//             .transact(&Stack::<MS>::pop(), store, host_externals)
+//             .unwrap(),
+//         None
+//     );
+// }

@@ -11,9 +11,9 @@ canonical_host = { path = "../canon_host", version = "0.4" }
 wasmi = "0.6.0"
 
 counter = { path = "modules/counter", features = ["host"], version = "0.1.0" }
-nstack_module = { path = "modules/nstack", features = ["host"], version = "0.1.0" }
-panic = { path = "modules/panic", features = ["host"], version = "0.1.0" }
-resolver = { path = "modules/resolver", features = ["host"], version = "0.1.0" }
+# nstack_module = { path = "modules/nstack", features = ["host"], version = "0.1.0" }
+# panic = { path = "modules/panic", features = ["host"], version = "0.1.0" }
+# resolver = { path = "modules/resolver", features = ["host"], version = "0.1.0" }
 
 [dependencies]
 microkelvin = "0.5.2"
