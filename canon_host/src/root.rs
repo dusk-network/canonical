@@ -1,6 +1,6 @@
 use canonical::{Canon, Store};
 
-use crate::Transaction;
+use crate::{Apply, Execute, Query, Transaction};
 
 /// A Store that can perist state.
 pub trait Persistent: Store {
@@ -8,31 +8,15 @@ pub trait Persistent: Store {
     fn get_root(&self) -> Option<Self::Ident>;
 }
 
-// pub trait Transactable<A, R, S>
-// where
-//     S: Store,
-// {
-//     fn transact<const ID: u8>(
-//         &mut self,
-//         t: Transaction<A, R, ID>,
-//         store: S,
-//     ) -> Result<R, S::Error>;
-// }
-
 /// The root of the whole-network state, including
 pub struct Root<State, S>
 where
     S: Store,
 {
+    #[allow(unused)]
     state: State,
+    #[allow(unused)]
     store: S,
-}
-
-pub trait Apply<A, R, S, const ID: u8>
-where
-    S: Store,
-{
-    fn apply(&mut self, args: A) -> Result<R, S::Error>;
 }
 
 impl<State, S> Root<State, S>
@@ -48,17 +32,28 @@ where
         };
         Ok(Root { state, store })
     }
+}
 
-    /// Apply a transaction to the state
-    pub fn apply<A, R, const ID: u8>(
+impl<A, R, State, S, const ID: u8> Apply<A, R, S, ID> for Root<State, S>
+where
+    State: Apply<A, R, S, ID>,
+    S: Store,
+{
+    fn apply(
         &mut self,
-        t: Transaction<A, R, ID>,
-        store: S,
-    ) -> Result<R, S::Error>
-    where
-        State: Apply<A, R, S, ID>,
-    {
-        self.state.apply(t.into_args())
+        transaction: Transaction<A, R, ID>,
+    ) -> Result<R, S::Error> {
+        self.state.apply(transaction)
+    }
+}
+
+impl<A, R, State, S, const ID: u8> Execute<A, R, S, ID> for Root<State, S>
+where
+    State: Execute<A, R, S, ID>,
+    S: Store,
+{
+    fn execute(&self, query: Query<A, R, ID>) -> Result<R, S::Error> {
+        self.state.execute(query)
     }
 }
 
@@ -71,12 +66,13 @@ mod test {
     use canonical::{Canon, Store};
     use canonical_derive::Canon;
 
-    use counter::Counter;
+    use counter::{Counter, Query, READ_VALUE};
 
     type ContractId = usize;
 
     const ADD_CONTRACT: u8 = 0;
-    const EXECUTE_CONTRACT_QUERY: u8 = 1;
+    const APPLY_CONTRACT_TRANSACTION: u8 = 1;
+    const EXECUTE_CONTRACT_QUERY: u8 = 2;
 
     #[derive(Clone, Canon, Default)]
     struct TestState<S: Store> {
@@ -105,10 +101,26 @@ mod test {
     where
         S: Store,
     {
-        fn apply(&mut self, remote: Remote<S>) -> Result<usize, S::Error> {
+        fn apply(
+            &mut self,
+            transaction: Transaction<Remote<S>, usize, ADD_CONTRACT>,
+        ) -> Result<usize, S::Error> {
             let id = self.contracts.len();
-            self.contracts.push(remote);
+            self.contracts.push(transaction.into_args());
             Ok(id)
+        }
+    }
+
+    impl<A, R, S, const ID: u8>
+        Execute<Query<A, R, ID>, R, S, EXECUTE_CONTRACT_QUERY> for TestState<S>
+    where
+        S: Store,
+    {
+        fn execute(
+            &self,
+            query: Query<Query<A, R, ID>, R, EXECUTE_CONTRACT_QUERY>,
+        ) -> Result<R, S::Error> {
+            todo!()
         }
     }
 
@@ -131,11 +143,20 @@ mod test {
 
         // hide counter behind a remote to erase the type
         let remote = Remote::new(wasm_counter, store.clone()).unwrap();
+
         let transaction = TestState::<DiskStore>::add_contract(remote);
-        let id = state.apply(transaction, store.clone()).unwrap();
+        let id = state.apply(transaction).unwrap();
 
-        let counter_query = Counter::read_value();
+        let counter_query: Query<(), i32, READ_VALUE> = Counter::read_value();
 
-        assert_eq!(id, 0);
+        // let wrapped_query = crate::Query::<
+        //     crate::Query<(), i32, READ_VALUE>,
+        //     i32,
+        //     EXECUTE_CONTRACT_QUERY,
+        // >::new(counter_query);
+
+        // let id = state.execute(wrapped_query).unwrap();
+
+        // assert_eq!(id, 0);
     }
 }

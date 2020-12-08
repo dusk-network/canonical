@@ -54,7 +54,7 @@ impl DiskStore {
 }
 
 impl Persistent for DiskStore {
-    fn set_root(&mut self, root: Self::Ident) {
+    fn set_root(&mut self, _root: Self::Ident) {
         todo!()
     }
 

@@ -10,6 +10,10 @@
 use canonical::Canon;
 use canonical_derive::Canon;
 
+pub const READ_VALUE: u8 = 0;
+pub const XOR_VALUE: u8 = 1;
+pub const IS_EVEN: u8 = 2;
+
 #[derive(Clone, Canon, Debug)]
 pub struct Counter {
     junk: u32,
@@ -81,22 +85,22 @@ mod hosted {
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
-            0 => {
+            READ_VALUE => {
                 let ret = slf.read_value();
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // xor_values (&Self, a: i32, b: i32) -> i32
-            1 => {
+            XOR_VALUE => {
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let ret = slf.xor_values(a, b);
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
-            // xor_value (&Self) -> bool
-            2 => {
+            // is_even (&Self) -> bool
+            IS_EVEN => {
                 let ret = slf.is_even();
                 let mut sink = ByteSink::new(&mut bytes[..], store.clone());
 
@@ -233,23 +237,17 @@ mod host {
     use super::*;
     use canonical_host::{Query, Transaction};
 
-    // queries
-    type QueryIndex = u16;
-
     impl Counter {
-        pub fn read_value() -> Query<QueryIndex, i32> {
-            Query::new(0)
+        pub fn read_value() -> Query<(), i32, READ_VALUE> {
+            Query::new(())
         }
 
-        pub fn xor_values(
-            a: i32,
-            b: i32,
-        ) -> Query<(QueryIndex, i32, i32), i32> {
-            Query::new((1, a, b))
+        pub fn xor_values(a: i32, b: i32) -> Query<(i32, i32), i32, XOR_VALUE> {
+            Query::new((a, b))
         }
 
-        pub fn is_even() -> Query<QueryIndex, bool> {
-            Query::new(2)
+        pub fn is_even() -> Query<(), bool, IS_EVEN> {
+            Query::new(())
         }
     }
 

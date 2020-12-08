@@ -19,7 +19,7 @@ mod root;
 pub use root::Root;
 
 mod remote;
-pub use remote::Remote;
+pub use remote::{Apply, Execute, Query, Remote, Transaction};
 
 mod wasm;
-pub use wasm::{ExternalsResolver, Query, Signal, Transaction, Wasm};
+pub use wasm::{ExternalsResolver, Signal, Wasm};

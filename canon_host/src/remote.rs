@@ -4,8 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Sink, Source, Store};
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+
+use canonical::{Canon, Sink, Source, Store};
 
 /// A representation of a Module of erased type, with its root state reachable
 /// from the Id in the store.
@@ -105,4 +107,78 @@ impl<S: Store> Canon<S> for Remote<S> {
     fn encoded_len(&self) -> usize {
         S::Ident::default().as_ref().len()
     }
+}
+
+/// Represents the type of a query
+#[derive(Debug)]
+pub struct Query<A, R, const ID: u8> {
+    /// Arguments, in form of a tuple or single value
+    args: A,
+    /// The expected return type
+    _return: PhantomData<R>,
+}
+
+impl<A, R, const ID: u8> Query<A, R, ID> {
+    /// Construct a new query with provided arguments
+    pub fn new(args: A) -> Self {
+        Query {
+            args,
+            _return: PhantomData,
+        }
+    }
+
+    /// Returns a reference to the arguments of a query
+    pub fn args(&self) -> &A {
+        &self.args
+    }
+}
+
+/// Represents the type of a transaction
+#[derive(Debug)]
+pub struct Transaction<A, R, const ID: u8> {
+    /// Arguments, in form of a tuple or single value
+    args: A,
+    /// The expected return type
+    _return: PhantomData<R>,
+}
+
+impl<A, R, const N: u8> Transaction<A, R, N> {
+    /// Create a new transaction
+    pub fn new(args: A) -> Self {
+        Transaction {
+            args,
+            _return: PhantomData,
+        }
+    }
+
+    /// Returns a reference to the transactions arguments
+    pub fn args(&self) -> &A {
+        &self.args
+    }
+
+    /// Consumes transaction and returns the argument
+    pub fn into_args(self) -> A {
+        self.args
+    }
+}
+
+/// Trait to support applying transactions
+pub trait Apply<A, R, S, const ID: u8>
+where
+    S: Store,
+{
+    /// Apply a transaction to `self`
+    fn apply(
+        &mut self,
+        transaction: Transaction<A, R, ID>,
+    ) -> Result<R, S::Error>;
+}
+
+/// Trait to support executing queries
+pub trait Execute<A, R, S, const ID: u8>
+where
+    S: Store,
+{
+    /// Execute a query over `self`
+    fn execute(&self, query: Query<A, R, ID>) -> Result<R, S::Error>;
 }

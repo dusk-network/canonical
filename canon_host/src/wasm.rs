@@ -7,6 +7,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
+use crate::{Query, Transaction};
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 
@@ -264,59 +265,6 @@ where
     }
 }
 
-/// Represents the type of a query
-#[derive(Debug)]
-pub struct Query<A, R> {
-    /// Arguments, in form of a tuple or single value
-    args: A,
-    /// The expected return type
-    _return: PhantomData<R>,
-}
-
-impl<A, R> Query<A, R> {
-    /// Construct a new query with provided arguments
-    pub fn new(args: A) -> Self {
-        Query {
-            args,
-            _return: PhantomData,
-        }
-    }
-
-    /// Returns a reference to the arguments of a query
-    pub fn args(&self) -> &A {
-        &self.args
-    }
-}
-
-/// Represents the type of a transaction
-#[derive(Debug)]
-pub struct Transaction<A, R, const ID: u8> {
-    /// Arguments, in form of a tuple or single value
-    args: A,
-    /// The expected return type
-    _return: PhantomData<R>,
-}
-
-impl<A, R, const N: u8> Transaction<A, R, N> {
-    /// Create a new transaction
-    pub fn new(args: A) -> Self {
-        Transaction {
-            args,
-            _return: PhantomData,
-        }
-    }
-
-    /// Returns a reference to the transactions arguments
-    pub fn args(&self) -> &A {
-        &self.args
-    }
-
-    /// Consumes transaction and returns the argument
-    pub fn into_args(self) -> A {
-        self.args
-    }
-}
-
 impl<State, S> Wasm<State, S>
 where
     State: Canon<S>,
@@ -334,9 +282,9 @@ where
     }
 
     /// Perform the provided query in the wasm module
-    pub fn query<A, R, E>(
+    pub fn query<A, R, E, const ID: u8>(
         &self,
-        query: &Query<A, R>,
+        query: &Query<A, R, ID>,
         store: S,
         resolver: E,
     ) -> Result<R, S::Error>
