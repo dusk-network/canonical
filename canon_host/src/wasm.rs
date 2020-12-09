@@ -7,9 +7,12 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::{Query, Transaction};
+use crate::{Execute, Query, Transaction};
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
+
+/// Query id for executing queries over Wasm modules.
+pub const WASM_QUERY: u8 = 0;
 
 const GET: usize = 0;
 const PUT: usize = 1;
@@ -147,6 +150,7 @@ where
 #[derive(Canon, Clone)]
 pub struct Wasm<State, S: Store> {
     state: State,
+    store: S,
     bytecode: Vec<u8>,
     _marker: PhantomData<S>,
 }
@@ -273,63 +277,12 @@ where
     S::Error: From<Signal>,
 {
     /// Creates a new Wasm wrapper over an initial state.
-    pub fn new(state: State, bytecode: &[u8]) -> Self {
+    pub fn new(state: State, store: S, bytecode: &[u8]) -> Self {
         Wasm {
             state,
+            store,
             bytecode: Vec::from(bytecode),
             _marker: PhantomData,
-        }
-    }
-
-    /// Perform the provided query in the wasm module
-    pub fn query<A, R, E, const ID: u8>(
-        &self,
-        query: &Query<A, R, ID>,
-        store: S,
-        resolver: E,
-    ) -> Result<R, S::Error>
-    where
-        A: Canon<S>,
-        R: Canon<S>,
-        S::Error: From<wasmi::Error>,
-        E: ExternalsResolver,
-    {
-        let mut imports = wasmi::ImportsBuilder::default();
-        let canon_module = CanonImports(store.clone());
-        imports.push_resolver("canon", &canon_module);
-        imports.push_resolver("env", &resolver);
-
-        let module = wasmi::Module::from_buffer(&self.bytecode)?;
-
-        let instance =
-            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
-
-        match instance.export_by_name("memory") {
-            Some(wasmi::ExternVal::Memory(memref)) => {
-                memref.with_direct_access_mut(|mem| {
-                    let mut sink = ByteSink::new(&mut mem[..], store.clone());
-                    // Write State and arguments into memory
-                    Canon::<S>::write(&self.state, &mut sink)?;
-                    Canon::<S>::write(query.args(), &mut sink)
-                })?;
-
-                let mut externals = Externals::new(&store, &memref, resolver);
-
-                // Perform the query call
-                instance.invoke_export(
-                    "q",
-                    &[wasmi::RuntimeValue::I32(0)],
-                    &mut externals,
-                )?;
-
-                memref.with_direct_access_mut(|mem| {
-                    // read and return value returned from the invoked query
-
-                    let mut source = ByteSource::new(&mem[..], store.clone());
-                    R::read(&mut source)
-                })
-            }
-            _ => panic!("no memory"),
         }
     }
 
@@ -376,13 +329,74 @@ where
                 )?;
 
                 memref.with_direct_access_mut(|mem| {
-                    let mut source = ByteSource::new(&mem[..], store.clone());
+                    let mut source = ByteSource::new(&mem[..], &store);
                     self.state = State::read(&mut source)?;
                     let res = R::read(&mut source)?;
                     Ok(res)
                 })
             }
             _ => todo!("no memory"),
+        }
+    }
+}
+
+impl<State, A, R, S, const ID: u8>
+    Execute<Self, Query<State, A, R, ID>, R, S, WASM_QUERY> for Wasm<State, S>
+where
+    A: Canon<S>,
+    R: Canon<S>,
+    State: Canon<S>,
+    S: Store,
+    S::Error: From<Signal>,
+    S::Error: wasmi::HostError,
+    S::Error: From<wasmi::Error>,
+{
+    fn execute(
+        &self,
+        query: Query<Self, Query<State, A, R, ID>, R, WASM_QUERY>,
+    ) -> Result<R, S::Error> {
+        let resolver = crate::common::HostExternals {};
+
+        let mut imports = wasmi::ImportsBuilder::default();
+        let canon_module = CanonImports(self.store.clone());
+        imports.push_resolver("canon", &canon_module);
+        // imports.push_resolver("env", &resolver);
+
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
+
+        let instance =
+            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
+
+        let inner_query = query.into_args();
+
+        match instance.export_by_name("memory") {
+            Some(wasmi::ExternVal::Memory(memref)) => {
+                memref.with_direct_access_mut(|mem| {
+                    let mut sink =
+                        ByteSink::new(&mut mem[..], self.store.clone());
+                    // Write State and arguments into memory
+                    Canon::<S>::write(&self.state, &mut sink)?;
+                    Canon::<S>::write(inner_query.args(), &mut sink)
+                })?;
+
+                let mut externals =
+                    Externals::new(&self.store, &memref, resolver);
+
+                // Perform the query call
+                instance.invoke_export(
+                    "q",
+                    &[wasmi::RuntimeValue::I32(0)],
+                    &mut externals,
+                )?;
+
+                memref.with_direct_access_mut(|mem| {
+                    // read and return value returned from the invoked query
+
+                    let mut source = ByteSource::new(&mem[..], &self.store);
+                    R::read(&mut source)
+                })
+            }
+            _ => panic!("no memory"),
         }
     }
 }

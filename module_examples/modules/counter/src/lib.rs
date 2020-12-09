@@ -238,15 +238,18 @@ mod host {
     use canonical_host::{Query, Transaction};
 
     impl Counter {
-        pub fn read_value() -> Query<(), i32, READ_VALUE> {
+        pub fn read_value() -> Query<Self, (), i32, READ_VALUE> {
             Query::new(())
         }
 
-        pub fn xor_values(a: i32, b: i32) -> Query<(i32, i32), i32, XOR_VALUE> {
+        pub fn xor_values(
+            a: i32,
+            b: i32,
+        ) -> Query<Self, (i32, i32), i32, XOR_VALUE> {
             Query::new((a, b))
         }
 
-        pub fn is_even() -> Query<(), bool, IS_EVEN> {
+        pub fn is_even() -> Query<Self, (), bool, IS_EVEN> {
             Query::new(())
         }
     }

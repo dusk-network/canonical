@@ -110,15 +110,17 @@ impl<S: Store> Canon<S> for Remote<S> {
 }
 
 /// Represents the type of a query
+///
+/// `Over` is the type that the query is expected to operate over.
 #[derive(Debug)]
-pub struct Query<A, R, const ID: u8> {
+pub struct Query<Over, A, R, const ID: u8> {
     /// Arguments, in form of a tuple or single value
     args: A,
     /// The expected return type
-    _return: PhantomData<R>,
+    _return: PhantomData<(Over, R)>,
 }
 
-impl<A, R, const ID: u8> Query<A, R, ID> {
+impl<Over, A, R, const ID: u8> Query<Over, A, R, ID> {
     /// Construct a new query with provided arguments
     pub fn new(args: A) -> Self {
         Query {
@@ -130,6 +132,11 @@ impl<A, R, const ID: u8> Query<A, R, ID> {
     /// Returns a reference to the arguments of a query
     pub fn args(&self) -> &A {
         &self.args
+    }
+
+    /// Consumes query and returns the arguments
+    pub fn into_args(self) -> A {
+        self.args
     }
 }
 
@@ -175,10 +182,11 @@ where
 }
 
 /// Trait to support executing queries
-pub trait Execute<A, R, S, const ID: u8>
+pub trait Execute<Over, A, R, S, const ID: u8>
 where
+    Self: Sized,
     S: Store,
 {
-    /// Execute a query over `self`
-    fn execute(&self, query: Query<A, R, ID>) -> Result<R, S::Error>;
+    /// Execute a query over a state.
+    fn execute(&self, query: Query<Over, A, R, ID>) -> Result<R, S::Error>;
 }

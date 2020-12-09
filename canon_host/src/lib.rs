@@ -21,5 +21,10 @@ pub use root::Root;
 mod remote;
 pub use remote::{Apply, Execute, Query, Remote, Transaction};
 
-mod wasm;
+/// Module containing wasm related modules.
+/// FIXME, move this to its own crate?
+pub mod wasm;
 pub use wasm::{ExternalsResolver, Signal, Wasm};
+
+/// FIXME: this does not really belong here
+pub mod common;

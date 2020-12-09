@@ -47,12 +47,13 @@ where
     }
 }
 
-impl<A, R, State, S, const ID: u8> Execute<A, R, S, ID> for Root<State, S>
+impl<State, A, R, S, const ID: u8> Execute<State, A, R, S, ID>
+    for Root<State, S>
 where
-    State: Execute<A, R, S, ID>,
     S: Store,
+    State: Execute<State, A, R, S, ID>,
 {
-    fn execute(&self, query: Query<A, R, ID>) -> Result<R, S::Error> {
+    fn execute(&self, query: Query<State, A, R, ID>) -> Result<R, S::Error> {
         self.state.execute(query)
     }
 }

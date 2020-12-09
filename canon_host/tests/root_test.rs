@@ -1,7 +1,7 @@
 #![feature(min_const_generics)]
 
 use canonical_host::{
-    Apply, DiskStore, Execute, Query, Remote, Root, Transaction, Wasm,
+    wasm, Apply, DiskStore, Execute, Query, Remote, Root, Transaction,
 };
 
 use canonical::{Canon, Store};
@@ -9,7 +9,7 @@ use canonical_derive::Canon;
 
 use counter::{Counter, READ_VALUE};
 
-type ContractId = usize;
+type ContractAddr = usize;
 
 const ADD_CONTRACT: u8 = 0;
 const APPLY_CONTRACT_TRANSACTION: u8 = 1;
@@ -27,13 +27,7 @@ where
 {
     fn add_contract(
         contract: Remote<S>,
-    ) -> Transaction<Remote<S>, ContractId, ADD_CONTRACT> {
-        Transaction::new(contract)
-    }
-
-    fn execute_contract_query(
-        contract: Remote<S>,
-    ) -> Transaction<Remote<S>, ContractId, ADD_CONTRACT> {
+    ) -> Transaction<Remote<S>, ContractAddr, ADD_CONTRACT> {
         Transaction::new(contract)
     }
 }
@@ -52,16 +46,30 @@ where
     }
 }
 
-impl<A, R, S, const ID: u8>
-    Execute<Query<A, R, ID>, R, S, EXECUTE_CONTRACT_QUERY> for TestState<S>
+impl<ContractState, A, R, S, const ID: u8>
+    Execute<
+        Self,
+        (ContractAddr, Query<ContractState, A, R, ID>),
+        R,
+        S,
+        EXECUTE_CONTRACT_QUERY,
+    > for TestState<S>
 where
+    ContractState: Canon<S> + Execute<ContractState, A, R, S, ID>,
     S: Store,
 {
     fn execute(
         &self,
-        query: Query<Query<A, R, ID>, R, EXECUTE_CONTRACT_QUERY>,
+        query: Query<
+            Self,
+            (ContractAddr, Query<ContractState, A, R, ID>),
+            R,
+            EXECUTE_CONTRACT_QUERY,
+        >,
     ) -> Result<R, S::Error> {
-        todo!()
+        let (id, query) = query.into_args();
+        let cast: ContractState = self.contracts[id].cast()?;
+        cast.execute(query)
     }
 }
 
@@ -74,9 +82,10 @@ fn create_root() {
 
     let counter = Counter::new(13);
 
-    let wasm_counter = Wasm::new(
+    let wasm_counter = wasm::Wasm::new(
         // unlucky number to not get too lucky in testing
-        Counter::new(13),
+        counter,
+        store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
     );
 
@@ -86,15 +95,31 @@ fn create_root() {
     let transaction = TestState::<DiskStore>::add_contract(remote);
     let id = state.apply(transaction).unwrap();
 
-    let counter_query: Query<(), i32, READ_VALUE> = Counter::read_value();
+    assert_eq!(id, 0);
 
-    // let wrapped_query = crate::Query::<
-    //     crate::Query<(), i32, READ_VALUE>,
-    //     i32,
-    //     EXECUTE_CONTRACT_QUERY,
-    // >::new(counter_query);
+    let counter_query: Query<
+        wasm::Wasm<Counter, DiskStore>,
+        Query<Counter, (), i32, READ_VALUE>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
 
-    // let id = state.execute(wrapped_query).unwrap();
+    let wrapped_query = crate::Query::<
+        _,
+        (
+            ContractAddr,
+            crate::Query<
+                wasm::Wasm<Counter, DiskStore>,
+                Query<Counter, (), i32, READ_VALUE>,
+                i32,
+                { wasm::WASM_QUERY },
+            >,
+        ),
+        i32,
+        EXECUTE_CONTRACT_QUERY,
+    >::new((id, counter_query));
 
-    // assert_eq!(id, 0);
+    let result = state.execute(wrapped_query).unwrap();
+
+    assert_eq!(result, 13);
 }
