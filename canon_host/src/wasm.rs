@@ -7,12 +7,15 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::{Execute, Query, Transaction};
+use crate::{Apply, Execute, Query, Transaction};
 use canonical::{ByteSink, ByteSource, Canon, Store};
 use canonical_derive::Canon;
 
 /// Query id for executing queries over Wasm modules.
 pub const WASM_QUERY: u8 = 0;
+
+/// Transaction id for applying transactions over Wasm modules.
+pub const WASM_TRANSACTION: u8 = 0;
 
 const GET: usize = 0;
 const PUT: usize = 1;
@@ -285,59 +288,6 @@ where
             _marker: PhantomData,
         }
     }
-
-    /// Perform the provided transaction in the wasm module
-    pub fn transact<A, R, E, const N: u8>(
-        &mut self,
-        transaction: &Transaction<A, R, N>,
-        store: S,
-        resolver: E,
-    ) -> Result<R, S::Error>
-    where
-        A: Canon<S>,
-        R: Canon<S>,
-        S::Error: wasmi::HostError,
-        S::Error: From<Signal>,
-        S::Error: From<wasmi::Error>,
-        E: ExternalsResolver,
-    {
-        let mut imports = wasmi::ImportsBuilder::default();
-        let canon_module = CanonImports(store.clone());
-        imports.push_resolver("canon", &canon_module);
-        imports.push_resolver("env", &resolver);
-
-        let module = wasmi::Module::from_buffer(&self.bytecode)?;
-        let instance =
-            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
-
-        match instance.export_by_name("memory") {
-            Some(wasmi::ExternVal::Memory(memref)) => {
-                memref.with_direct_access_mut(|mem| {
-                    let mut sink = ByteSink::new(mem, store.clone());
-                    // First we write State into memory
-                    Canon::<S>::write(&self.state, &mut sink)?;
-                    // then the arguments, as bytes
-                    Canon::<S>::write(transaction.args(), &mut sink)
-                })?;
-
-                let mut externals = Externals::new(&store, &memref, resolver);
-
-                instance.invoke_export(
-                    "t",
-                    &[wasmi::RuntimeValue::I32(0)],
-                    &mut externals,
-                )?;
-
-                memref.with_direct_access_mut(|mem| {
-                    let mut source = ByteSource::new(&mem[..], &store);
-                    self.state = State::read(&mut source)?;
-                    let res = R::read(&mut source)?;
-                    Ok(res)
-                })
-            }
-            _ => todo!("no memory"),
-        }
-    }
 }
 
 impl<State, A, R, S, const ID: u8>
@@ -372,8 +322,7 @@ where
         match instance.export_by_name("memory") {
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
-                    let mut sink =
-                        ByteSink::new(&mut mem[..], self.store.clone());
+                    let mut sink = ByteSink::new(&mut mem[..], &self.store);
                     // Write State and arguments into memory
                     Canon::<S>::write(&self.state, &mut sink)?;
                     Canon::<S>::write(inner_query.args(), &mut sink)
@@ -397,6 +346,71 @@ where
                 })
             }
             _ => panic!("no memory"),
+        }
+    }
+}
+
+impl<State, A, R, S, const ID: u8>
+    Apply<Self, Transaction<State, A, R, ID>, R, S, WASM_TRANSACTION>
+    for Wasm<State, S>
+where
+    A: Canon<S>,
+    R: Canon<S>,
+    State: Canon<S>,
+    S: Store,
+    S::Error: From<Signal>,
+    S::Error: wasmi::HostError,
+    S::Error: From<wasmi::Error>,
+{
+    fn apply(
+        &mut self,
+        transaction: Transaction<
+            Self,
+            Transaction<State, A, R, ID>,
+            R,
+            WASM_TRANSACTION,
+        >,
+    ) -> Result<R, S::Error> {
+        let resolver = crate::common::HostExternals {};
+
+        let mut imports = wasmi::ImportsBuilder::default();
+        let canon_module = CanonImports(self.store.clone());
+        imports.push_resolver("canon", &canon_module);
+        imports.push_resolver("env", &resolver);
+
+        let inner_transaction = transaction.into_args();
+
+        let module = wasmi::Module::from_buffer(&self.bytecode)?;
+        let instance =
+            wasmi::ModuleInstance::new(&module, &imports)?.assert_no_start();
+
+        match instance.export_by_name("memory") {
+            Some(wasmi::ExternVal::Memory(memref)) => {
+                memref.with_direct_access_mut(|mem| {
+                    let mut sink = ByteSink::new(mem, &self.store);
+                    // First we write State into memory
+                    Canon::<S>::write(&self.state, &mut sink)?;
+                    // then the arguments, as bytes
+                    Canon::<S>::write(inner_transaction.args(), &mut sink)
+                })?;
+
+                let mut externals =
+                    Externals::new(&self.store, &memref, resolver);
+
+                instance.invoke_export(
+                    "t",
+                    &[wasmi::RuntimeValue::I32(0)],
+                    &mut externals,
+                )?;
+
+                memref.with_direct_access_mut(|mem| {
+                    let mut source = ByteSource::new(&mem[..], &self.store);
+                    self.state = State::read(&mut source)?;
+                    let res = R::read(&mut source)?;
+                    Ok(res)
+                })
+            }
+            _ => todo!("no memory"),
         }
     }
 }

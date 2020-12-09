@@ -9,49 +9,46 @@ pub trait Persistent: Store {
 }
 
 /// The root of the whole-network state, including
-pub struct Root<State, S>
-where
-    S: Store,
-{
-    #[allow(unused)]
+#[derive(Default)]
+pub struct Root<State> {
     state: State,
-    #[allow(unused)]
-    store: S,
 }
 
-impl<State, S> Root<State, S>
+impl<State> Root<State>
 where
-    State: Default + Canon<S>,
-    S: Persistent,
+    State: Default,
 {
     /// Creates a new root from a persistent store
-    pub fn new(store: S) -> Result<Self, S::Error> {
+    pub fn new<S>(store: S) -> Result<Self, S::Error>
+    where
+        S: Persistent,
+        State: Canon<S>,
+    {
         let state = match store.get_root() {
             Some(ref root) => store.get(root)?,
             None => Default::default(),
         };
-        Ok(Root { state, store })
+        Ok(Root { state })
     }
 }
 
-impl<A, R, State, S, const ID: u8> Apply<A, R, S, ID> for Root<State, S>
+impl<State, A, R, S, const ID: u8> Apply<State, A, R, S, ID> for Root<State>
 where
-    State: Apply<A, R, S, ID>,
+    State: Apply<State, A, R, S, ID>,
     S: Store,
 {
     fn apply(
         &mut self,
-        transaction: Transaction<A, R, ID>,
+        transaction: Transaction<State, A, R, ID>,
     ) -> Result<R, S::Error> {
         self.state.apply(transaction)
     }
 }
 
-impl<State, A, R, S, const ID: u8> Execute<State, A, R, S, ID>
-    for Root<State, S>
+impl<State, A, R, S, const ID: u8> Execute<State, A, R, S, ID> for Root<State>
 where
-    S: Store,
     State: Execute<State, A, R, S, ID>,
+    S: Store,
 {
     fn execute(&self, query: Query<State, A, R, ID>) -> Result<R, S::Error> {
         self.state.execute(query)

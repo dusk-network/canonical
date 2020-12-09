@@ -87,6 +87,19 @@ where
     }
 }
 
+impl<'a, T, A, R, S, const ID: u8> Apply<T, A, R, S, ID> for CastMut<'a, T, S>
+where
+    T: Canon<S> + Apply<T, A, R, S, ID>,
+    S: Store,
+{
+    fn apply(
+        &mut self,
+        transaction: Transaction<T, A, R, ID>,
+    ) -> Result<R, S::Error> {
+        self.value.apply(transaction)
+    }
+}
+
 impl<S: Store> Canon<S> for Remote<S> {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         sink.copy_bytes(self.id.as_ref());
@@ -142,14 +155,14 @@ impl<Over, A, R, const ID: u8> Query<Over, A, R, ID> {
 
 /// Represents the type of a transaction
 #[derive(Debug)]
-pub struct Transaction<A, R, const ID: u8> {
+pub struct Transaction<Over, A, R, const ID: u8> {
     /// Arguments, in form of a tuple or single value
     args: A,
     /// The expected return type
-    _return: PhantomData<R>,
+    _return: PhantomData<(Over, R)>,
 }
 
-impl<A, R, const N: u8> Transaction<A, R, N> {
+impl<Over, A, R, const N: u8> Transaction<Over, A, R, N> {
     /// Create a new transaction
     pub fn new(args: A) -> Self {
         Transaction {
@@ -170,14 +183,15 @@ impl<A, R, const N: u8> Transaction<A, R, N> {
 }
 
 /// Trait to support applying transactions
-pub trait Apply<A, R, S, const ID: u8>
+pub trait Apply<Over, A, R, S, const ID: u8>
 where
+    Self: Sized,
     S: Store,
 {
     /// Apply a transaction to `self`
     fn apply(
         &mut self,
-        transaction: Transaction<A, R, ID>,
+        transaction: Transaction<Over, A, R, ID>,
     ) -> Result<R, S::Error>;
 }
 

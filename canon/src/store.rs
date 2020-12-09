@@ -103,7 +103,7 @@ where
 pub struct ByteSink<'a, S: Store> {
     bytes: &'a mut [u8],
     offset: usize,
-    store: S,
+    store: &'a S,
     builder: <S::Ident as Ident>::Builder,
 }
 
@@ -112,7 +112,7 @@ where
     S: Store,
 {
     /// Creates a new sink reading from bytes
-    pub fn new(bytes: &'a mut [u8], store: S) -> Self {
+    pub fn new(bytes: &'a mut [u8], store: &'a S) -> Self {
         ByteSink {
             bytes,
             store,

@@ -10,9 +10,13 @@
 use canonical::Canon;
 use canonical_derive::Canon;
 
+// query ids
 pub const READ_VALUE: u8 = 0;
 pub const XOR_VALUE: u8 = 1;
 pub const IS_EVEN: u8 = 2;
+
+// transaction ids
+pub const INCREMENT: u8 = 0;
 
 #[derive(Clone, Canon, Debug)]
 pub struct Counter {
@@ -255,22 +259,22 @@ mod host {
     }
 
     impl Counter {
-        pub fn increment() -> Transaction<(), (), 0> {
+        pub fn increment() -> Transaction<Self, (), (), INCREMENT> {
             Transaction::new(())
         }
 
-        pub fn decrement() -> Transaction<(), (), 1> {
+        pub fn decrement() -> Transaction<Self, (), (), 1> {
             Transaction::new(())
         }
 
-        pub fn adjust(by: i32) -> Transaction<i32, (), 2> {
+        pub fn adjust(by: i32) -> Transaction<Self, i32, (), 2> {
             Transaction::new(by)
         }
 
         pub fn compare_and_swap(
             current: i32,
             new: i32,
-        ) -> Transaction<(i32, i32), bool, 3> {
+        ) -> Transaction<Self, (i32, i32), bool, 3> {
             Transaction::new((current, new))
         }
     }
