@@ -175,7 +175,7 @@ where
 
                 // can we inline the value?
                 if len <= buffer.as_ref().len() {
-                    let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
+                    let mut sink = ByteSink::new(buffer.as_mut(), &store);
                     t.write(&mut sink)
                         .expect("Pre-checked buffer of sufficient length");
 

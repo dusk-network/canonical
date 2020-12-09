@@ -12,6 +12,10 @@ use canonical_derive::Canon;
 #[derive(Clone, Canon, Debug)]
 pub struct Panico;
 
+// query ids
+pub const PANIC_A: u8 = 0;
+pub const PANIC_B: u8 = 1;
+
 #[cfg(not(feature = "host"))]
 mod hosted {
     use super::*;
@@ -34,7 +38,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], store.clone());
+        let mut source = ByteSource::new(&bytes[..], &store);
 
         // no-op reading a unit struct;
         let slf = Panico::read(&mut source)?;
@@ -115,16 +119,13 @@ mod host {
     use super::*;
     use canonical_host::Query;
 
-    // queries
-    type QueryIndex = u16;
-
     impl Panico {
-        pub fn panic_a() -> Query<QueryIndex, !> {
-            Query::new(0)
+        pub fn panic_a() -> Query<Self, (), !, PANIC_A> {
+            Query::new(())
         }
 
-        pub fn panic_b() -> Query<QueryIndex, !> {
-            Query::new(1)
+        pub fn panic_b() -> Query<Self, (), !, PANIC_B> {
+            Query::new(())
         }
     }
 }

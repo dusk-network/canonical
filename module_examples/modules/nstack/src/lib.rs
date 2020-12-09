@@ -12,6 +12,10 @@ use canonical_derive::Canon;
 use microkelvin::Cardinality;
 use nstack::NStack;
 
+// transaction ids
+pub const PUSH: u8 = 0;
+pub const POP: u8 = 1;
+
 #[derive(Clone, Canon)]
 pub struct Stack<S: Store> {
     inner: NStack<i32, Cardinality, S>,
@@ -62,28 +66,28 @@ mod hosted {
     ) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
 
-        let mut source = ByteSource::new(&bytes[..], store.clone());
+        let mut source = ByteSource::new(&bytes[..], &store);
 
         // read self.
         let mut slf: Stack<BS> = Canon::<BS>::read(&mut source)?;
 
-        // read query id
-        let qid: u16 = Canon::<BS>::read(&mut source)?;
-        match qid {
+        // read transacion id
+        let transaction_id: u8 = Canon::<BS>::read(&mut source)?;
+        match transaction_id {
             // push (&mut self, t: i32) -> ()
-            0 => {
+            PUSH => {
                 let to_push = Canon::<BS>::read(&mut source)?;
                 slf.push(to_push)?;
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // new self
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // result is ()
                 Ok(())
             }
             // pop (&mut self) -> Option<i32>
-            1 => {
+            POP => {
                 let ret = slf.pop()?;
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // new self
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // result
@@ -91,7 +95,7 @@ mod hosted {
 
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("invalid transaction id {}", transaction_id),
         }
     }
 
@@ -163,16 +167,13 @@ mod host {
     use canonical::Store;
     use canonical_host::Transaction;
 
-    // transactions
-    type TransactionIndex = u16;
-
     impl<S: Store> Stack<S> {
-        pub fn push(t: i32) -> Transaction<(TransactionIndex, i32), ()> {
-            Transaction::new((0, t))
+        pub fn push(t: i32) -> Transaction<Self, i32, (), PUSH> {
+            Transaction::new(t)
         }
 
-        pub fn pop() -> Transaction<TransactionIndex, Option<i32>> {
-            Transaction::new(1)
+        pub fn pop() -> Transaction<Self, (), Option<i32>, POP> {
+            Transaction::new(())
         }
     }
 }

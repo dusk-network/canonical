@@ -58,8 +58,8 @@ where
         let mut buffer_b = vec![];
         buffer_b.resize_with(claimed_len + 1, || 0x00);
 
-        let mut sink_a = ByteSink::new(&mut buffer_a[..], store.clone());
-        let mut sink_b = ByteSink::new(&mut buffer_b[..], store.clone());
+        let mut sink_a = ByteSink::new(&mut buffer_a[..], &store);
+        let mut sink_b = ByteSink::new(&mut buffer_b[..], &store);
 
         Canon::write(&canon, &mut sink_a).unwrap();
         Canon::write(&canon, &mut sink_b).unwrap();
@@ -102,8 +102,8 @@ where
     let mut buffer_a = vec![0xff; buffer_size];
     let mut buffer_b = vec![0x00; buffer_size];
 
-    let mut sink_a = ByteSink::new(&mut buffer_a, store.clone());
-    let mut sink_b = ByteSink::new(&mut buffer_b, store);
+    let mut sink_a = ByteSink::new(&mut buffer_a, &store);
+    let mut sink_b = ByteSink::new(&mut buffer_b, &store);
 
     Canon::write(canon, &mut sink_a).unwrap();
     Canon::write(canon, &mut sink_b).unwrap();

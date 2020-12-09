@@ -4,56 +4,58 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// mod common;
-// use common::no_externals;
+use canonical_host::{wasm, Apply, MemStore as MS, Transaction, Wasm};
 
-// use canonical_host::{MemStore as MS, Wasm};
+use nstack_module::{self, Stack};
 
-// use microkelvin::Cardinality;
-// use nstack::NStack;
-// use nstack_module::Stack;
+#[test]
+fn push_pop() {
+    let bytes = include_bytes!("../modules/nstack/nstack_module.wasm");
 
-// #[test]
-// fn push_pop() {
-//     let host_externals = no_externals();
+    let store = MS::new();
 
-//     let bytes = include_bytes!("../modules/nstack/nstack_module.wasm");
+    let mut wasm_stack = Wasm::new(Stack::new(), store.clone(), bytes);
 
-//     let store = MS::new();
+    let n = 16;
 
-//     let mut n_stack = NStack::<_, Cardinality, MS>::new();
-//     let mut wasm_stack = Wasm::new(Stack::new(), bytes);
+    // push n numbers
 
-//     let n = 64;
+    for i in 0..n {
+        let transaction = Transaction::<
+            wasm::Wasm<Stack<MS>, MS>,
+            Transaction<Stack<MS>, i32, (), { nstack_module::PUSH }>,
+            (),
+            { wasm::WASM_TRANSACTION },
+        >::new(Stack::push(i));
 
-//     // push n numbers
+        wasm_stack.apply(transaction).unwrap()
+    }
 
-//     for i in 0..n {
-//         n_stack.push(i).unwrap();
+    // pop n numbers
 
-//         wasm_stack
-//             .transact(&Stack::<MS>::push(i), store.clone(), host_externals)
-//             .unwrap();
-//     }
+    for i in 0..n {
+        let inv = n - i - 1;
 
-//     // pop n numbers
+        let transaction = Transaction::<
+            wasm::Wasm<Stack<MS>, MS>,
+            Transaction<Stack<MS>, (), Option<i32>, { nstack_module::POP }>,
+            Option<i32>,
+            { wasm::WASM_TRANSACTION },
+        >::new(Stack::pop());
 
-//     for i in 0..n {
-//         let inv = n - i - 1;
+        let popped = wasm_stack.apply(transaction).unwrap();
 
-//         let popped = wasm_stack
-//             .transact(&Stack::<MS>::pop(), store.clone(), host_externals)
-//             .unwrap();
+        assert_eq!(popped, Some(inv))
+    }
 
-//         assert_eq!(popped, Some(inv))
-//     }
+    // assert empty
 
-//     // assert empty
+    let transaction = Transaction::<
+        wasm::Wasm<Stack<MS>, MS>,
+        Transaction<Stack<MS>, (), Option<i32>, { nstack_module::POP }>,
+        Option<i32>,
+        { wasm::WASM_TRANSACTION },
+    >::new(Stack::pop());
 
-//     assert_eq!(
-//         wasm_stack
-//             .transact(&Stack::<MS>::pop(), store, host_externals)
-//             .unwrap(),
-//         None
-//     );
-// }
+    assert!(wasm_stack.apply(transaction).unwrap().is_none())
+}

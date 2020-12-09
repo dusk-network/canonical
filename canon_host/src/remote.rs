@@ -74,19 +74,6 @@ where
     }
 }
 
-impl<'a, T, S> CastMut<'a, T, S>
-where
-    S: Store,
-    T: Canon<S>,
-{
-    /// Commits the possibly changed value to the remote it was cast from
-    pub fn commit(&mut self) -> Result<(), S::Error> {
-        let id = self.remote.store.put(&self.value)?;
-        self.remote.id = id;
-        Ok(())
-    }
-}
-
 impl<'a, T, A, R, S, const ID: u8> Apply<T, A, R, S, ID> for CastMut<'a, T, S>
 where
     T: Canon<S> + Apply<T, A, R, S, ID>,
@@ -96,7 +83,10 @@ where
         &mut self,
         transaction: Transaction<T, A, R, ID>,
     ) -> Result<R, S::Error> {
-        self.value.apply(transaction)
+        let result = self.value.apply(transaction)?;
+        let id = self.remote.store.put(&self.value)?;
+        self.remote.id = id;
+        Ok(result)
     }
 }
 

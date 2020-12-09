@@ -4,35 +4,60 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// mod common;
-// use common::no_externals;
+#![feature(never_type)]
 
-// use canonical_host::{MemError, MemStore, Remote, Signal, Wasm};
-// use panic::Panico;
+use canonical_host::{
+    wasm, Execute, MemError, MemStore, Query, Remote, Signal, Wasm,
+};
+use panic::{self, Panico};
 
-// #[test]
-// fn panic() {
-//     let host_externals = no_externals();
+#[test]
+fn panic() {
+    let store = MemStore::new();
+    let wasm_panic = Wasm::new(
+        Panico,
+        store.clone(),
+        include_bytes!("../modules/panic/panic.wasm"),
+    );
 
-//     let store = MemStore::new();
-//     let wasm_counter =
-//         Wasm::new(Panico, include_bytes!("../modules/panic/panic.wasm"));
+    let remote = Remote::new(wasm_panic, store.clone()).unwrap();
+    let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
 
-//     let remote = Remote::new(wasm_counter, &store).unwrap();
-//     let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
+    let query_a: Query<
+        wasm::Wasm<Panico, MemStore>,
+        Query<Panico, (), !, { panic::PANIC_A }>,
+        !,
+        { wasm::WASM_QUERY },
+    > = Query::new(Panico::panic_a());
 
-//     match cast.query(&Panico::panic_a(), store.clone(), host_externals) {
-//         Err(MemError::Signal(sig)) => {
-//             assert_eq!(sig, Signal::panic("panicked at \'let\'s panic!\',
-// module_examples/modules/panic/src/lib.rs:27:13\n"));         }
-//         _ => panic!(),
-//     }
+    match cast.execute(query_a) {
+        Err(MemError::Signal(sig)) => {
+            assert_eq!(
+                sig,
+                Signal::panic(
+                    "panicked at \'let\'s panic!\', module_examples/modules/panic/src/lib.rs:31:13\n"
+                )
+            );
+        }
+        _ => panic!(),
+    }
 
-//     match cast.query(&Panico::panic_b(), store, host_externals) {
-//         Err(MemError::Signal(sig)) => {
-//             assert_eq!(sig, Signal::panic("panicked at \'let\'s panic
-// differently!\', module_examples/modules/panic/src/lib.rs:31:13\n"));
-//         }
-//         _ => panic!(),
-//     }
-// }
+    let query_b: Query<
+        wasm::Wasm<Panico, MemStore>,
+        Query<Panico, (), !, { panic::PANIC_B }>,
+        !,
+        { wasm::WASM_QUERY },
+    > = Query::new(Panico::panic_b());
+
+    match cast.execute(query_b) {
+        Err(MemError::Signal(sig)) => {
+            assert_eq!(
+                sig,
+                Signal::panic(
+                    "panicked at \'let\'s panic differently!\', module_examples/modules/panic/src/lib.rs:35:13\n"
+                )
+            );
+        }
+        _ => panic!(),
+    }
+}

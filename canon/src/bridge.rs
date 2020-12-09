@@ -86,7 +86,7 @@ where
             BUF[0..id_len].copy_from_slice(slice);
             get(&mut BUF[0]);
             // get has written T into the buffer
-            let mut source = ByteSource::new(&BUF[..], self.clone());
+            let mut source = ByteSource::new(&BUF[..], self);
             Canon::<Self>::read(&mut source)
         }
     }
@@ -94,7 +94,7 @@ where
     fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
         unsafe {
             let len = t.encoded_len();
-            let mut sink = ByteSink::new(&mut BUF, self.clone());
+            let mut sink = ByteSink::new(&mut BUF, self);
             Canon::<Self>::write(t, &mut sink)?;
             let mut id = Self::Ident::default();
             put(&mut BUF[0], len, &mut id.as_mut()[0]);

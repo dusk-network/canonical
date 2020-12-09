@@ -7,7 +7,7 @@ use canonical_host::{
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
 
-use counter::{Counter, INCREMENT, READ_VALUE};
+use counter::{self, Counter};
 
 type ContractAddr = usize;
 
@@ -74,7 +74,6 @@ where
         let mut cast_mut: CastMut<ContractState, _> =
             self.contracts[id].cast_mut()?;
         let result = cast_mut.apply(transaction)?;
-        cast_mut.commit()?;
         Ok(result)
     }
 }
@@ -134,7 +133,7 @@ fn create_root() {
             ContractAddr,
             Query<
                 wasm::Wasm<Counter, MemStore>,
-                Query<Counter, (), i32, READ_VALUE>,
+                Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
             >,
@@ -153,7 +152,7 @@ fn create_root() {
             ContractAddr,
             Transaction<
                 wasm::Wasm<Counter, MemStore>,
-                Transaction<Counter, (), (), INCREMENT>,
+                Transaction<Counter, (), (), { counter::INCREMENT }>,
                 (),
                 { wasm::WASM_TRANSACTION },
             >,
@@ -172,7 +171,7 @@ fn create_root() {
             ContractAddr,
             Query<
                 wasm::Wasm<Counter, MemStore>,
-                Query<Counter, (), i32, READ_VALUE>,
+                Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
             >,

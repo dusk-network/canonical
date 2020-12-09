@@ -4,61 +4,59 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-mod common;
-use common::no_externals;
-
-use canonical_host::{MemStore, Remote, Wasm};
-use counter::Counter;
+use canonical_host::{
+    wasm, Apply, Execute, MemStore, Query, Remote, Transaction, Wasm,
+};
+use counter::{self, Counter};
 
 #[test]
 fn query() {
-    let host_externals = no_externals();
-
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
+        store.clone(),
         include_bytes!("../modules/counter/counter.wasm"),
     );
 
     let remote = Remote::new(wasm_counter, store.clone()).unwrap();
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::read_value(), store.clone(), host_externals)
-            .unwrap(),
-        99
-    );
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), i32, { counter::READ_VALUE }>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::is_even(), store.clone(), host_externals)
-            .unwrap(),
-        false
-    );
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 99);
+
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), bool, { counter::IS_EVEN }>,
+        bool,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::is_even());
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), false);
 
     let (a, b) = (5, 2828);
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::xor_values(a, b), store, host_externals)
-            .unwrap(),
-        99 ^ a ^ b
-    );
+    let query = Query::<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (i32, i32), i32, { counter::XOR_VALUES }>,
+        i32,
+        { wasm::WASM_QUERY },
+    >::new(Counter::xor_values(a, b));
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 99 ^ a ^ b);
 }
 
 #[test]
 fn transaction() {
-    let host_externals = no_externals();
-
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
         Counter::new(99),
+        store.clone(),
         include_bytes!("../modules/counter/counter.wasm"),
     );
     let mut remote = Remote::new(wasm_counter, store.clone()).unwrap();
@@ -66,66 +64,94 @@ fn transaction() {
     // note, there's no reason to do compare and swap here,
     // just for testing return values from transactions
 
-    let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    assert!(cast
-        .transact(
-            &Counter::compare_and_swap(99, 32),
-            store.clone(),
-            host_externals
-        )
-        .unwrap());
+    let transaction: Transaction<
+        wasm::Wasm<Counter, MemStore>,
+        Transaction<Counter, (i32, i32), bool, { counter::COMPARE_AND_SWAP }>,
+        bool,
+        { wasm::WASM_TRANSACTION },
+    > = Transaction::new(Counter::compare_and_swap(99, 32));
 
-    cast.commit().unwrap();
+    let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
+    assert_eq!(cast.apply(transaction).unwrap(), true);
+
     // assert cas was successful
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::read_value(), store.clone(), host_externals)
-            .unwrap(),
-        32
-    );
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), i32, { counter::READ_VALUE }>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
 
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 32);
+
+    // increment
+
+    let transaction: Transaction<
+        wasm::Wasm<Counter, MemStore>,
+        Transaction<Counter, (), (), { counter::INCREMENT }>,
+        (),
+        { wasm::WASM_TRANSACTION },
+    > = Transaction::new(Counter::increment());
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::increment(), store.clone(), host_externals)
-        .unwrap();
-    cast.commit().unwrap();
+    cast.apply(transaction).unwrap();
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::read_value(), store.clone(), host_externals)
-            .unwrap(),
-        33
-    );
+    // read incremented
 
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), i32, { counter::READ_VALUE }>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
+
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 33);
+
+    // decrement
+
+    let transaction: Transaction<
+        wasm::Wasm<Counter, MemStore>,
+        Transaction<Counter, (), (), { counter::DECREMENT }>,
+        (),
+        { wasm::WASM_TRANSACTION },
+    > = Transaction::new(Counter::decrement());
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::decrement(), store.clone(), host_externals)
-        .unwrap();
-    cast.commit().unwrap();
+    cast.apply(transaction).unwrap();
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::read_value(), store.clone(), host_externals)
-            .unwrap(),
-        32
-    );
+    // check that vaule decremented
 
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), i32, { counter::READ_VALUE }>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
+
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 32);
+
+    // adjust
+
+    let transaction: Transaction<
+        wasm::Wasm<Counter, MemStore>,
+        Transaction<Counter, i32, (), { counter::ADJUST }>,
+        (),
+        { wasm::WASM_TRANSACTION },
+    > = Transaction::new(Counter::adjust(-10));
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::adjust(-10), store.clone(), host_externals)
-        .unwrap();
-    cast.commit().unwrap();
+    cast.apply(transaction).unwrap();
 
-    assert_eq!(
-        remote
-            .cast::<Wasm<Counter, MemStore>>()
-            .unwrap()
-            .query(&Counter::read_value(), store, host_externals)
-            .unwrap(),
-        22
-    );
+    // check adjusted
+
+    let query: Query<
+        wasm::Wasm<Counter, MemStore>,
+        Query<Counter, (), i32, { counter::READ_VALUE }>,
+        i32,
+        { wasm::WASM_QUERY },
+    > = Query::new(Counter::read_value());
+
+    let cast: Wasm<Counter, MemStore> = remote.cast().unwrap();
+    assert_eq!(cast.execute(query).unwrap(), 22);
 }

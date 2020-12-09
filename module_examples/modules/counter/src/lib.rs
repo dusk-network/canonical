@@ -12,11 +12,14 @@ use canonical_derive::Canon;
 
 // query ids
 pub const READ_VALUE: u8 = 0;
-pub const XOR_VALUE: u8 = 1;
+pub const XOR_VALUES: u8 = 1;
 pub const IS_EVEN: u8 = 2;
 
 // transaction ids
 pub const INCREMENT: u8 = 0;
+pub const DECREMENT: u8 = 1;
+pub const ADJUST: u8 = 2;
+pub const COMPARE_AND_SWAP: u8 = 3;
 
 #[derive(Clone, Canon, Debug)]
 pub struct Counter {
@@ -80,7 +83,7 @@ mod hosted {
 
     fn query(bytes: &mut [u8; PAGE_SIZE]) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
-        let mut source = ByteSource::new(&bytes[..], store.clone());
+        let mut source = ByteSource::new(&bytes[..], &store);
 
         // read self.
         let slf: Counter = Canon::<BS>::read(&mut source)?;
@@ -91,22 +94,22 @@ mod hosted {
             // read_value (&Self) -> i32
             READ_VALUE => {
                 let ret = slf.read_value();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // xor_values (&Self, a: i32, b: i32) -> i32
-            XOR_VALUE => {
+            XOR_VALUES => {
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let ret = slf.xor_values(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
             // is_even (&Self) -> bool
             IS_EVEN => {
                 let ret = slf.is_even();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
 
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
@@ -125,17 +128,17 @@ mod hosted {
         bytes: &mut [u8; PAGE_SIZE],
     ) -> Result<(), <BS as Store>::Error> {
         let store = BS::default();
-        let mut source = ByteSource::new(bytes, store.clone());
+        let mut source = ByteSource::new(bytes, &store);
 
         // read self.
         let mut slf: Counter = Canon::<BS>::read(&mut source)?;
         // read transaction id
-        let qid: u16 = Canon::<BS>::read(&mut source)?;
+        let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // increment (&Self)
             0 => {
                 slf.increment();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
@@ -144,7 +147,7 @@ mod hosted {
             1 => {
                 // no args
                 slf.decrement();
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
@@ -154,7 +157,7 @@ mod hosted {
                 // read arg
                 let by: i32 = Canon::<BS>::read(&mut source)?;
                 slf.adjust(by);
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // no return value
@@ -164,7 +167,7 @@ mod hosted {
                 // read multiple args
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
-                let mut sink = ByteSink::new(&mut bytes[..], store.clone());
+                let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // return new state
                 Canon::<BS>::write(&slf, &mut sink)?;
                 // return result
@@ -249,7 +252,7 @@ mod host {
         pub fn xor_values(
             a: i32,
             b: i32,
-        ) -> Query<Self, (i32, i32), i32, XOR_VALUE> {
+        ) -> Query<Self, (i32, i32), i32, XOR_VALUES> {
             Query::new((a, b))
         }
 

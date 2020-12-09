@@ -310,7 +310,6 @@ where
         let mut imports = wasmi::ImportsBuilder::default();
         let canon_module = CanonImports(self.store.clone());
         imports.push_resolver("canon", &canon_module);
-        // imports.push_resolver("env", &resolver);
 
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
@@ -323,8 +322,9 @@ where
             Some(wasmi::ExternVal::Memory(memref)) => {
                 memref.with_direct_access_mut(|mem| {
                     let mut sink = ByteSink::new(&mut mem[..], &self.store);
-                    // Write State and arguments into memory
+                    // Write State, method_id and arguments into memory
                     Canon::<S>::write(&self.state, &mut sink)?;
+                    Canon::<S>::write(&ID, &mut sink)?;
                     Canon::<S>::write(inner_query.args(), &mut sink)
                 })?;
 
@@ -390,6 +390,8 @@ where
                     let mut sink = ByteSink::new(mem, &self.store);
                     // First we write State into memory
                     Canon::<S>::write(&self.state, &mut sink)?;
+                    // then the method id
+                    Canon::<S>::write(&ID, &mut sink)?;
                     // then the arguments, as bytes
                     Canon::<S>::write(inner_transaction.args(), &mut sink)
                 })?;

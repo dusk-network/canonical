@@ -23,7 +23,7 @@ mod passthrough {
                 let store = BS::default();
                 let mut source = canonical::ByteSource::new(&bytes[..], store.clone());
 
-                let query_tag = u16::read(&mut source)?;
+                let query_tag = u8::read(&mut source)?;
 
                 Ok(())
             }
