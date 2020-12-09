@@ -24,15 +24,21 @@ pub enum Signal {
     Error(String),
 }
 
+/// Trait required to set a MemoryRef
+pub trait MemoryHolder {
+    /// Set MemoryRef
+    fn set_memory<'a>(&mut self, memory: &'a wasmi::MemoryRef);
+}
+
 /// Super trait that requires both wasmi::Externals and
 /// wasmi::ModuleImportResolver
 pub trait ExternalsResolver:
-    wasmi::Externals + wasmi::ModuleImportResolver
+    wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder
 {
 }
 
-impl<T: wasmi::Externals + wasmi::ModuleImportResolver> ExternalsResolver
-    for T
+impl<T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
+    ExternalsResolver for T
 {
 }
 
@@ -359,7 +365,8 @@ where
                     Canon::<S>::write(&self.state, &mut sink)?;
                     Canon::<S>::write(query.args(), &mut sink)
                 })?;
-
+                let mut resolver = resolver;
+                resolver.set_memory(&memref);
                 let mut externals = Externals::new(&store, &memref, resolver);
 
                 // Perform the query call

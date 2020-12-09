@@ -18,4 +18,6 @@ mod remote;
 pub use remote::Remote;
 
 mod wasm;
-pub use wasm::{ExternalsResolver, Query, Signal, Transaction, Wasm};
+pub use wasm::{
+    ExternalsResolver, MemoryHolder, Query, Signal, Transaction, Wasm,
+};

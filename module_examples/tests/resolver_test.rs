@@ -13,12 +13,22 @@ use wasmi::{
     Signature, Trap,
 };
 
+use canonical_host::MemoryHolder;
+
 #[derive(Clone, Copy)]
-struct HostExternals {}
+struct HostExternals<'a> {
+    memory: Option<&'a wasmi::MemoryRef>,
+}
+
+impl<'a> MemoryHolder for HostExternals<'a> {
+    fn set_memory(&mut self, memory: &wasmi::MemoryRef) {
+        self.memory = Some(memory)
+    }
+}
 
 const FUNC_INDEX: usize = 100;
 
-impl Externals for HostExternals {
+impl<'a> Externals for HostExternals<'a> {
     fn invoke_index(
         &mut self,
         index: usize,
@@ -36,7 +46,7 @@ impl Externals for HostExternals {
     }
 }
 
-impl ModuleImportResolver for HostExternals {
+impl<'a> ModuleImportResolver for HostExternals<'a> {
     fn resolve_func(
         &self,
         field_name: &str,
@@ -61,7 +71,7 @@ impl ModuleImportResolver for HostExternals {
 
 #[test]
 fn query() {
-    let host_externals = HostExternals {};
+    let host_externals = HostExternals { memory: None };
 
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
@@ -83,7 +93,7 @@ fn query() {
 
 #[test]
 fn resolver_transaction() {
-    let host_externals = HostExternals {};
+    let host_externals = HostExternals { memory: None };
 
     let store = MemStore::new();
     let wasm_counter = Wasm::new(
