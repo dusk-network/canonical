@@ -43,8 +43,7 @@ mod hosted {
         // no-op reading a unit struct;
         let slf = Panico::read(&mut source)?;
 
-        // read msg len
-        let tag = u16::read(&mut source)?;
+        let tag = u8::read(&mut source)?;
         match tag {
             0 => slf.panic_a(),
             _ => slf.panic_b(),
