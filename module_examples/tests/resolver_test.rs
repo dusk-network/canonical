@@ -15,20 +15,20 @@ use wasmi::{
 
 use canonical_host::MemoryHolder;
 
-#[derive(Clone, Copy)]
-struct HostExternals<'a> {
-    memory: Option<&'a wasmi::MemoryRef>,
+#[derive(Clone)]
+struct HostExternals {
+    memory: Option<wasmi::MemoryRef>,
 }
 
-impl<'a> MemoryHolder for HostExternals<'a> {
-    fn set_memory(&mut self, memory: &wasmi::MemoryRef) {
+impl MemoryHolder for HostExternals {
+    fn set_memory(&mut self, memory: wasmi::MemoryRef) {
         self.memory = Some(memory)
     }
 }
 
 const FUNC_INDEX: usize = 100;
 
-impl<'a> Externals for HostExternals<'a> {
+impl Externals for HostExternals {
     fn invoke_index(
         &mut self,
         index: usize,
@@ -46,7 +46,7 @@ impl<'a> Externals for HostExternals<'a> {
     }
 }
 
-impl<'a> ModuleImportResolver for HostExternals<'a> {
+impl<'a> ModuleImportResolver for HostExternals {
     fn resolve_func(
         &self,
         field_name: &str,
@@ -103,7 +103,7 @@ fn resolver_transaction() {
     let mut remote = Remote::new(wasm_counter, &store).unwrap();
 
     let mut cast = remote.cast_mut::<Wasm<Counter, MemStore>>().unwrap();
-    cast.transact(&Counter::adjust(-10), store.clone(), host_externals)
+    cast.transact(&Counter::adjust(-10), store.clone(), host_externals.clone())
         .unwrap();
     cast.commit().unwrap();
 

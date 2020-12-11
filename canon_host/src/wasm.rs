@@ -27,7 +27,7 @@ pub enum Signal {
 /// Trait required to set a MemoryRef
 pub trait MemoryHolder {
     /// Set MemoryRef
-    fn set_memory<'a>(&mut self, memory: &'a wasmi::MemoryRef);
+    fn set_memory(&mut self, memory: wasmi::MemoryRef);
 }
 
 /// Super trait that requires both wasmi::Externals and
@@ -37,7 +37,7 @@ pub trait ExternalsResolver:
 {
 }
 
-impl<T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
+impl<'a, T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
     ExternalsResolver for T
 {
 }
@@ -335,7 +335,7 @@ where
     }
 
     /// Perform the provided query in the wasm module
-    pub fn query<A, R, E>(
+    pub fn query<'a, A, R, E>(
         &self,
         query: &Query<A, R>,
         store: S,
@@ -366,7 +366,7 @@ where
                     Canon::<S>::write(query.args(), &mut sink)
                 })?;
                 let mut resolver = resolver;
-                resolver.set_memory(&memref);
+                resolver.set_memory(memref.clone());
                 let mut externals = Externals::new(&store, &memref, resolver);
 
                 // Perform the query call

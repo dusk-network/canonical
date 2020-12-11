@@ -35,7 +35,7 @@ impl ModuleImportResolver for HostExternals {
 }
 
 impl MemoryHolder for HostExternals {
-    fn set_memory(&mut self, _memory: &wasmi::MemoryRef) {}
+    fn set_memory(&mut self, _memory: wasmi::MemoryRef) {}
 }
 
 pub fn no_externals() -> HostExternals {
