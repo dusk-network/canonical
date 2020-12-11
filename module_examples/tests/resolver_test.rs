@@ -10,7 +10,7 @@ use resolver::Counter;
 
 use wasmi::{
     Error, Externals, FuncRef, ModuleImportResolver, RuntimeArgs, RuntimeValue,
-    Signature, Trap,
+    Signature, Trap, TrapKind,
 };
 
 use canonical_host::MemoryHolder;
@@ -23,6 +23,11 @@ struct HostExternals {
 impl MemoryHolder for HostExternals {
     fn set_memory(&mut self, memory: wasmi::MemoryRef) {
         self.memory = Some(memory);
+    }
+    fn access_memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
+        self.memory
+            .to_owned()
+            .ok_or_else(|| Trap::new(TrapKind::ElemUninitialized))
     }
 }
 
@@ -38,16 +43,12 @@ impl Externals for HostExternals {
             FUNC_INDEX => {
                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
                     let ofs = ofs as usize;
-                    self.memory
-                        .as_ref()
-                        .unwrap()
-                        .to_owned()
-                        .with_direct_access_mut(|mem| {
-                            let mut bytes = [0u8; 4];
-                            bytes.copy_from_slice(&mem[ofs..ofs + 4]);
-                            let result = i32::from_le_bytes(bytes);
-                            Ok(Some(RuntimeValue::I32(result as i32)))
-                        })
+                    self.access_memory()?.with_direct_access_mut(|mem| {
+                        let mut bytes = [0u8; 4];
+                        bytes.copy_from_slice(&mem[ofs..ofs + 4]);
+                        let result = i32::from_le_bytes(bytes);
+                        Ok(Some(RuntimeValue::I32(result as i32)))
+                    })
                 } else {
                     todo!("error out for wrong argument types")
                 }

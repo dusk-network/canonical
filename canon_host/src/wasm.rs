@@ -28,6 +28,8 @@ pub enum Signal {
 pub trait MemoryHolder {
     /// Set MemoryRef
     fn set_memory(&mut self, memory: wasmi::MemoryRef);
+    /// Get access to the internal [`MemoryRef`]
+    fn access_memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap>;
 }
 
 /// Super trait that requires both wasmi::Externals and
