@@ -28,7 +28,7 @@ impl Counter {
 #[cfg(not(feature = "host"))]
 mod hosted {
     extern "C" {
-        fn host_function(n: i32) -> i32;
+        fn host_function(n: u8) -> i32;
     }
 
     use super::*;
@@ -45,7 +45,7 @@ mod hosted {
         }
 
         pub fn adjust(&mut self, by: i32) {
-            self.value += unsafe { host_function(by) };
+            self.value += unsafe { host_function(by.to_le_bytes()[0]) };
         }
     }
 
