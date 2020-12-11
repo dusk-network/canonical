@@ -15,7 +15,7 @@ use wasmi::{
 
 use canonical_host::MemoryHolder;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct HostExternals {
     memory: Option<wasmi::MemoryRef>,
 }
@@ -23,7 +23,6 @@ struct HostExternals {
 impl MemoryHolder for HostExternals {
     fn set_memory(&mut self, memory: wasmi::MemoryRef) {
         self.memory = Some(memory);
-        //
     }
 }
 
@@ -38,7 +37,6 @@ impl Externals for HostExternals {
         match index {
             FUNC_INDEX => {
                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
-                    panic!("{:?}", self.memory);
                     let ofs = ofs as usize;
                     self.memory
                         .as_ref()
@@ -48,7 +46,7 @@ impl Externals for HostExternals {
                             let mut bytes = [0u8; 4];
                             bytes.copy_from_slice(&mem[ofs..ofs + 4]);
                             let result = i32::from_le_bytes(bytes);
-                            Ok(Some(RuntimeValue::I32(result)))
+                            Ok(Some(RuntimeValue::I32(result as i32)))
                         })
                 } else {
                     todo!("error out for wrong argument types")
@@ -126,6 +124,6 @@ fn resolver_transaction() {
             .unwrap()
             .query(&Counter::read_value(), store, host_externals)
             .unwrap(),
-        87
+        89
     );
 }

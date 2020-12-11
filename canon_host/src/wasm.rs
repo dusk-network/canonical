@@ -420,7 +420,8 @@ where
                     // then the arguments, as bytes
                     Canon::<S>::write(transaction.args(), &mut sink)
                 })?;
-
+                let mut resolver = resolver;
+                resolver.set_memory(memref.clone());
                 let mut externals = Externals::new(&store, &memref, resolver);
 
                 instance.invoke_export(
