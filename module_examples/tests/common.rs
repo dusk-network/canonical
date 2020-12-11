@@ -36,7 +36,7 @@ impl ModuleImportResolver for HostExternals {
 
 impl MemoryHolder for HostExternals {
     fn set_memory(&mut self, _memory: wasmi::MemoryRef) {}
-    fn access_memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
+    fn memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
         Err(Trap::new(wasmi::TrapKind::ElemUninitialized))
     }
 }

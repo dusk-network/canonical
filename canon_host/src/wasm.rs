@@ -29,7 +29,7 @@ pub trait MemoryHolder {
     /// Set MemoryRef
     fn set_memory(&mut self, memory: wasmi::MemoryRef);
     /// Get access to the internal [`MemoryRef`]
-    fn access_memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap>;
+    fn memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap>;
 }
 
 /// Super trait that requires both wasmi::Externals and
@@ -39,7 +39,7 @@ pub trait ExternalsResolver:
 {
 }
 
-impl<'a, T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
+impl<T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
     ExternalsResolver for T
 {
 }
@@ -337,7 +337,7 @@ where
     }
 
     /// Perform the provided query in the wasm module
-    pub fn query<'a, A, R, E>(
+    pub fn query<A, R, E>(
         &self,
         query: &Query<A, R>,
         store: S,

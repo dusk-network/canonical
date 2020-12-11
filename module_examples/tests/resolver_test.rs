@@ -24,7 +24,7 @@ impl MemoryHolder for HostExternals {
     fn set_memory(&mut self, memory: wasmi::MemoryRef) {
         self.memory = Some(memory);
     }
-    fn access_memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
+    fn memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
         self.memory
             .to_owned()
             .ok_or_else(|| Trap::new(TrapKind::ElemUninitialized))
@@ -43,7 +43,7 @@ impl Externals for HostExternals {
             FUNC_INDEX => {
                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
                     let ofs = ofs as usize;
-                    self.access_memory()?.with_direct_access_mut(|mem| {
+                    self.memory()?.with_direct_access_mut(|mem| {
                         let mut bytes = [0u8; 4];
                         bytes.copy_from_slice(&mem[ofs..ofs + 4]);
                         let result = i32::from_le_bytes(bytes);
