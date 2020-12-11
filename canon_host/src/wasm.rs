@@ -168,12 +168,12 @@ where
 
 struct Externals<'a, S, E> {
     store: &'a S,
-    memory: &'a wasmi::MemoryRef,
+    memory: wasmi::MemoryRef,
     ext: E,
 }
 
 impl<'a, S, E> Externals<'a, S, E> {
-    fn new(store: &'a S, memory: &'a wasmi::MemoryRef, ext: E) -> Self {
+    fn new(store: &'a S, memory: wasmi::MemoryRef, ext: E) -> Self {
         Externals { store, memory, ext }
     }
 }
@@ -339,7 +339,7 @@ where
         &self,
         query: &Query<A, R>,
         store: S,
-        resolver: E,
+        mut resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
@@ -365,9 +365,10 @@ where
                     Canon::<S>::write(&self.state, &mut sink)?;
                     Canon::<S>::write(query.args(), &mut sink)
                 })?;
-                let mut resolver = resolver;
+                // Clone the memory ref into the External Resolver
                 resolver.set_memory(memref.clone());
-                let mut externals = Externals::new(&store, &memref, resolver);
+                let mut externals =
+                    Externals::new(&store, memref.clone(), resolver);
 
                 // Perform the query call
                 instance.invoke_export(
@@ -392,7 +393,7 @@ where
         &mut self,
         transaction: &Transaction<A, R>,
         store: S,
-        resolver: E,
+        mut resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
@@ -420,9 +421,11 @@ where
                     // then the arguments, as bytes
                     Canon::<S>::write(transaction.args(), &mut sink)
                 })?;
-                let mut resolver = resolver;
+
+                // Clone the memory ref into the External Resolver
                 resolver.set_memory(memref.clone());
-                let mut externals = Externals::new(&store, &memref, resolver);
+                let mut externals =
+                    Externals::new(&store, memref.clone(), resolver);
 
                 instance.invoke_export(
                     "t",
