@@ -15,8 +15,10 @@ mod debug;
 mod dry_sink;
 mod id;
 mod implementations;
+mod query;
 mod repr;
 mod store;
+mod transaction;
 
 #[cfg(not(feature = "host"))]
 mod bridge;
@@ -28,5 +30,7 @@ pub use canon::{Canon, InvalidEncoding};
 pub use debug::{DebugMsg, _debug};
 pub use dry_sink::DrySink;
 pub use id::Id32;
+pub use query::Query;
 pub use repr::{Repr, Val, ValMut};
 pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
+pub use transaction::Transaction;

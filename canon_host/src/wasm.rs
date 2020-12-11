@@ -288,6 +288,21 @@ where
             _marker: PhantomData,
         }
     }
+
+    /// Wraps a query over the internal module state
+    pub fn query<A, R, const ID: u8>(
+        query: Query<State, A, R, ID>,
+    ) -> Query<Wasm<State, S>, Query<State, A, R, ID>, R, WASM_QUERY> {
+        Query::new(query)
+    }
+
+    /// Wraps a transaction over the internal module state
+    pub fn transaction<A, R, const ID: u8>(
+        transaction: Transaction<State, A, R, ID>,
+    ) -> Transaction<Wasm<State, S>, Transaction<State, A, R, ID>, R, WASM_QUERY>
+    {
+        Transaction::new(transaction)
+    }
 }
 
 impl<State, A, R, S, const ID: u8>

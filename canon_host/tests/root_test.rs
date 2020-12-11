@@ -7,15 +7,16 @@
 #![feature(min_const_generics)]
 
 use canonical_host::{
-    wasm, Apply, CastMut, Execute, MemStore, Query, Remote, Root, Transaction,
+    wasm, Apply, CastMut, Execute, MemStore as MS, Query, Remote, Transaction,
 };
 
 use canonical::{Canon, Store};
 use canonical_derive::Canon;
 
 use counter::{self, Counter};
+use delegate::{self, Delegator};
 
-type ContractAddr = usize;
+type ContractAddr = u64;
 
 // transactions
 const ADD_CONTRACT: u8 = 0;
@@ -39,19 +40,32 @@ where
     ) -> Transaction<Self, Remote<S>, ContractAddr, ADD_CONTRACT> {
         Transaction::new(contract)
     }
+
+    fn contract_query<Over, A, R, const ID: u8>(
+        &self,
+        addr: ContractAddr,
+        query: Query<Over, A, R, ID>,
+    ) -> Query<
+        Self,
+        (ContractAddr, Query<Over, A, R, ID>),
+        R,
+        EXECUTE_CONTRACT_QUERY,
+    > {
+        Query::new((addr, query))
+    }
 }
 
-impl<S> Apply<Self, Remote<S>, usize, S, ADD_CONTRACT> for TestState<S>
+impl<S> Apply<Self, Remote<S>, ContractAddr, S, ADD_CONTRACT> for TestState<S>
 where
     S: Store,
 {
     fn apply(
         &mut self,
-        transaction: Transaction<Self, Remote<S>, usize, ADD_CONTRACT>,
-    ) -> Result<usize, S::Error> {
+        transaction: Transaction<Self, Remote<S>, ContractAddr, ADD_CONTRACT>,
+    ) -> Result<ContractAddr, S::Error> {
         let id = self.contracts.len();
         self.contracts.push(transaction.into_args());
-        Ok(id)
+        Ok(id as ContractAddr)
     }
 }
 
@@ -78,7 +92,7 @@ where
     ) -> Result<R, S::Error> {
         let (id, transaction) = transaction.into_args();
         let mut cast_mut: CastMut<ContractState, _> =
-            self.contracts[id].cast_mut()?;
+            self.contracts[id as usize].cast_mut()?;
         let result = cast_mut.apply(transaction)?;
         Ok(result)
     }
@@ -106,15 +120,15 @@ where
         >,
     ) -> Result<R, S::Error> {
         let (id, query) = query.into_args();
-        let cast: ContractState = self.contracts[id].cast()?;
+        let cast: ContractState = self.contracts[id as usize].cast()?;
         cast.execute(query)
     }
 }
 
 #[test]
 fn create_root() {
-    let store = MemStore::new();
-    let mut state = Root::default();
+    let store = MS::new();
+    let mut state = TestState::default();
 
     let counter = Counter::new(13);
 
@@ -128,7 +142,7 @@ fn create_root() {
     // hide counter behind a remote to erase the type
     let remote = Remote::new(wasm_counter, store.clone()).unwrap();
 
-    let transaction = TestState::<MemStore>::add_contract(remote);
+    let transaction = TestState::<MS>::add_contract(remote);
     let id = state.apply(transaction).unwrap();
 
     assert_eq!(id, 0);
@@ -138,7 +152,7 @@ fn create_root() {
         (
             ContractAddr,
             Query<
-                wasm::Wasm<Counter, MemStore>,
+                wasm::Wasm<Counter, MS>,
                 Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
@@ -157,7 +171,7 @@ fn create_root() {
         (
             ContractAddr,
             Transaction<
-                wasm::Wasm<Counter, MemStore>,
+                wasm::Wasm<Counter, MS>,
                 Transaction<Counter, (), (), { counter::INCREMENT }>,
                 (),
                 { wasm::WASM_TRANSACTION },
@@ -176,7 +190,7 @@ fn create_root() {
         (
             ContractAddr,
             Query<
-                wasm::Wasm<Counter, MemStore>,
+                wasm::Wasm<Counter, MS>,
                 Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
@@ -188,4 +202,57 @@ fn create_root() {
 
     let result = state.execute(query).unwrap();
     assert_eq!(result, 14);
+}
+
+#[test]
+fn delegate_calls() {
+    let store = MS::new();
+    let mut state = TestState::default();
+
+    let counter_a = wasm::Wasm::new(
+        // unlucky number to not get too lucky in testing
+        Counter::new(1234),
+        store.clone(),
+        include_bytes!("../../module_examples/modules/counter/counter.wasm"),
+    );
+
+    let counter_b = wasm::Wasm::new(
+        // unlucky number to not get too lucky in testing
+        Counter::new(4321),
+        store.clone(),
+        include_bytes!("../../module_examples/modules/counter/counter.wasm"),
+    );
+
+    let delegator = wasm::Wasm::new(
+        // unlucky number to not get too lucky in testing
+        Delegator::new(),
+        store.clone(),
+        include_bytes!("../../module_examples/modules/delegate/delegate.wasm"),
+    );
+
+    let remote_a = Remote::new(counter_a, store.clone()).unwrap();
+    let remote_b = Remote::new(counter_b, store.clone()).unwrap();
+    let remote_c = Remote::new(delegator, store.clone()).unwrap();
+
+    let transaction_a = TestState::<MS>::add_contract(remote_a);
+    let transaction_b = TestState::<MS>::add_contract(remote_b);
+    let transaction_c = TestState::<MS>::add_contract(remote_c);
+
+    let id_a = state.apply(transaction_a).unwrap();
+    let id_b = state.apply(transaction_b).unwrap();
+    let id_c = state.apply(transaction_c).unwrap();
+
+    // network state is setup here
+
+    let delegated_query_a = Delegator::delegate_read_value(id_a);
+    let delegated_query_b = Delegator::delegate_read_value(id_b);
+
+    let wasm_delegated_query_a = wasm::Wasm::query(delegated_query_a);
+    let wasm_delegated_query_b = wasm::Wasm::query(delegated_query_b);
+
+    let state_query_a = state.contract_query(id_c, wasm_delegated_query_a);
+    let state_query_b = state.contract_query(id_c, wasm_delegated_query_b);
+
+    assert_eq!(state.execute(state_query_a).unwrap(), 1234);
+    assert_eq!(state.execute(state_query_b).unwrap(), 4321);
 }

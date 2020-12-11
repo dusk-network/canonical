@@ -4,9 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Store};
+use std::ops::{Deref, DerefMut};
 
-use crate::{Apply, Execute, Query, Transaction};
+use canonical::{Canon, Store};
 
 /// A Store that can perist state.
 pub trait Persistent: Store {
@@ -38,25 +38,16 @@ where
     }
 }
 
-impl<State, A, R, S, const ID: u8> Apply<State, A, R, S, ID> for Root<State>
-where
-    State: Apply<State, A, R, S, ID>,
-    S: Store,
-{
-    fn apply(
-        &mut self,
-        transaction: Transaction<State, A, R, ID>,
-    ) -> Result<R, S::Error> {
-        self.state.apply(transaction)
+impl<State> Deref for Root<State> {
+    type Target = State;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
     }
 }
 
-impl<State, A, R, S, const ID: u8> Execute<State, A, R, S, ID> for Root<State>
-where
-    State: Execute<State, A, R, S, ID>,
-    S: Store,
-{
-    fn execute(&self, query: Query<State, A, R, ID>) -> Result<R, S::Error> {
-        self.state.execute(query)
+impl<State> DerefMut for Root<State> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
     }
 }

@@ -9,6 +9,7 @@ members = [
     "module_examples/modules/counter",
     "module_examples/modules/nstack",
     "module_examples/modules/panic",
+    "module_examples/modules/delegate",		
 ]
 
 [patch.crates-io]

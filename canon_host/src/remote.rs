@@ -7,7 +7,8 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use canonical::{Canon, Sink, Source, Store};
+use canonical::{Canon, Query, Sink, Source, Store, Transaction};
+use canonical_derive::Canon;
 
 /// A representation of a Module of erased type, with its root state reachable
 /// from the Id in the store.
@@ -115,7 +116,7 @@ impl<S: Store> Canon<S> for Remote<S> {
 /// Represents the type of a query
 ///
 /// `Over` is the type that the query is expected to operate over.
-#[derive(Debug)]
+#[derive(Debug, Clone, Canon)]
 pub struct Query<Over, A, R, const ID: u8> {
     /// Arguments, in form of a tuple or single value
     args: A,
@@ -138,35 +139,6 @@ impl<Over, A, R, const ID: u8> Query<Over, A, R, ID> {
     }
 
     /// Consumes query and returns the arguments
-    pub fn into_args(self) -> A {
-        self.args
-    }
-}
-
-/// Represents the type of a transaction
-#[derive(Debug)]
-pub struct Transaction<Over, A, R, const ID: u8> {
-    /// Arguments, in form of a tuple or single value
-    args: A,
-    /// The expected return type
-    _return: PhantomData<(Over, R)>,
-}
-
-impl<Over, A, R, const N: u8> Transaction<Over, A, R, N> {
-    /// Create a new transaction
-    pub fn new(args: A) -> Self {
-        Transaction {
-            args,
-            _return: PhantomData,
-        }
-    }
-
-    /// Returns a reference to the transactions arguments
-    pub fn args(&self) -> &A {
-        &self.args
-    }
-
-    /// Consumes transaction and returns the argument
     pub fn into_args(self) -> A {
         self.args
     }
