@@ -24,15 +24,23 @@ pub enum Signal {
     Error(String),
 }
 
+/// Trait required to set a MemoryRef
+pub trait MemoryHolder {
+    /// Set MemoryRef
+    fn set_memory(&mut self, memory: wasmi::MemoryRef);
+    /// Get access to the internal [`MemoryRef`]
+    fn memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap>;
+}
+
 /// Super trait that requires both wasmi::Externals and
 /// wasmi::ModuleImportResolver
 pub trait ExternalsResolver:
-    wasmi::Externals + wasmi::ModuleImportResolver
+    wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder
 {
 }
 
-impl<T: wasmi::Externals + wasmi::ModuleImportResolver> ExternalsResolver
-    for T
+impl<T: wasmi::Externals + wasmi::ModuleImportResolver + MemoryHolder>
+    ExternalsResolver for T
 {
 }
 
@@ -162,12 +170,12 @@ where
 
 struct Externals<'a, S, E> {
     store: &'a S,
-    memory: &'a wasmi::MemoryRef,
+    memory: wasmi::MemoryRef,
     ext: E,
 }
 
 impl<'a, S, E> Externals<'a, S, E> {
-    fn new(store: &'a S, memory: &'a wasmi::MemoryRef, ext: E) -> Self {
+    fn new(store: &'a S, memory: wasmi::MemoryRef, ext: E) -> Self {
         Externals { store, memory, ext }
     }
 }
@@ -333,7 +341,7 @@ where
         &self,
         query: &Query<A, R>,
         store: S,
-        resolver: E,
+        mut resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
@@ -359,8 +367,10 @@ where
                     Canon::<S>::write(&self.state, &mut sink)?;
                     Canon::<S>::write(query.args(), &mut sink)
                 })?;
-
-                let mut externals = Externals::new(&store, &memref, resolver);
+                // Clone the memory ref into the External Resolver
+                resolver.set_memory(memref.clone());
+                let mut externals =
+                    Externals::new(&store, memref.clone(), resolver);
 
                 // Perform the query call
                 instance.invoke_export(
@@ -385,7 +395,7 @@ where
         &mut self,
         transaction: &Transaction<A, R>,
         store: S,
-        resolver: E,
+        mut resolver: E,
     ) -> Result<R, S::Error>
     where
         A: Canon<S>,
@@ -414,7 +424,10 @@ where
                     Canon::<S>::write(transaction.args(), &mut sink)
                 })?;
 
-                let mut externals = Externals::new(&store, &memref, resolver);
+                // Clone the memory ref into the External Resolver
+                resolver.set_memory(memref.clone());
+                let mut externals =
+                    Externals::new(&store, memref.clone(), resolver);
 
                 instance.invoke_export(
                     "t",

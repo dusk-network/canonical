@@ -9,6 +9,8 @@ use wasmi::{
     Signature, Trap,
 };
 
+use canonical_host::MemoryHolder;
+
 #[derive(Clone, Copy)]
 pub struct HostExternals {}
 
@@ -29,6 +31,13 @@ impl ModuleImportResolver for HostExternals {
         _signature: &Signature,
     ) -> Result<FuncRef, Error> {
         unimplemented!();
+    }
+}
+
+impl MemoryHolder for HostExternals {
+    fn set_memory(&mut self, _memory: wasmi::MemoryRef) {}
+    fn memory(&self) -> Result<wasmi::MemoryRef, wasmi::Trap> {
+        Err(Trap::new(wasmi::TrapKind::ElemUninitialized))
     }
 }
 
