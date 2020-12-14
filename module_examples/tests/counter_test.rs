@@ -4,9 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{
-    wasm, Apply, Execute, MemStore, Query, Remote, Transaction, Wasm,
-};
+use canonical::{Query, Transaction};
+use canonical_host::{wasm, Apply, Execute, MemStore, Remote, Wasm};
 use counter::{self, Counter};
 
 #[test]

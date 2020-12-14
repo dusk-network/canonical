@@ -25,9 +25,11 @@ mod panic_handling {
         }
     }
 
+    const PANIC_BUF_SIZE: usize = 1024 * 16;
+
     struct PanicMsg {
         ofs: usize,
-        buf: [u8; 1024],
+        buf: [u8; PANIC_BUF_SIZE],
     }
 
     impl AsRef<str> for PanicMsg {
@@ -41,7 +43,7 @@ mod panic_handling {
     fn panic(info: &PanicInfo) -> ! {
         let mut msg = PanicMsg {
             ofs: 0,
-            buf: [0u8; 1024],
+            buf: [0u8; PANIC_BUF_SIZE],
         };
 
         writeln!(msg, "{}", info).ok();

@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(not(feature = "host"), no_std)]
+#![no_std]
 #![feature(lang_items)]
 
 use canonical::Canon;
@@ -114,7 +114,7 @@ mod hosted {
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("invalid query id"),
         }
     }
 
@@ -136,7 +136,7 @@ mod hosted {
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // increment (&Self)
-            0 => {
+            INCREMENT => {
                 slf.increment();
                 let mut sink = ByteSink::new(&mut bytes[..], &store);
                 // return new state
@@ -144,7 +144,7 @@ mod hosted {
                 // no return value
                 Ok(())
             }
-            1 => {
+            DECREMENT => {
                 // no args
                 slf.decrement();
                 let mut sink = ByteSink::new(&mut bytes[..], &store);
@@ -153,7 +153,7 @@ mod hosted {
                 // no return value
                 Ok(())
             }
-            2 => {
+            ADJUST => {
                 // read arg
                 let by: i32 = Canon::<BS>::read(&mut source)?;
                 slf.adjust(by);
@@ -163,7 +163,7 @@ mod hosted {
                 // no return value
                 Ok(())
             }
-            3 => {
+            COMPARE_AND_SWAP => {
                 // read multiple args
                 let (a, b): (i32, i32) = Canon::<BS>::read(&mut source)?;
                 let res = slf.compare_and_swap(a, b);
@@ -173,7 +173,7 @@ mod hosted {
                 // return result
                 Canon::<BS>::write(&res, &mut sink)
             }
-            _ => panic!(""),
+            _ => panic!("invalid transaction id"),
         }
     }
 
@@ -187,7 +187,7 @@ mod hosted {
 }
 
 #[cfg(feature = "host")]
-mod host {
+mod interface {
     use super::*;
     use canonical::{Query, Transaction};
 

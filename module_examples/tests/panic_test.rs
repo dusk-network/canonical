@@ -6,9 +6,8 @@
 
 #![feature(never_type)]
 
-use canonical_host::{
-    wasm, Execute, MemError, MemStore, Query, Remote, Signal, Wasm,
-};
+use canonical::Query;
+use canonical_host::{wasm, Execute, MemError, MemStore, Remote, Signal, Wasm};
 use panic::{self, Panico};
 
 #[test]

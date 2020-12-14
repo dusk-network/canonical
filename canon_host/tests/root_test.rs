@@ -6,12 +6,9 @@
 
 #![feature(min_const_generics)]
 
-use canonical_host::{
-    wasm, Apply, CastMut, Execute, MemStore as MS, Query, Remote, Transaction,
-};
-
-use canonical::{Canon, Store};
+use canonical::{Canon, Query, Store, Transaction};
 use canonical_derive::Canon;
+use canonical_host::{wasm, Apply, CastMut, Execute, MemStore as MS, Remote};
 
 use counter::{self, Counter};
 use delegate::{self, Delegator};
@@ -119,8 +116,11 @@ where
             EXECUTE_CONTRACT_QUERY,
         >,
     ) -> Result<R, S::Error> {
+        println!("A!");
         let (id, query) = query.into_args();
+        println!("B!");
         let cast: ContractState = self.contracts[id as usize].cast()?;
+        println!("C!");
         cast.execute(query)
     }
 }
@@ -210,21 +210,18 @@ fn delegate_calls() {
     let mut state = TestState::default();
 
     let counter_a = wasm::Wasm::new(
-        // unlucky number to not get too lucky in testing
         Counter::new(1234),
         store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
     );
 
     let counter_b = wasm::Wasm::new(
-        // unlucky number to not get too lucky in testing
         Counter::new(4321),
         store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
     );
 
     let delegator = wasm::Wasm::new(
-        // unlucky number to not get too lucky in testing
         Delegator::new(),
         store.clone(),
         include_bytes!("../../module_examples/modules/delegate/delegate.wasm"),

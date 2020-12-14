@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical_host::{wasm, Apply, MemStore as MS, Transaction, Wasm};
-
+use canonical::Transaction;
+use canonical_host::{wasm, Apply, MemStore as MS, Wasm};
 use nstack_module::{self, Stack};
 
 #[test]

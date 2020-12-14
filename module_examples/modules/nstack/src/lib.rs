@@ -111,8 +111,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod host {
     use super::*;
-    use canonical::Store;
-    use canonical_host::Transaction;
+    use canonical::{Store, Transaction};
 
     impl<S: Store> Stack<S> {
         pub fn push(t: i32) -> Transaction<Self, i32, (), PUSH> {

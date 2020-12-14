@@ -4,11 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 use canonical::{Canon, Query, Sink, Source, Store, Transaction};
-use canonical_derive::Canon;
 
 /// A representation of a Module of erased type, with its root state reachable
 /// from the Id in the store.
@@ -110,37 +108,6 @@ impl<S: Store> Canon<S> for Remote<S> {
 
     fn encoded_len(&self) -> usize {
         S::Ident::default().as_ref().len()
-    }
-}
-
-/// Represents the type of a query
-///
-/// `Over` is the type that the query is expected to operate over.
-#[derive(Debug, Clone, Canon)]
-pub struct Query<Over, A, R, const ID: u8> {
-    /// Arguments, in form of a tuple or single value
-    args: A,
-    /// The expected return type
-    _return: PhantomData<(Over, R)>,
-}
-
-impl<Over, A, R, const ID: u8> Query<Over, A, R, ID> {
-    /// Construct a new query with provided arguments
-    pub fn new(args: A) -> Self {
-        Query {
-            args,
-            _return: PhantomData,
-        }
-    }
-
-    /// Returns a reference to the arguments of a query
-    pub fn args(&self) -> &A {
-        &self.args
-    }
-
-    /// Consumes query and returns the arguments
-    pub fn into_args(self) -> A {
-        self.args
     }
 }
 

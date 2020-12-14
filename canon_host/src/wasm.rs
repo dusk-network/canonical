@@ -7,8 +7,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::{Apply, Execute, Query, Transaction};
-use canonical::{ByteSink, ByteSource, Canon, Store};
+use crate::{Apply, Execute};
+use canonical::{ByteSink, ByteSource, Canon, Query, Store, Transaction};
 use canonical_derive::Canon;
 
 /// Query id for executing queries over Wasm modules.
@@ -345,6 +345,8 @@ where
 
                 let mut externals =
                     Externals::new(&self.store, &memref, resolver);
+
+                println!("b4!");
 
                 // Perform the query call
                 instance.invoke_export(

@@ -29,23 +29,63 @@ impl Delegator {
 mod hosted {
     use super::*;
 
-    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical::{
+        BridgeStore, ByteSink, ByteSource, Canon, Id32, Query, Store,
+    };
 
-    use counter::Counter;
+    // FIXME use real counter use counter::Counter;
+    #[derive(Canon, Clone)]
+    struct CounterErsatz;
+    const READ_VALUE: u8 = 0;
+
+    impl CounterErsatz {
+        pub fn read_value() -> Query<Self, (), i32, READ_VALUE> {
+            Query::new(())
+        }
+    }
 
     const PAGE_SIZE: usize = 1024 * 4;
 
     type BS = BridgeStore<Id32>;
-    type ContractAddr = u64;
+    type ContractAddr = [u8; 8];
+
+    extern "C" {
+        fn c_q(buffer: &mut u8, addr_len: u8);
+    }
+
+    fn contract_query<Over, Addr, A, R, const ID: u8>(
+        addr: Addr,
+        query: Query<Over, A, R, ID>,
+    ) -> R
+    where
+        Addr: AsRef<[u8]>,
+        Over: Canon<BS>,
+        A: Canon<BS>,
+        R: Canon<BS>,
+    {
+        let bs = BS::default();
+        let mut buffer = [0u8; 128];
+        let addr_len = addr.as_ref().len();
+        buffer[0..addr_len].copy_from_slice(addr.as_ref());
+        let mut sink = ByteSink::new(&mut buffer[addr_len..], &bs);
+        Canon::<BS>::write(&query, &mut sink).unwrap();
+        unsafe {
+            c_q(&mut buffer[0], addr_len as u8);
+        }
+        let mut source = ByteSource::new(&buffer, &bs);
+        Canon::<BS>::read(&mut source).unwrap()
+    }
 
     impl Delegator {
         pub fn delegate_read_value(&self, addr: ContractAddr) -> i32 {
-            let query = Counter::read_value();
-            todo!()
+            let query = CounterErsatz::read_value();
+            contract_query(addr, query)
         }
 
-        pub fn delegate_adjust(&mut self, addr: ContractAddr, by: i32) {
-            todo!()
+        pub fn delegate_adjust(&mut self, _addr: ContractAddr, _by: i32) {
+            // let query = Counter::adjust(by);
+            // contract_transaction(addr, query)
+            todo!("deleg")
         }
     }
 
@@ -67,7 +107,7 @@ mod hosted {
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
             }
-            _ => panic!(""),
+            _ => panic!("wonka"),
         }
     }
 
@@ -83,20 +123,22 @@ mod hosted {
         let store = BS::default();
         let mut source = ByteSource::new(bytes, &store);
 
-        // read self.
+        // read self (no-op in this case).
         let mut slf: Delegator = Canon::<BS>::read(&mut source)?;
         // read transaction id
-        let qid: u8 = Canon::<BS>::read(&mut source)?;
-        match qid {
-            // increment (&Self)
-            DELEGATE_TRANSACTION => {
+        let tid: u8 = Canon::<BS>::read(&mut source)?;
+        match tid {
+            DELEGATE_ADJUST => {
+                let (addr, by): (ContractAddr, i32) =
+                    Canon::<BS>::read(&mut source)?;
+                let ret = slf.delegate_adjust(addr, by);
                 let mut sink = ByteSink::new(&mut bytes[..], &store);
-                // return new state
+                // return new state (also no-op)
                 Canon::<BS>::write(&slf, &mut sink)?;
-                // no return value
-                Ok(())
+                // return value (no-op)
+                Canon::<BS>::write(&ret, &mut sink)
             }
-            _ => panic!(""),
+            _ => panic!("wonk"),
         }
     }
 

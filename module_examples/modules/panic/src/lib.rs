@@ -63,7 +63,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod host {
     use super::*;
-    use canonical_host::Query;
+    use canonical::Query;
 
     impl Panico {
         pub fn panic_a() -> Query<Self, (), !, PANIC_A> {
