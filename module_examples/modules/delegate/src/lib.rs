@@ -29,9 +29,8 @@ impl Delegator {
 mod hosted {
     use super::*;
 
-    use canonical::{
-        BridgeStore, ByteSink, ByteSource, Canon, Id32, Query, Store,
-    };
+    use canonical::{BridgeStore, ByteSink, ByteSource, Canon, Id32, Store};
+    use canonical_module::{Query, RawQuery};
 
     // FIXME use real counter use counter::Counter;
     #[derive(Canon, Clone)]
@@ -50,17 +49,11 @@ mod hosted {
     type ContractAddr = [u8; 8];
 
     extern "C" {
-        fn c_q(buffer: &mut u8, addr_len: u8);
+        fn c_query(buffer: &mut u8, addr_len: u8);
     }
 
-    fn contract_query<Over, Addr, A, R, const ID: u8>(
-        addr: Addr,
-        query: Query<Over, A, R, ID>,
-    ) -> R
+    fn contract_query<R>(addr: ContractAddr, query: RawQuery) -> R
     where
-        Addr: AsRef<[u8]>,
-        Over: Canon<BS>,
-        A: Canon<BS>,
         R: Canon<BS>,
     {
         let bs = BS::default();
@@ -70,15 +63,18 @@ mod hosted {
         let mut sink = ByteSink::new(&mut buffer[addr_len..], &bs);
         Canon::<BS>::write(&query, &mut sink).unwrap();
         unsafe {
-            c_q(&mut buffer[0], addr_len as u8);
+            c_query(&mut buffer[0], addr_len as u8);
         }
         let mut source = ByteSource::new(&buffer, &bs);
         Canon::<BS>::read(&mut source).unwrap()
     }
 
     impl Delegator {
-        pub fn delegate_read_value(&self, addr: ContractAddr) -> i32 {
-            let query = CounterErsatz::read_value();
+        pub fn delegate_query(
+            &self,
+            addr: ContractAddr,
+            query: RawQuery,
+        ) -> i32 {
             contract_query(addr, query)
         }
 
@@ -100,9 +96,10 @@ mod hosted {
         let qid: u8 = Canon::<BS>::read(&mut source)?;
         match qid {
             // read_value (&Self) -> i32
-            DELEGATE_READ_VALUE => {
-                let addr: ContractAddr = Canon::<BS>::read(&mut source)?;
-                let ret = slf.delegate_read_value(addr);
+            DELEGATE_QUERY => {
+                let (addr, query): (ContractAddr, RawQuery) =
+                    Canon::<BS>::read(&mut source)?;
+                let ret = slf.delegate_query(addr, query);
                 let mut sink = ByteSink::new(&mut bytes[..], &store);
                 Canon::<BS>::write(&ret, &mut sink)?;
                 Ok(())
@@ -154,7 +151,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod host {
     use super::*;
-    use canonical::{Query, Transaction};
+    use canonical_module::{Query, Transaction};
 
     impl Delegator {
         pub fn delegate_read_value(

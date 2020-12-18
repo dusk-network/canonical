@@ -7,8 +7,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::{Apply, Execute};
-use canonical::{ByteSink, ByteSource, Canon, Query, Store, Transaction};
+use crate::{Apply, Execute, Query, Transaction};
+use canonical::{ByteSink, ByteSource, Canon, Sink, Source, Store};
 use canonical_derive::Canon;
 
 /// Query id for executing queries over Wasm modules.
@@ -150,15 +150,45 @@ where
 }
 
 /// A type with a corresponding wasm module
-#[derive(Canon, Clone)]
-pub struct Wasm<State, S: Store> {
+#[derive(Clone)]
+pub struct Wasm<State, E, S: Store> {
     state: State,
     store: S,
     bytecode: Vec<u8>,
+    resolver: E,
     _marker: PhantomData<S>,
 }
 
-impl<S, State> core::fmt::Debug for Wasm<State, S>
+impl<State, E, S> Canon<S> for Wasm<State, E, S>
+where
+    State: Canon<S>,
+    E: Default + Clone,
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        Canon::<S>::write(&self.state, sink)?;
+        Canon::<S>::write(&self.bytecode, sink)
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let state = Canon::<S>::read(source)?;
+        let bytecode = Canon::<S>::read(source)?;
+        Ok(Wasm {
+            state,
+            bytecode,
+            store: source.store().clone(),
+            resolver: E::default(),
+            _marker: PhantomData,
+        })
+    }
+
+    fn encoded_len(&self) -> usize {
+        Canon::<S>::encoded_len(&self.state)
+            + Canon::<S>::encoded_len(&self.bytecode)
+    }
+}
+
+impl<S, E, State> core::fmt::Debug for Wasm<State, E, S>
 where
     State: core::fmt::Debug,
     S: Store,
@@ -168,122 +198,123 @@ where
     }
 }
 
-struct Externals<'a, S, E> {
-    store: &'a S,
-    memory: &'a wasmi::MemoryRef,
-    ext: E,
-}
+// struct Externals<'a, S, E> {
+//     store: &'a S,
+//     memory: &'a wasmi::MemoryRef,
+//     ext: E,
+// }
 
-impl<'a, S, E> Externals<'a, S, E> {
-    fn new(store: &'a S, memory: &'a wasmi::MemoryRef, ext: E) -> Self {
-        Externals { store, memory, ext }
-    }
-}
+// impl<'a, S, E> Externals<'a, S, E> {
+//     fn new(store: &'a S, memory: &'a wasmi::MemoryRef, ext: E) -> Self {
+//         Externals { store, memory, ext }
+//     }
+// }
 
-impl<'a, S, I> wasmi::Externals for Externals<'a, S, I>
-where
-    S: Store,
-    S::Error: wasmi::HostError,
-    S::Error: From<Signal>,
-    I: wasmi::Externals,
-{
-    fn invoke_index(
-        &mut self,
-        index: usize,
-        args: wasmi::RuntimeArgs,
-    ) -> Result<Option<wasmi::RuntimeValue>, wasmi::Trap> {
-        match index {
-            GET => {
-                if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
-                    let ofs = ofs as usize;
-                    self.memory.with_direct_access_mut(|mem| {
-                        // read identifier
-                        let mut id = S::Ident::default();
-                        let id_len = id.as_ref().len();
-                        let slice = &mem[ofs..ofs + id_len];
-                        id.as_mut().copy_from_slice(slice);
+// impl<'a, S, I> wasmi::Externals for Externals<'a, S, I>
+// where
+//     S: Store,
+//     S::Error: From<Signal>,
+//     S::Error: wasmi::HostError,
+//     I: wasmi::Externals,
+// {
+//     fn invoke_index(
+//         &mut self,
+//         index: usize,
+//         args: wasmi::RuntimeArgs,
+//     ) -> Result<Option<wasmi::RuntimeValue>, wasmi::Trap> {
+//         match index {
+//             GET => {
+//                 if let [wasmi::RuntimeValue::I32(ofs)] = args.as_ref()[..] {
+//                     let ofs = ofs as usize;
+//                     self.memory.with_direct_access_mut(|mem| {
+//                         // read identifier
+//                         let mut id = S::Ident::default();
+//                         let id_len = id.as_ref().len();
+//                         let slice = &mem[ofs..ofs + id_len];
+//                         id.as_mut().copy_from_slice(slice);
 
-                        self.store.fetch(&id, &mut mem[ofs..])?;
-                        Ok(None)
-                    })
-                } else {
-                    todo!("error out for wrong argument types")
-                }
-            }
-            PUT => {
-                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len), wasmi::RuntimeValue::I32(ret_addr)] =
-                    args.as_ref()[..]
-                {
-                    let ofs = ofs as usize;
-                    let len = len as usize;
-                    let ret_addr = ret_addr as usize;
-                    self.memory.with_direct_access_mut(|mem| {
-                        if let Ok(id) = self.store.put_raw(&mem[ofs..ofs + len])
-                        {
-                            let id_len = id.as_ref().len();
-                            // write id back
-                            mem[ret_addr..ret_addr + id_len]
-                                .copy_from_slice(id.as_ref());
-                        }
-                        Ok(None)
-                    })
-                } else {
-                    todo!("error out for wrong argument types")
-                }
-            }
-            SIG => {
-                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len)] =
-                    args.as_ref()[..]
-                {
-                    let ofs = ofs as usize;
-                    let len = len as usize;
-                    self.memory.with_direct_access_mut(|mem| {
-                        let bytes = &mem[ofs..ofs + len];
-                        let string =
-                            String::from_utf8_lossy(&bytes).to_string();
-                        let signal = Signal::panic(string);
-                        Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
-                            signal,
-                        ))))
-                    })
-                } else {
-                    todo!("error out for wrong argument types")
-                }
-            }
-            DBG => {
-                if let [wasmi::RuntimeValue::I32(ofs), wasmi::RuntimeValue::I32(len)] =
-                    args.as_ref()[..]
-                {
-                    let ofs = ofs as usize;
-                    let len = len as usize;
-                    self.memory.with_direct_access_mut(|mem| {
-                        let bytes = &mem[ofs..ofs + len];
-                        let string =
-                            String::from_utf8_lossy(&bytes).to_string();
-                        println!("HOSTED: {}", string);
-                        Ok(None)
-                    })
-                } else {
-                    todo!("error out for wrong argument types")
-                }
-            }
-            _ => self.ext.invoke_index(index, args),
-        }
-    }
-}
+//                         self.store.fetch(&id, &mut mem[ofs..])?;
+//                         Ok(None)
+//                     })
+//                 } else {
+//                     todo!("error out for wrong argument types")
+//                 }
+//             }
+//             PUT => {
+//                 if let [wasmi::RuntimeValue::I32(ofs),
+// wasmi::RuntimeValue::I32(len), wasmi::RuntimeValue::I32(ret_addr)] =
+//                     args.as_ref()[..]
+//                 {
+//                     let ofs = ofs as usize;
+//                     let len = len as usize;
+//                     let ret_addr = ret_addr as usize;
+//                     self.memory.with_direct_access_mut(|mem| {
+//                         if let Ok(id) = self.store.put_raw(&mem[ofs..ofs +
+// len])                         {
+//                             let id_len = id.as_ref().len();
+//                             // write id back
+//                             mem[ret_addr..ret_addr + id_len]
+//                                 .copy_from_slice(id.as_ref());
+//                         }
+//                         Ok(None)
+//                     })
+//                 } else {
+//                     todo!("error out for wrong argument types")
+//                 }
+//             }
+//             SIG => {
+//                 if let [wasmi::RuntimeValue::I32(ofs),
+// wasmi::RuntimeValue::I32(len)] =                     args.as_ref()[..]
+//                 {
+//                     let ofs = ofs as usize;
+//                     let len = len as usize;
+//                     self.memory.with_direct_access_mut(|mem| {
+//                         let bytes = &mem[ofs..ofs + len];
+//                         let string =
+//                             String::from_utf8_lossy(&bytes).to_string();
+//                         let signal = Signal::panic(string);
+//                         Err(wasmi::Trap::new(wasmi::TrapKind::Host(Box::new(
+//                             signal,
+//                         ))))
+//                     })
+//                 } else {
+//                     todo!("error out for wrong argument types")
+//                 }
+//             }
+//             DBG => {
+//                 if let [wasmi::RuntimeValue::I32(ofs),
+// wasmi::RuntimeValue::I32(len)] =                     args.as_ref()[..]
+//                 {
+//                     let ofs = ofs as usize;
+//                     let len = len as usize;
+//                     self.memory.with_direct_access_mut(|mem| {
+//                         let bytes = &mem[ofs..ofs + len];
+//                         let string =
+//                             String::from_utf8_lossy(&bytes).to_string();
+//                         println!("HOSTED: {}", string);
+//                         Ok(None)
+//                     })
+//                 } else {
+//                     todo!("error out for wrong argument types")
+//                 }
+//             }
+//             _ => self.ext.invoke_index(index, args),
+//         }
+//     }
+// }
 
-impl<State, S> Wasm<State, S>
+impl<State, E, S> Wasm<State, E, S>
 where
     State: Canon<S>,
     S: Store,
-    S::Error: wasmi::HostError,
     S::Error: From<Signal>,
 {
     /// Creates a new Wasm wrapper over an initial state.
-    pub fn new(state: State, store: S, bytecode: &[u8]) -> Self {
+    pub fn new(state: State, store: S, bytecode: &[u8], resolver: E) -> Self {
         Wasm {
             state,
             store,
+            resolver,
             bytecode: Vec::from(bytecode),
             _marker: PhantomData,
         }
@@ -292,22 +323,28 @@ where
     /// Wraps a query over the internal module state
     pub fn query<A, R, const ID: u8>(
         query: Query<State, A, R, ID>,
-    ) -> Query<Wasm<State, S>, Query<State, A, R, ID>, R, WASM_QUERY> {
+    ) -> Query<Wasm<State, E, S>, Query<State, A, R, ID>, R, WASM_QUERY> {
         Query::new(query)
     }
 
     /// Wraps a transaction over the internal module state
     pub fn transaction<A, R, const ID: u8>(
         transaction: Transaction<State, A, R, ID>,
-    ) -> Transaction<Wasm<State, S>, Transaction<State, A, R, ID>, R, WASM_QUERY>
-    {
+    ) -> Transaction<
+        Wasm<State, E, S>,
+        Transaction<State, A, R, ID>,
+        R,
+        WASM_QUERY,
+    > {
         Transaction::new(transaction)
     }
 }
 
-impl<State, A, R, S, const ID: u8>
-    Execute<Self, Query<State, A, R, ID>, R, S, WASM_QUERY> for Wasm<State, S>
+impl<State, E, A, R, S, const ID: u8>
+    Execute<Self, Query<State, A, R, ID>, R, S, WASM_QUERY>
+    for Wasm<State, E, S>
 where
+    E: Clone + ExternalsResolver,
     A: Canon<S>,
     R: Canon<S>,
     State: Canon<S>,
@@ -320,11 +357,10 @@ where
         &self,
         query: Query<Self, Query<State, A, R, ID>, R, WASM_QUERY>,
     ) -> Result<R, S::Error> {
-        let resolver = crate::common::HostExternals {};
-
         let mut imports = wasmi::ImportsBuilder::default();
         let canon_module = CanonImports(self.store.clone());
         imports.push_resolver("canon", &canon_module);
+        imports.push_resolver("env", &self.resolver);
 
         let module = wasmi::Module::from_buffer(&self.bytecode)?;
 
@@ -343,16 +379,14 @@ where
                     Canon::<S>::write(inner_query.args(), &mut sink)
                 })?;
 
-                let mut externals =
-                    Externals::new(&self.store, &memref, resolver);
-
-                println!("b4!");
+                // let mut externals =
+                //     Externals::new(&self.store, &memref, resolver);
 
                 // Perform the query call
                 instance.invoke_export(
                     "q",
                     &[wasmi::RuntimeValue::I32(0)],
-                    &mut externals,
+                    &mut self.resolver.clone(),
                 )?;
 
                 memref.with_direct_access_mut(|mem| {
@@ -367,10 +401,11 @@ where
     }
 }
 
-impl<State, A, R, S, const ID: u8>
+impl<State, E, A, R, S, const ID: u8>
     Apply<Self, Transaction<State, A, R, ID>, R, S, WASM_TRANSACTION>
-    for Wasm<State, S>
+    for Wasm<State, E, S>
 where
+    E: Clone + wasmi::Externals,
     A: Canon<S>,
     R: Canon<S>,
     State: Canon<S>,
@@ -388,7 +423,7 @@ where
             WASM_TRANSACTION,
         >,
     ) -> Result<R, S::Error> {
-        let resolver = crate::common::HostExternals {};
+        let resolver = crate::TestResolver {};
 
         let mut imports = wasmi::ImportsBuilder::default();
         let canon_module = CanonImports(self.store.clone());
@@ -413,13 +448,13 @@ where
                     Canon::<S>::write(inner_transaction.args(), &mut sink)
                 })?;
 
-                let mut externals =
-                    Externals::new(&self.store, &memref, resolver);
+                // let mut externals =
+                //     Externals::new(&self.store, &memref, resolver);
 
                 instance.invoke_export(
                     "t",
                     &[wasmi::RuntimeValue::I32(0)],
-                    &mut externals,
+                    &mut self.resolver,
                 )?;
 
                 memref.with_direct_access_mut(|mem| {

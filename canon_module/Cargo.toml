@@ -10,7 +10,10 @@ description = "Modules"
 license = "MPL-2.0"
 
 [dependencies]
-canonical_host = { path = "../canon_host", version = "0.4", optional = true }
+arrayvec = { version = "0.5.2", default-features = false }
+canonical = { path = "../canon", version = "0.4" }
+canonical_derive = { path = "../canon_derive", version = "0.4" }
+wasmi = { version = "0.6.0" }
 
 [features]
-host = ["canonical_host"]
+host = []

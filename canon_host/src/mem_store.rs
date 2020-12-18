@@ -14,8 +14,7 @@ use canonical::{
     ByteSink, Canon, DrySink, Id32, InvalidEncoding, Sink, Source, Store,
 };
 use canonical_derive::Canon;
-
-use crate::wasm::Signal;
+use canonical_module::Signal;
 
 #[derive(Default, Debug)]
 struct MemStoreInner(HashMap<Id32, Vec<u8>>);
@@ -53,6 +52,7 @@ pub enum MemError {
     Signal(Signal),
 }
 
+#[cfg(feature = "wasm")]
 impl From<wasmi::Error> for MemError {
     fn from(err: wasmi::Error) -> MemError {
         MemError::Signal(err.into())
@@ -80,6 +80,12 @@ impl From<InvalidEncoding> for MemError {
 impl From<Signal> for MemError {
     fn from(signal: Signal) -> Self {
         MemError::Signal(signal)
+    }
+}
+
+impl From<wasmi::Error> for MemError {
+    fn from(error: wasmi::Error) -> Self {
+        MemError::Signal(error.into())
     }
 }
 

@@ -8,6 +8,7 @@ license = "MPL-2.0"
 [dev-dependencies]
 canonical = { path = "../canon", version = "0.4", features = ["host"] }
 canonical_host = { path = "../canon_host", version = "0.4" }
+canonical_module = { path = "../canon_module" }
 wasmi = "0.6.0"
 
 counter = { path = "modules/counter", features = ["host"], version = "0.1.0" }

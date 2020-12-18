@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::Transaction;
-use canonical_host::{wasm, Apply, MemStore as MS, Wasm};
+use canonical_host::MemStore as MS;
+use canonical_module::{wasm, Apply, TestResolver, Transaction};
 use nstack_module::{self, Stack};
 
 #[test]
@@ -14,7 +14,8 @@ fn push_pop() {
 
     let store = MS::new();
 
-    let mut wasm_stack = Wasm::new(Stack::new(), store.clone(), bytes);
+    let mut wasm_stack =
+        wasm::Wasm::new(Stack::new(), store.clone(), bytes, TestResolver);
 
     let n = 16;
 
@@ -22,7 +23,7 @@ fn push_pop() {
 
     for i in 0..n {
         let transaction = Transaction::<
-            wasm::Wasm<Stack<MS>, MS>,
+            wasm::Wasm<Stack<MS>, TestResolver, MS>,
             Transaction<Stack<MS>, i32, (), { nstack_module::PUSH }>,
             (),
             { wasm::WASM_TRANSACTION },
@@ -37,7 +38,7 @@ fn push_pop() {
         let inv = n - i - 1;
 
         let transaction = Transaction::<
-            wasm::Wasm<Stack<MS>, MS>,
+            wasm::Wasm<Stack<MS>, TestResolver, MS>,
             Transaction<Stack<MS>, (), Option<i32>, { nstack_module::POP }>,
             Option<i32>,
             { wasm::WASM_TRANSACTION },
@@ -51,7 +52,7 @@ fn push_pop() {
     // assert empty
 
     let transaction = Transaction::<
-        wasm::Wasm<Stack<MS>, MS>,
+        wasm::Wasm<Stack<MS>, TestResolver, MS>,
         Transaction<Stack<MS>, (), Option<i32>, { nstack_module::POP }>,
         Option<i32>,
         { wasm::WASM_TRANSACTION },

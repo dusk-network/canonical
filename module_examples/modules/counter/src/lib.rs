@@ -189,7 +189,7 @@ mod hosted {
 #[cfg(feature = "host")]
 mod interface {
     use super::*;
-    use canonical::{Query, Transaction};
+    use canonical_module::{Query, Transaction};
 
     impl Counter {
         pub fn read_value() -> Query<Self, (), i32, READ_VALUE> {

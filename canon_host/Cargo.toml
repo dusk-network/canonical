@@ -12,11 +12,12 @@ license = "MPL-2.0"
 [dependencies]
 lazy_static = "1.4"
 parking_lot = "0.11"
-wasmi = "0.6.0"
 canonical = { path = "../canon", features = ["host"], version = "0.4" }
 canonical_derive = { path = "../canon_derive", version = "0.4" }
+canonical_module = { path = "../canon_module", features = ["host"] }
 appendix = { version = "0.2" }
 tempfile = "3.1"
+wasmi = { version = "0.6.0" }
 
 [dev-dependencies]
 counter = { path = "../module_examples/modules/counter/", features = ["host"] }

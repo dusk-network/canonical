@@ -4,31 +4,32 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 
-use canonical::{Canon, Query, Sink, Source, Store, Transaction};
+use crate::{Query, Transaction};
+use canonical::{Canon, Sink, Source, Store};
 
 /// A representation of a Module of erased type, with its root state reachable
 /// from the Id in the store.
 #[derive(Debug, Clone)]
-pub struct Remote<S: Store> {
+pub struct Module<S: Store> {
     id: S::Ident,
     store: S,
 }
 
-impl<S: Store> Remote<S> {
+impl<S: Store> Module<S> {
     /// Create a new remote given the initial State and store reference
     pub fn new<T: Canon<S>>(from: T, store: S) -> Result<Self, S::Error> {
         let id = store.put(&from)?;
-        Ok(Remote { id, store })
+        Ok(Module { id, store })
     }
 
-    /// Attempt casting this Remote to type `T`
+    /// Attempt casting this Module to type `T`
     pub fn cast<T: Canon<S>>(&self) -> Result<T, S::Error> {
         self.store.get(&self.id)
     }
 
-    /// Attempt casting this Remote to a mutable reference to type `T`
+    /// Attempt casting this Module to a mutable reference to type `T`
     pub fn cast_mut<T: Canon<S>>(&mut self) -> Result<CastMut<T, S>, S::Error> {
         let t = self.store.get(&self.id)?;
         Ok(CastMut {
@@ -46,7 +47,7 @@ where
     T: Canon<S>,
 {
     /// The remote this CastMut derived from
-    remote: &'a mut Remote<S>,
+    remote: &'a mut Module<S>,
     /// The parsed value
     value: T,
 }
@@ -89,7 +90,7 @@ where
     }
 }
 
-impl<S: Store> Canon<S> for Remote<S> {
+impl<S: Store> Canon<S> for Module<S> {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
         sink.copy_bytes(self.id.as_ref());
         Ok(())
@@ -100,7 +101,7 @@ impl<S: Store> Canon<S> for Remote<S> {
         let slice = id.as_mut();
         let len = slice.len();
         slice.copy_from_slice(source.read_bytes(len));
-        Ok(Remote {
+        Ok(Module {
             id,
             store: source.store().clone(),
         })

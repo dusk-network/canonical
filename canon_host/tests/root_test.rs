@@ -6,9 +6,12 @@
 
 #![feature(min_const_generics)]
 
-use canonical::{Canon, Query, Store, Transaction};
+use canonical::{Canon, Store};
 use canonical_derive::Canon;
-use canonical_host::{wasm, Apply, CastMut, Execute, MemStore as MS, Remote};
+use canonical_host::MemStore as MS;
+use canonical_module::{
+    wasm, Apply, CastMut, Execute, Module, Query, TestResolver, Transaction,
+};
 
 use counter::{self, Counter};
 use delegate::{self, Delegator};
@@ -25,7 +28,7 @@ const EXECUTE_CONTRACT_QUERY: u8 = 0;
 #[derive(Clone, Canon, Default)]
 struct TestState<S: Store> {
     opcount: u64,
-    contracts: Vec<Remote<S>>,
+    contracts: Vec<Module<S>>,
 }
 
 impl<S> TestState<S>
@@ -33,8 +36,8 @@ where
     S: Store,
 {
     fn add_contract(
-        contract: Remote<S>,
-    ) -> Transaction<Self, Remote<S>, ContractAddr, ADD_CONTRACT> {
+        contract: Module<S>,
+    ) -> Transaction<Self, Module<S>, ContractAddr, ADD_CONTRACT> {
         Transaction::new(contract)
     }
 
@@ -52,13 +55,13 @@ where
     }
 }
 
-impl<S> Apply<Self, Remote<S>, ContractAddr, S, ADD_CONTRACT> for TestState<S>
+impl<S> Apply<Self, Module<S>, ContractAddr, S, ADD_CONTRACT> for TestState<S>
 where
     S: Store,
 {
     fn apply(
         &mut self,
-        transaction: Transaction<Self, Remote<S>, ContractAddr, ADD_CONTRACT>,
+        transaction: Transaction<Self, Module<S>, ContractAddr, ADD_CONTRACT>,
     ) -> Result<ContractAddr, S::Error> {
         let id = self.contracts.len();
         self.contracts.push(transaction.into_args());
@@ -116,11 +119,8 @@ where
             EXECUTE_CONTRACT_QUERY,
         >,
     ) -> Result<R, S::Error> {
-        println!("A!");
         let (id, query) = query.into_args();
-        println!("B!");
         let cast: ContractState = self.contracts[id as usize].cast()?;
-        println!("C!");
         cast.execute(query)
     }
 }
@@ -137,10 +137,11 @@ fn create_root() {
         counter,
         store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
+        TestResolver,
     );
 
     // hide counter behind a remote to erase the type
-    let remote = Remote::new(wasm_counter, store.clone()).unwrap();
+    let remote = Module::new(wasm_counter, store.clone()).unwrap();
 
     let transaction = TestState::<MS>::add_contract(remote);
     let id = state.apply(transaction).unwrap();
@@ -152,7 +153,7 @@ fn create_root() {
         (
             ContractAddr,
             Query<
-                wasm::Wasm<Counter, MS>,
+                wasm::Wasm<Counter, TestResolver, MS>,
                 Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
@@ -171,7 +172,7 @@ fn create_root() {
         (
             ContractAddr,
             Transaction<
-                wasm::Wasm<Counter, MS>,
+                wasm::Wasm<Counter, TestResolver, MS>,
                 Transaction<Counter, (), (), { counter::INCREMENT }>,
                 (),
                 { wasm::WASM_TRANSACTION },
@@ -190,7 +191,7 @@ fn create_root() {
         (
             ContractAddr,
             Query<
-                wasm::Wasm<Counter, MS>,
+                wasm::Wasm<Counter, TestResolver, MS>,
                 Query<Counter, (), i32, { counter::READ_VALUE }>,
                 i32,
                 { wasm::WASM_QUERY },
@@ -213,23 +214,26 @@ fn delegate_calls() {
         Counter::new(1234),
         store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
+        TestResolver,
     );
 
     let counter_b = wasm::Wasm::new(
         Counter::new(4321),
         store.clone(),
         include_bytes!("../../module_examples/modules/counter/counter.wasm"),
+        TestResolver,
     );
 
     let delegator = wasm::Wasm::new(
         Delegator::new(),
         store.clone(),
         include_bytes!("../../module_examples/modules/delegate/delegate.wasm"),
+        TestResolver,
     );
 
-    let remote_a = Remote::new(counter_a, store.clone()).unwrap();
-    let remote_b = Remote::new(counter_b, store.clone()).unwrap();
-    let remote_c = Remote::new(delegator, store.clone()).unwrap();
+    let remote_a = Module::new(counter_a, store.clone()).unwrap();
+    let remote_b = Module::new(counter_b, store.clone()).unwrap();
+    let remote_c = Module::new(delegator, store.clone()).unwrap();
 
     let transaction_a = TestState::<MS>::add_contract(remote_a);
     let transaction_b = TestState::<MS>::add_contract(remote_b);
@@ -244,8 +248,10 @@ fn delegate_calls() {
     let delegated_query_a = Delegator::delegate_read_value(id_a);
     let delegated_query_b = Delegator::delegate_read_value(id_b);
 
-    let wasm_delegated_query_a = wasm::Wasm::query(delegated_query_a);
-    let wasm_delegated_query_b = wasm::Wasm::query(delegated_query_b);
+    let wasm_delegated_query_a =
+        wasm::Wasm::<_, TestResolver, _>::query(delegated_query_a);
+    let wasm_delegated_query_b =
+        wasm::Wasm::<_, TestResolver, _>::query(delegated_query_b);
 
     let state_query_a = state.contract_query(id_c, wasm_delegated_query_a);
     let state_query_b = state.contract_query(id_c, wasm_delegated_query_b);

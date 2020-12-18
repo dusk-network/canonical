@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 canonical = { path = "../../../canon", default-features = false }
 canonical_derive = { path = "../../../canon_derive" }
 canonical_host = { path = "../../../canon_host", optional = true }
+canonical_module = { path = "../../../canon_module" }
 
 microkelvin = "0.5.2"
 nstack = "0.6"

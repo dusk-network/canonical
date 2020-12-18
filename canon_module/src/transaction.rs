@@ -1,5 +1,9 @@
-use crate::{Canon, Sink, Source, Store};
 use core::marker::PhantomData;
+
+use arrayvec::ArrayVec;
+use canonical::{Canon, Sink, Source, Store};
+
+use crate::Q_T_SIZE;
 
 /// Represents the type of a transaction
 pub struct Transaction<Over, A, R, const ID: u8> {
@@ -61,3 +65,5 @@ where
         self.args.encoded_len()
     }
 }
+
+pub struct RawTransaction(ArrayVec<[u8; Q_T_SIZE]>);

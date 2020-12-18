@@ -6,24 +6,27 @@
 
 #![feature(never_type)]
 
-use canonical::Query;
-use canonical_host::{wasm, Execute, MemError, MemStore, Remote, Signal, Wasm};
+use canonical_host::{MemError, MemStore};
+use canonical_module::{wasm, Execute, Module, Query, Signal, TestResolver};
 use panic::{self, Panico};
 
 #[test]
 fn panic() {
     let store = MemStore::new();
-    let wasm_panic = Wasm::new(
+    let wasm_panic = wasm::Wasm::new(
         Panico,
         store.clone(),
         include_bytes!("../modules/panic/panic.wasm"),
+        TestResolver,
     );
 
-    let remote = Remote::new(wasm_panic, store.clone()).unwrap();
-    let cast = remote.cast::<Wasm<Panico, MemStore>>().unwrap();
+    let remote = Module::new(wasm_panic, store.clone()).unwrap();
+    let cast = remote
+        .cast::<wasm::Wasm<Panico, TestResolver, MemStore>>()
+        .unwrap();
 
     let query_a: Query<
-        wasm::Wasm<Panico, MemStore>,
+        wasm::Wasm<Panico, TestResolver, MemStore>,
         Query<Panico, (), !, { panic::PANIC_A }>,
         !,
         { wasm::WASM_QUERY },
@@ -42,7 +45,7 @@ fn panic() {
     }
 
     let query_b: Query<
-        wasm::Wasm<Panico, MemStore>,
+        wasm::Wasm<Panico, TestResolver, MemStore>,
         Query<Panico, (), !, { panic::PANIC_B }>,
         !,
         { wasm::WASM_QUERY },

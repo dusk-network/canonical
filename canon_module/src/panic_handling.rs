@@ -1,4 +1,4 @@
-/// meant to be included with a macro into source files
+/// Meant to be included with a macro into source files
 
 mod panic_handling {
     pub fn signal(msg: &str) {

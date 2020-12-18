@@ -1,5 +1,9 @@
-use crate::{Canon, Sink, Source, Store};
 use core::marker::PhantomData;
+
+use arrayvec::ArrayVec;
+use canonical::{Canon, Sink, Source, Store};
+
+use crate::Q_T_SIZE;
 
 /// Represents the type of a query
 ///
@@ -62,5 +66,35 @@ where
 
     fn encoded_len(&self) -> usize {
         self.args.encoded_len()
+    }
+}
+
+#[derive(Clone)]
+pub struct RawQuery(ArrayVec<[u8; Q_T_SIZE]>);
+
+impl<S> Canon<S> for RawQuery
+where
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        debug_assert!(self.0.capacity() <= u16::MAX as usize);
+        let len = self.0.len() as u16;
+        Canon::<S>::write(&len, sink)?;
+        sink.copy_bytes(&self.0[..]);
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let mut av = ArrayVec::new();
+        let len: u16 = Canon::<S>::read(source)?;
+        let slice = source.read_bytes(len as usize);
+        av.try_extend_from_slice(slice).unwrap();
+        Ok(RawQuery(av))
+    }
+
+    fn encoded_len(&self) -> usize {
+        debug_assert!(self.0.capacity() <= u16::MAX as usize);
+        let len = self.0.len() as u16;
+        Canon::<S>::encoded_len(&len) + self.0.len()
     }
 }

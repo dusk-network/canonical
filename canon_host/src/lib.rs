@@ -17,14 +17,3 @@ pub use disk_store::{DiskError, DiskStore};
 
 mod root;
 pub use root::Root;
-
-mod remote;
-pub use remote::{Apply, CastMut, Execute, Remote};
-
-/// Module containing wasm related modules.
-/// FIXME, move this to its own crate?
-pub mod wasm;
-pub use wasm::{ExternalsResolver, Signal, Wasm};
-
-/// FIXME: this does not really belong here
-pub mod common;

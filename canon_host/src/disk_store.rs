@@ -17,7 +17,7 @@ use canonical::{
 use canonical_derive::Canon;
 
 use crate::root::Persistent;
-use crate::wasm::Signal;
+use canonical_module::Signal;
 
 use std::fs::{create_dir, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};

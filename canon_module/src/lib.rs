@@ -4,166 +4,27 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#[cfg(not(feature = "host"))]
-mod passthrough {
-    #[macro_export]
-    macro_rules! module {
-        // Opening case
-
-        ( impl $name:ident {
-            $($rest:tt)*
-        } ) => {
-            // MODULE PRELUDE
-
-            use canonical::Canon as _;
-
-            type BS = canonical::BridgeStore<canonical::Id32>;
-
-            fn query(bytes: &mut [u8; 1024 * 64]) -> Result<(), <BS as canonical::Store>::Error> {
-                let store = BS::default();
-                let mut source = canonical::ByteSource::new(&bytes[..], store.clone());
-
-                let query_tag = u8::read(&mut source)?;
-
-                Ok(())
-            }
-
-            #[no_mangle]
-            fn q(bytes: &mut [u8; 1024 * 64]) {
-                match query(bytes) {
-                    Ok(_) => (),
-                    Err(_) => todo!(),
-                }
-            }
-
-            #[no_mangle]
-            fn t(bytes: &mut [u8; 1024 * 64]) {
-                todo!("borf")
-            }
-
-            impl $name {
-                module! { ( 0 ) ; $($rest)* }
-            }
-        };
-
-        // Transactions
-
-        ( $count:tt ; pub fn $name:ident ( & mut $self:ident $(, $arg:ident : $ty:ty)* ) -> $ret:ty {
-            $($body:tt)*
-        }
-
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( & mut $self  $(, $arg : $ty)* ) -> $ret {
-                $($body)*
-            }
-
-            module! { ($count + 1) ; $($rest)* }
-        };
-
-        // Queries
-
-        ( $count:tt ; pub fn $name:ident ( & $self:ident $(, $arg:ident : $ty:ty)* ) $( -> $ret:ty )? {
-            $($body:tt)*
-        }
-
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( & $self  $(, $arg : $ty)* ) $( -> $ret)? {
-                $($body)*
-            }
-
-            module! { ( $count + 1) ; $($rest)* }
-        };
-
-        // Static methods
-
-        ( $count:tt ; pub fn $name:ident ( $($arg:ident : $ty:ty),* ) $( -> $ret:ty )? {
-            $($body:tt)*
-        }
-
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( $( $arg : $ty)* ) $( -> $ret)? {
-                $($body)*
-            }
-
-            module! { $count ; $($rest)* }
-        };
-
-        // Empty case, fin.
-        ( _ ; ) => ();
-    }
-}
+#![cfg_attr(not(feature = "host"), no_std)]
+#![feature(min_const_generics)]
 
 #[cfg(feature = "host")]
-mod query {
-    pub use canonical_host::Query;
+mod test_resolver;
+#[cfg(feature = "host")]
+pub use test_resolver::TestResolver;
 
-    #[macro_export]
-    macro_rules! module {
-        // Opening case
+mod module;
+mod query;
+mod transaction;
 
-        ( impl $name:ident {
-            $($rest:tt)*
-        } ) => {
-            impl $name {
-                module! { ( 0 ) ; $($rest)* }
-            }
-        };
+// Maximum size of transactions
+const Q_T_SIZE: usize = 1024 * 64;
 
-        // Transactions
+#[cfg(feature = "host")]
+pub mod wasm;
 
-        ( $count:tt ; pub fn $name:ident ( & mut $self:ident $(, $arg:ident : $ty:ty)* ) -> $ret:ty {
-            $($body:tt)*
-        }
+pub use module::{Apply, CastMut, Execute, Module};
+pub use query::{Query, RawQuery};
+pub use transaction::{RawTransaction, Transaction};
 
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( $($arg : $ty),* ) -> canonical_host::Transaction < ( $($ty),* ) , $ret > {
-                canonical_host::Transaction::new( ( $($arg),*) )
-            }
-
-            module! { ( $count + 1) ; $($rest)* }
-        };
-
-        // Queries
-
-        ( $count:tt ; pub fn $name:ident ( & $self:ident $(, $arg:ident : $ty:ty)* ) -> $ret:ty {
-            $($body:tt)*
-        }
-
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( $($arg : $ty),* ) -> canonical_host::Query < ( $($ty),* ) , $ret > {
-                canonical_host::Query::new( ( $($arg),*) )
-            }
-
-            module! { ( $count + 1 ) ; $($rest)* }
-        };
-
-        // Static methods
-
-        ( pub fn $name:ident ( $($arg:ident : $ty:ty),* ) $( -> $ret:ty )? {
-            $($body:tt)*
-        }
-
-          $($rest:tt)*
-
-        ) => {
-            pub fn $name( $( $arg : $ty)* ) $( -> $ret)? {
-                $($body)*
-            }
-
-            module! { $count ; $($rest)* }
-        };
-
-        // Empty case, fin.
-        ( _ ; ) => ();
-    }
-}
+#[cfg(feature = "host")]
+pub use wasm::Signal;
