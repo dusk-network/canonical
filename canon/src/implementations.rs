@@ -259,7 +259,7 @@ macro_rules! array {
             }
 
             fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-                let mut array = arrayvec::ArrayVec::new();
+                let mut array = arrayvec::ArrayVec::<[T; $n]>::new();
 
                 for _ in 0..$n {
                     array.push(T::read(source)?);
@@ -282,7 +282,6 @@ macro_rules! array {
     };
 }
 
-array!(0);
 array!(1);
 array!(2);
 array!(3);
@@ -315,6 +314,7 @@ array!(29);
 array!(30);
 array!(31);
 array!(32);
+array!(33);
 
 #[cfg(feature = "host")]
 mod std_impls {

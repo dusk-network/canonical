@@ -18,10 +18,8 @@ mod implementations;
 mod repr;
 mod store;
 
-#[cfg(not(feature = "host"))]
 mod bridge;
 
-#[cfg(not(feature = "host"))]
 pub use bridge::BridgeStore;
 
 pub use canon::{Canon, InvalidEncoding};
