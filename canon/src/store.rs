@@ -30,6 +30,13 @@ pub trait Ident:
 {
     /// Takes bytes to produce an identifier
     type Builder: IdBuilder<Self>;
+
+    /// Creates an identifier from a byte slice
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let mut builder = Self::Builder::default();
+        builder.write_bytes(bytes);
+        builder.fin()
+    }
 }
 
 /// Trait to implement writing bytes to an underlying storage

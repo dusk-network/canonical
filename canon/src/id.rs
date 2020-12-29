@@ -6,13 +6,32 @@
 
 use blake2b_simd::{Params, State as Blake2bState};
 
-use crate::{IdBuilder, Ident};
+use crate::{Canon, IdBuilder, Ident, Sink, Source, Store};
 
 /// A 32 byte Identifier based on the Blake2b hash algorithm
-#[derive(Hash, PartialEq, Eq, Copy, Default, Clone, Debug)]
+#[derive(Hash, PartialEq, Eq, Copy, Default, Clone, Debug, PartialOrd, Ord)]
 pub struct Id32([u8; 32]);
 
 pub struct Id32Builder(Blake2bState);
+
+impl<S> Canon<S> for Id32
+where
+    S: Store,
+{
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        sink.copy_bytes(&self.0[..]);
+        Ok(())
+    }
+    /// Read the value from bytes in a `Source`
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(source.read_bytes(32));
+        Ok(Id32(bytes))
+    }
+    fn encoded_len(&self) -> usize {
+        32
+    }
+}
 
 impl Default for Id32Builder {
     fn default() -> Self {
