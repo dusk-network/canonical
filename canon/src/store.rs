@@ -26,6 +26,7 @@ pub trait Ident:
     + Eq
     + Copy
     + Hash
+    + Ord
     + core::fmt::Debug
 {
     /// Takes bytes to produce an identifier
@@ -61,7 +62,7 @@ pub trait Source<S> {
 /// environment, this is generally implemented with host calls
 pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
-    type Ident: Ident;
+    type Ident: Ident + Canon<Self>;
     /// The error the store can emit
     type Error: From<InvalidEncoding> + core::fmt::Debug;
 
