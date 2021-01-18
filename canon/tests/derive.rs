@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![feature(min_const_generics)]
-
 use arbitrary::Arbitrary;
 use canonical::{Canon, Store};
 use canonical_derive::Canon;

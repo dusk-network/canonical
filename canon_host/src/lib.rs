@@ -16,8 +16,3 @@ pub use disk_store::{DiskError, DiskStore};
 
 mod remote;
 pub use remote::Remote;
-
-mod wasm;
-pub use wasm::{
-    ExternalsResolver, MemoryHolder, Query, Signal, Transaction, Wasm,
-};

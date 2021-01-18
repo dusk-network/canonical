@@ -63,7 +63,7 @@ pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: From<InvalidEncoding> + core::fmt::Debug;
+    type Error: From<InvalidEncoding> + core::fmt::Debug + Send + Sync;
 
     /// Write bytes associated with `Ident`
     fn fetch(
@@ -112,6 +112,15 @@ pub struct ByteSink<'a, S: Store> {
     offset: usize,
     store: S,
     builder: <S::Ident as Ident>::Builder,
+}
+
+impl<'a, S> core::fmt::Debug for ByteSink<'a, S>
+where
+    S: Store,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "Sink {:?}", &self.bytes[..32])
+    }
 }
 
 impl<'a, S> ByteSink<'a, S>
