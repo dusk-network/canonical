@@ -106,7 +106,7 @@ impl Store for MemStore {
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
 
-        let mut sink = ByteSink::new(&mut bytes, self.clone());
+        let mut sink = ByteSink::new(&mut bytes, self);
         Canon::<Self>::write(t, &mut sink)?;
         let ident = sink.fin();
 

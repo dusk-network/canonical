@@ -2,7 +2,7 @@
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 name = "canonical_host"
-version = "0.4.4"
+version = "0.5.0"
 readme = "README.md"
 repository = "https://github.com/dusk-network/canonical/canon_host"
 keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
@@ -12,7 +12,7 @@ license = "MPL-2.0"
 [dependencies]
 lazy_static = "1.4"
 parking_lot = "0.11"
-canonical = { path = "../canon", features = ["host"], version = "0.4" }
-canonical_derive = { path = "../canon_derive", version = "0.4" }
+canonical = { path = "../canon", features = ["host"], version = "0.5" }
+canonical_derive = { path = "../canon_derive", version = "0.5" }
 appendix = { version = "0.2" }
 tempfile = "3.1"

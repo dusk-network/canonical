@@ -175,7 +175,7 @@ where
 
                 // can we inline the value?
                 if len <= buffer.as_ref().len() {
-                    let mut sink = ByteSink::new(buffer.as_mut(), store.clone());
+                    let mut sink = ByteSink::new(buffer.as_mut(), &store);
                     t.write(&mut sink)
                         .expect("Pre-checked buffer of sufficient length");
 
@@ -205,8 +205,8 @@ where
             Repr::Inline {
                 bytes: ident_bytes, ..
             } => {
-                let mut source =
-                    ByteSource::new(ident_bytes.as_ref(), S::default());
+                let store = S::default();
+                let mut source = ByteSource::new(ident_bytes.as_ref(), &store);
                 Canon::<S>::read(&mut source)
             }
         }
@@ -222,7 +222,8 @@ where
                 Ok(Val::Owned(t))
             }
             Repr::Inline { bytes, .. } => {
-                let mut source = ByteSource::new(bytes.as_ref(), S::default());
+                let store = S::default();
+                let mut source = ByteSource::new(bytes.as_ref(), &store);
                 let t = Canon::<S>::read(&mut source)?;
                 Ok(Val::Owned(t))
             }
@@ -249,7 +250,8 @@ where
                 })
             }
             Repr::Inline { bytes, .. } => {
-                let mut source = ByteSource::new(bytes.as_ref(), S::default());
+                let store = S::default();
+                let mut source = ByteSource::new(bytes.as_ref(), &store);
                 let t = Canon::<S>::read(&mut source)?;
                 Ok(ValMut::Owned {
                     value: Some(t),
@@ -269,7 +271,8 @@ where
             }),
             Repr::Ident { ident, store } => store.get(&ident),
             Repr::Inline { bytes, .. } => {
-                let mut source = ByteSource::new(bytes.as_ref(), S::default());
+                let store = S::default();
+                let mut source = ByteSource::new(bytes.as_ref(), &store);
                 let t = Canon::<S>::read(&mut source)?;
                 Ok(t)
             }

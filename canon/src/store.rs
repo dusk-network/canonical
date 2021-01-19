@@ -110,7 +110,7 @@ where
 pub struct ByteSink<'a, S: Store> {
     bytes: &'a mut [u8],
     offset: usize,
-    store: S,
+    store: &'a S,
     builder: <S::Ident as Ident>::Builder,
 }
 
@@ -128,7 +128,7 @@ where
     S: Store,
 {
     /// Creates a new sink reading from bytes
-    pub fn new(bytes: &'a mut [u8], store: S) -> Self {
+    pub fn new(bytes: &'a mut [u8], store: &'a S) -> Self {
         ByteSink {
             bytes,
             store,
@@ -162,12 +162,12 @@ where
 pub struct ByteSource<'a, S> {
     bytes: &'a [u8],
     offset: usize,
-    store: S,
+    store: &'a S,
 }
 
 impl<'a, S> ByteSource<'a, S> {
     /// Creates a new sink reading from bytes
-    pub fn new(bytes: &'a [u8], store: S) -> Self {
+    pub fn new(bytes: &'a [u8], store: &'a S) -> Self {
         ByteSource {
             bytes,
             store,
