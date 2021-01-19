@@ -63,7 +63,7 @@ pub trait Store: 'static + Clone + Default {
     /// The identifier used for allocations
     type Ident: Ident;
     /// The error the store can emit
-    type Error: From<InvalidEncoding> + core::fmt::Debug;
+    type Error: From<InvalidEncoding> + core::fmt::Debug + Send + Sync;
 
     /// Write bytes associated with `Ident`
     fn fetch(
@@ -110,8 +110,17 @@ where
 pub struct ByteSink<'a, S: Store> {
     bytes: &'a mut [u8],
     offset: usize,
-    store: S,
+    store: &'a S,
     builder: <S::Ident as Ident>::Builder,
+}
+
+impl<'a, S> core::fmt::Debug for ByteSink<'a, S>
+where
+    S: Store,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "Sink {:?}", &self.bytes[..32])
+    }
 }
 
 impl<'a, S> ByteSink<'a, S>
@@ -119,7 +128,7 @@ where
     S: Store,
 {
     /// Creates a new sink reading from bytes
-    pub fn new(bytes: &'a mut [u8], store: S) -> Self {
+    pub fn new(bytes: &'a mut [u8], store: &'a S) -> Self {
         ByteSink {
             bytes,
             store,
@@ -153,12 +162,12 @@ where
 pub struct ByteSource<'a, S> {
     bytes: &'a [u8],
     offset: usize,
-    store: S,
+    store: &'a S,
 }
 
 impl<'a, S> ByteSource<'a, S> {
     /// Creates a new sink reading from bytes
-    pub fn new(bytes: &'a [u8], store: S) -> Self {
+    pub fn new(bytes: &'a [u8], store: &'a S) -> Self {
         ByteSource {
             bytes,
             store,

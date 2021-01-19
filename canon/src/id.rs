@@ -9,7 +9,7 @@ use blake2b_simd::{Params, State as Blake2bState};
 use crate::{Canon, IdBuilder, Ident, Sink, Source, Store};
 
 /// A 32 byte Identifier based on the Blake2b hash algorithm
-#[derive(Hash, PartialEq, Eq, Copy, Default, Clone, Debug, PartialOrd, Ord)]
+#[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct Id32([u8; 32]);
 
 pub struct Id32Builder(Blake2bState);

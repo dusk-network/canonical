@@ -16,8 +16,6 @@ use canonical::{
 };
 use canonical_derive::Canon;
 
-use crate::wasm::Signal;
-
 use std::fs::{create_dir, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
@@ -103,16 +101,8 @@ pub enum DiskError {
     MissingValue,
     /// Invalid data
     InvalidEncoding,
-    /// Signal thrown by module
-    Signal(Signal),
     /// Generic IO Error, TODO: improve
     Io,
-}
-
-impl From<wasmi::Error> for DiskError {
-    fn from(err: wasmi::Error) -> DiskError {
-        DiskError::Signal(err.into())
-    }
 }
 
 impl From<io::Error> for DiskError {
@@ -126,23 +116,14 @@ impl fmt::Display for DiskError {
         match self {
             Self::MissingValue => write!(f, "Missing Value"),
             Self::InvalidEncoding => write!(f, "InvalidEncoding"),
-            Self::Signal(msg) => write!(f, "{}", msg),
             Self::Io => write!(f, "Generic IO Error"),
         }
     }
 }
 
-impl wasmi::HostError for DiskError {}
-
 impl From<InvalidEncoding> for DiskError {
     fn from(_: InvalidEncoding) -> Self {
         DiskError::InvalidEncoding
-    }
-}
-
-impl From<Signal> for DiskError {
-    fn from(signal: Signal) -> Self {
-        DiskError::Signal(signal)
     }
 }
 
@@ -191,7 +172,7 @@ impl Store for DiskStore {
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
 
-        let mut sink = ByteSink::new(&mut bytes, self.clone());
+        let mut sink = ByteSink::new(&mut bytes, self);
         Canon::<Self>::write(t, &mut sink)?;
         let ident = sink.fin();
 
