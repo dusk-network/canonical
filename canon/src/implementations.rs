@@ -316,9 +316,13 @@ array!(31);
 array!(32);
 array!(33);
 
-#[cfg(feature = "host")]
-mod std_impls {
+mod alloc_impls {
     use super::*;
+
+    extern crate alloc;
+
+    use alloc::string::String;
+    use alloc::vec::Vec;
 
     impl<S: Store, T: Canon<S>> Canon<S> for Vec<T> {
         fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
@@ -331,7 +335,7 @@ mod std_impls {
         }
 
         fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-            let mut vec = vec![];
+            let mut vec = Vec::new();
             let len = u64::read(source)?;
             for _ in 0..len {
                 vec.push(T::read(source)?);
