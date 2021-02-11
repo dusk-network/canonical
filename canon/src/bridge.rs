@@ -115,6 +115,8 @@ where
 
 #[link(wasm_import_module = "canon")]
 extern "C" {
+    #[no_mangle]
     pub fn put(buf: &mut u8, len: usize, ret: &mut u8);
+    #[no_mangle]
     pub fn get(buf: &mut u8);
 }
