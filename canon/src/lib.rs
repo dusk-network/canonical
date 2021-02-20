@@ -11,7 +11,6 @@
 
 mod canon;
 mod debug;
-mod dry_sink;
 mod id;
 mod implementations;
 mod repr;
@@ -19,11 +18,8 @@ mod store;
 
 mod bridge;
 
-pub use bridge::BridgeStore;
-
-pub use canon::{Canon, InvalidEncoding};
+pub use canon::{Canon, CanonError};
 pub use debug::{DebugMsg, _debug};
-pub use dry_sink::DrySink;
-pub use id::Id32;
+pub use id::{Id, IdBuilder};
 pub use repr::{Repr, Val, ValMut};
-pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
+pub use store::{Sink, Source, Store};

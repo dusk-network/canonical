@@ -6,63 +6,59 @@
 
 use blake2b_simd::{Params, State as Blake2bState};
 
-use crate::{Canon, IdBuilder, Ident, Sink, Source, Store};
+use crate::{Canon, CanonError, Sink, Source};
 
 /// A 32 byte Identifier based on the Blake2b hash algorithm
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
-pub struct Id32([u8; 32]);
+pub struct Id([u8; 32]);
 
-pub struct Id32Builder(Blake2bState);
+/// Builder for Ids
+pub struct IdBuilder(Blake2bState);
 
-impl<S> Canon<S> for Id32
-where
-    S: Store,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        sink.copy_bytes(&self.0[..]);
-        Ok(())
+impl Canon for Id {
+    fn write(&self, sink: &mut Sink) {
+        sink.copy_bytes(&self.0[..])
     }
-    /// Read the value from bytes in a `Source`
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+
+    fn read(source: &mut Source) -> Result<Self, CanonError> {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(source.read_bytes(32));
-        Ok(Id32(bytes))
+        Ok(Id(bytes))
     }
+
     fn encoded_len(&self) -> usize {
         32
     }
 }
 
-impl Default for Id32Builder {
-    fn default() -> Self {
-        Id32Builder(Params::new().hash_length(32).to_state())
+impl Id {
+    pub(crate) fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
     }
 }
 
-impl IdBuilder<Id32> for Id32Builder {
-    fn write_bytes(&mut self, bytes: &[u8]) {
+impl Default for IdBuilder {
+    fn default() -> Self {
+        IdBuilder(Params::new().hash_length(32).to_state())
+    }
+}
+
+impl IdBuilder {
+    /// Write bytes into the Id hasher
+    pub fn write_bytes(&mut self, bytes: &[u8]) {
         self.0.update(bytes);
     }
 
-    fn fin(mut self) -> Id32 {
+    /// Build the Id from the accumulated bytes
+    pub fn fin(mut self) -> Id {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(self.0.finalize().as_ref());
-        Id32(bytes)
+        Id(bytes)
     }
 }
 
-impl Ident for Id32 {
-    type Builder = Id32Builder;
-}
-
-impl AsRef<[u8]> for Id32 {
+impl AsRef<[u8]> for Id {
     fn as_ref(&self) -> &[u8] {
         &self.0
-    }
-}
-
-impl AsMut<[u8]> for Id32 {
-    fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
     }
 }

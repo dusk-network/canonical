@@ -8,7 +8,6 @@
 
 #[cfg(feature = "host")]
 use core::cell::RefCell;
-use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
 #[cfg(feature = "host")]
@@ -18,7 +17,7 @@ use std::rc::Rc;
 use arbitrary::{self, Arbitrary};
 use cfg_if::cfg_if;
 
-use crate::{ByteSource, Canon, Sink, Source, Store};
+use crate::{Canon, CanonError, Id, Sink, Source, Store};
 
 #[cfg(not(feature = "host"))]
 use crate::ByteSink;
@@ -26,93 +25,78 @@ use crate::ByteSink;
 const IDENT_TAG: u8 = 0xff;
 
 #[derive(Clone, Debug)]
-/// A Repr to a value that is either local or in storage
-pub enum Repr<T, S: Store> {
+/// A Repr to a value that is either local or in storage behind an identifier
+pub enum Repr<T> {
     /// Value is kept reference counted locally
     #[cfg(feature = "host")]
     Value {
         /// The reference counted value on the heap
         rc: Rc<T>,
         /// The cached identifier of the value, if any
-        cached_ident: RefCell<Option<Box<S::Ident>>>,
+        cached_ident: RefCell<Option<Box<Id>>>,
     },
 
     /// Value is stored inline as bytes
     Inline {
-        /// Thy bytes of the ident is used for the encoded value
-        bytes: S::Ident,
         /// The length of the encoded value
         len: u8,
-        /// Type of the represented type
-        _marker: PhantomData<T>,
+        /// The byets of the ident is used for the encoded value
+        bytes: Id,
     },
 
     /// Value is represented by it's Identifier
     Ident {
         /// The value identifier
-        ident: S::Ident,
-        /// The store where to request the value
-        store: S,
+        ident: Id,
     },
 }
 
-impl<T, S> Canon<S> for Repr<T, S>
+impl<T> Canon for Repr<T>
 where
-    S: Store,
-    T: Canon<S>,
+    T: Canon,
 {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+    fn write(&self, sink: &mut Sink) {
         match self {
             #[cfg(feature = "host")]
             Repr::Value { rc, cached_ident } => {
                 let len = (**rc).encoded_len();
-                let ident_len = S::Ident::default().as_ref().len();
-
-                debug_assert!(
-                    ident_len <= 255,
-                    "Identifier lengths > 255 is not supported at the moment"
-                );
+                let ident_len = core::mem::size_of::<Id>();
+                debug_assert!(ident_len == 32);
 
                 if len <= ident_len {
                     // inline value
-                    Canon::<S>::write(&(len as u8), sink)?;
-                    Canon::<S>::write(&**rc, sink)?;
+                    Canon::write(&(len as u8), sink);
+                    Canon::write(&**rc, sink);
                 } else {
-                    Canon::<S>::write(&IDENT_TAG, sink)?;
-                    let ident = sink.recur(&**rc)?;
+                    Canon::write(&IDENT_TAG, sink);
+                    let ident = sink.recur(&**rc);
                     *cached_ident.borrow_mut() = Some(Box::new(ident));
                     sink.copy_bytes(&ident.as_ref());
                 }
             }
 
             Repr::Ident { ref ident, .. } => {
-                Canon::<S>::write(&IDENT_TAG, sink)?;
+                Canon::write(&IDENT_TAG, sink);
                 sink.copy_bytes(&ident.as_ref());
             }
 
-            Repr::Inline {
-                ref bytes, ref len, ..
-            } => {
-                Canon::<S>::write(&*len, sink)?;
+            Repr::Inline { ref bytes, ref len } => {
+                Canon::write(&*len, sink);
                 sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
             }
         }
-        Ok(())
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+    fn read(source: &mut Source) -> Result<Self, CanonError> {
         let len = u8::read(source)?;
 
         if len == IDENT_TAG {
             // ident tag, not a valid length
-            let mut ident = S::Ident::default();
+            let mut ident = Id::default();
             let slice = ident.as_mut();
             let bytes = source.read_bytes(slice.len());
             slice.copy_from_slice(bytes);
-            Ok(Repr::Ident {
-                ident,
-                store: source.store().clone(),
-            })
+            Ok(Repr::Ident { ident })
         } else {
             cfg_if! {
                 if #[cfg(feature = "host")] {
@@ -135,7 +119,8 @@ where
     }
 
     fn encoded_len(&self) -> usize {
-        let ident_len = S::Ident::default().as_ref().len();
+        let ident_len = core::mem::size_of::<Id>();
+        debug_assert!(ident_len == 32);
 
         match &self {
             #[cfg(feature = "host")]
@@ -153,10 +138,9 @@ where
     }
 }
 
-impl<T, S> Repr<T, S>
+impl<T> Repr<T>
 where
-    S: Store,
-    T: Canon<S> + Clone,
+    T: Canon + Clone,
 {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Self {
@@ -197,41 +181,39 @@ where
     }
 
     /// Returns the value behind the `Repr`
-    pub fn restore(&self) -> Result<T, S::Error> {
+    pub fn restore(&self) -> Result<T, CanonError> {
         match &self {
             #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok((**rc).clone()),
-            Repr::Ident { ident, store } => store.get(ident),
+            Repr::Ident { ident } => Store::get(ident),
             Repr::Inline {
                 bytes: ident_bytes, ..
             } => {
-                let store = S::default();
-                let mut source = ByteSource::new(ident_bytes.as_ref(), &store);
-                Canon::<S>::read(&mut source)
+                let mut source = Source::new(ident_bytes.as_ref());
+                Canon::read(&mut source)
             }
         }
     }
 
     /// Retrieve the value behind this representation
-    pub fn val(&self) -> Result<Val<T>, S::Error> {
+    pub fn val(&self) -> Result<Val<T>, CanonError> {
         match self {
             #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok(Val::Borrowed(&*rc)),
-            Repr::Ident { ident, store } => {
-                let t = store.get(ident)?;
+            Repr::Ident { ident } => {
+                let t = Store::get(ident)?;
                 Ok(Val::Owned(t))
             }
             Repr::Inline { bytes, .. } => {
-                let store = S::default();
-                let mut source = ByteSource::new(bytes.as_ref(), &store);
-                let t = Canon::<S>::read(&mut source)?;
+                let mut source = Source::new(bytes.as_ref());
+                let t = Canon::read(&mut source)?;
                 Ok(Val::Owned(t))
             }
         }
     }
 
     /// Retrieve a mutable value behind this representation
-    pub fn val_mut(&mut self) -> Result<ValMut<T, S>, S::Error> {
+    pub fn val_mut(&mut self) -> Result<ValMut<T>, CanonError> {
         match self {
             #[cfg(feature = "host")]
             Repr::Value {
@@ -242,17 +224,16 @@ where
                 *cached_ident = RefCell::new(None);
                 Ok(ValMut::Borrowed(Rc::make_mut(rc)))
             }
-            Repr::Ident { ident, store } => {
-                let t = store.get(ident)?;
+            Repr::Ident { ident } => {
+                let t = Store::get(ident)?;
                 Ok(ValMut::Owned {
                     value: Some(t),
                     writeback: self,
                 })
             }
             Repr::Inline { bytes, .. } => {
-                let store = S::default();
-                let mut source = ByteSource::new(bytes.as_ref(), &store);
-                let t = Canon::<S>::read(&mut source)?;
+                let mut source = Source::new(bytes.as_ref());
+                let t = Canon::read(&mut source)?;
                 Ok(ValMut::Owned {
                     value: Some(t),
                     writeback: self,
@@ -262,25 +243,24 @@ where
     }
 
     /// Unwrap or clone the contained item
-    pub fn unwrap_or_clone(self) -> Result<T, S::Error> {
+    pub fn unwrap_or_clone(self) -> Result<T, CanonError> {
         match self {
             #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok(match Rc::try_unwrap(rc) {
                 Ok(t) => t,
                 Err(rc) => (*rc).clone(),
             }),
-            Repr::Ident { ident, store } => store.get(&ident),
+            Repr::Ident { ident } => Store::get(&ident),
             Repr::Inline { bytes, .. } => {
-                let store = S::default();
-                let mut source = ByteSource::new(bytes.as_ref(), &store);
-                let t = Canon::<S>::read(&mut source)?;
+                let mut source = Source::new(bytes.as_ref());
+                let t = Canon::read(&mut source)?;
                 Ok(t)
             }
         }
     }
 
     /// Get the identifier for the `Repr`
-    pub fn get_id(&self) -> S::Ident {
+    pub fn get_id(&self) -> Id {
         match self {
             #[cfg(feature = "host")]
             Repr::Value { cached_ident, rc } => {
@@ -288,7 +268,7 @@ where
                 if let Some(ident) = &mut *ident_cell {
                     *ident.clone()
                 } else {
-                    let ident = S::ident(&**rc);
+                    let ident = Store::id(&**rc);
                     *ident_cell = Some(Box::new(ident));
                     ident
                 }
@@ -337,10 +317,9 @@ where
 }
 
 /// A mutable value derived from a Repr
-pub enum ValMut<'a, T, S>
+pub enum ValMut<'a, T>
 where
-    T: Canon<S>,
-    S: Store,
+    T: Canon,
 {
     /// An owned instance of `T`
     Owned {
@@ -348,16 +327,15 @@ where
         /// it on drop.
         value: Option<T>,
         /// Where to write back the changed value
-        writeback: &'a mut Repr<T, S>,
+        writeback: &'a mut Repr<T>,
     },
     /// A borrowed instance of `T`
     Borrowed(&'a mut T),
 }
 
-impl<'a, T, S> Deref for ValMut<'a, T, S>
+impl<'a, T> Deref for ValMut<'a, T>
 where
-    T: Canon<S>,
-    S: Store,
+    T: Canon,
 {
     type Target = T;
 
@@ -371,10 +349,9 @@ where
     }
 }
 
-impl<'a, T, S> DerefMut for ValMut<'a, T, S>
+impl<'a, T> DerefMut for ValMut<'a, T>
 where
-    T: Canon<S>,
-    S: Store,
+    T: Canon,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
@@ -386,24 +363,22 @@ where
     }
 }
 
-impl<'a, T, S> Drop for ValMut<'a, T, S>
+impl<'a, T> Drop for ValMut<'a, T>
 where
-    S: Store,
-    T: Canon<S>,
+    T: Canon,
 {
     fn drop(&mut self) {
         if let ValMut::Owned { value, writeback } = self {
             let value = value.take().expect("Always Some until drop");
-            **writeback = Repr::<T, S>::new(value);
+            **writeback = Repr::<T>::new(value);
         }
     }
 }
 
 #[cfg(feature = "host")]
-impl<T, S> Arbitrary for Repr<T, S>
+impl<T> Arbitrary for Repr<T>
 where
-    T: 'static + Canon<S> + Arbitrary,
-    S: Store,
+    T: 'static + Canon + Arbitrary,
 {
     fn arbitrary(
         u: &mut arbitrary::Unstructured<'_>,
@@ -423,16 +398,15 @@ where
                 cached_ident: RefCell::new(None),
             }),
             Kind::ValueCached => {
-                let ident = S::ident(&t);
+                let ident = Store::put(&t);
                 Ok(Repr::Value {
                     rc: Rc::new(t),
                     cached_ident: RefCell::new(Some(Box::new(ident))),
                 })
             }
             Kind::Ident => {
-                let store = S::default();
-                let ident = store.put(&t).expect("could not put t");
-                Ok(Repr::Ident { ident, store })
+                let ident = Store::put(&t);
+                Ok(Repr::Ident { ident })
             }
         }
     }
