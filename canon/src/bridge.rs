@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 use crate::canon::{Canon, InvalidEncoding};
 use crate::store::{ByteSink, ByteSource, Ident, Sink, Source, Store};
 
-// We set the buffer size to 4kib for now, subject to change.
+// We set the buffer size to 8kib for now, subject to change.
 const BUF_SIZE: usize = 1024 * 8;
 
 static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
