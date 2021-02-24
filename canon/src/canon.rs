@@ -7,6 +7,7 @@
 use crate::store::{Sink, Source};
 
 /// The possible errors when fetching/decoding values from a store
+#[derive(Debug)]
 pub enum CanonError {
     /// The byte sequence is not a valid representation of the type decoded
     InvalidEncoding,

@@ -4,51 +4,27 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// Here in feature `host` we can use std
-
-#[cfg(feature = "host")]
 use core::cell::RefCell;
 use core::ops::{Deref, DerefMut};
 
 #[cfg(feature = "host")]
-use std::rc::Rc;
-
-#[cfg(feature = "host")]
 use arbitrary::{self, Arbitrary};
-use cfg_if::cfg_if;
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
 
 use crate::{Canon, CanonError, Id, Sink, Source, Store};
 
-#[cfg(not(feature = "host"))]
-use crate::ByteSink;
-
-const IDENT_TAG: u8 = 0xff;
+const ID_BYTES_LEN: usize = 32;
 
 #[derive(Clone, Debug)]
 /// A Repr to a value that is either local or in storage behind an identifier
 pub enum Repr<T> {
     /// Value is kept reference counted locally
-    #[cfg(feature = "host")]
-    Value {
-        /// The reference counted value on the heap
-        rc: Rc<T>,
-        /// The cached identifier of the value, if any
-        cached_ident: RefCell<Option<Box<Id>>>,
-    },
+    Value { val: Rc<T>, id: RefCell<Option<Id>> },
 
-    /// Value is stored inline as bytes
-    Inline {
-        /// The length of the encoded value
-        len: u8,
-        /// The byets of the ident is used for the encoded value
-        bytes: Id,
-    },
-
-    /// Value is represented by it's Identifier
-    Ident {
-        /// The value identifier
-        ident: Id,
-    },
+    /// Value is represented by its Identifier
+    Ident(Id),
 }
 
 impl<T> Canon for Repr<T>
@@ -57,40 +33,30 @@ where
 {
     fn write(&self, sink: &mut Sink) {
         match self {
-            #[cfg(feature = "host")]
-            Repr::Value { rc, cached_ident } => {
-                let len = (**rc).encoded_len();
-                let ident_len = core::mem::size_of::<Id>();
-                debug_assert!(ident_len == 32);
+            Repr::Value { val, id } => {
+                let len = val.encoded_len();
+                (len as u16).write(sink);
 
-                if len <= ident_len {
+                if len <= ID_BYTES_LEN {
                     // inline value
-                    Canon::write(&(len as u8), sink);
-                    Canon::write(&**rc, sink);
+                    val.write(sink);
                 } else {
-                    Canon::write(&IDENT_TAG, sink);
-                    let ident = sink.recur(&**rc);
-                    *cached_ident.borrow_mut() = Some(Box::new(ident));
-                    sink.copy_bytes(&ident.as_ref());
+                    let ident = sink.recur(&**val);
+                    *id.borrow_mut() = Some(ident);
+                    ident.write(sink);
                 }
             }
 
-            Repr::Ident { ref ident, .. } => {
-                Canon::write(&IDENT_TAG, sink);
-                sink.copy_bytes(&ident.as_ref());
-            }
-
-            Repr::Inline { ref bytes, ref len } => {
-                Canon::write(&*len, sink);
-                sink.copy_bytes(&bytes.as_ref()[0..*len as usize]);
+            Repr::Ident(id) => {
+                id.write(sink);
             }
         }
     }
 
     fn read(source: &mut Source) -> Result<Self, CanonError> {
-        let len = u8::read(source)?;
+        let len = u16::read(source)?;
 
-        if len == IDENT_TAG {
+        if len >= 32 {
             // ident tag, not a valid length
             let mut ident = Id::default();
             let slice = ident.as_mut();
@@ -98,23 +64,10 @@ where
             slice.copy_from_slice(bytes);
             Ok(Repr::Ident { ident })
         } else {
-            cfg_if! {
-                if #[cfg(feature = "host")] {
-                    Ok(Repr::Value {
-                        rc: Rc::new(T::read(source)?),
-                        cached_ident: RefCell::new(None),
-                    })
-                } else {
-                    let mut bytes = <S as Store>::Ident::default();
-                    bytes.as_mut()[0..len as usize]
-                        .copy_from_slice(source.read_bytes(len as usize));
-                    Ok(Repr::Inline {
-                        bytes,
-                        len,
-                        _marker: PhantomData,
-                    })
-                }
-            }
+            Ok(Repr::Value {
+                rc: Rc::new(T::read(source)?),
+                cached_ident: RefCell::new(None),
+            })
         }
     }
 
@@ -123,90 +76,42 @@ where
         debug_assert!(ident_len == 32);
 
         match &self {
-            #[cfg(feature = "host")]
             Repr::Value { rc, .. } => {
                 // If the encoded length is larger than `ident_len`,
                 // The value will not be inlined, and saved as tag + identifier
                 1 + core::cmp::min(rc.encoded_len() as usize, ident_len)
             }
             Repr::Ident { .. } => 1 + ident_len,
-            Repr::Inline { len, .. } => {
-                // length of tag + inline value
-                1 + *len as usize
-            }
         }
     }
 }
 
 impl<T> Repr<T>
 where
-    T: Canon + Clone,
+    T: Canon,
 {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Self {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                Repr::Value {
-                    rc: Rc::new(t),
-                    cached_ident: RefCell::new(None),
-                }
-            } else {
-                // The Default store is always the same in hosted environments
-                let store = S::default();
-
-                let len = t.encoded_len();
-                let mut buffer = <S as Store>::Ident::default();
-
-                // can we inline the value?
-                if len <= buffer.as_ref().len() {
-                    let mut sink = ByteSink::new(buffer.as_mut(), &store);
-                    t.write(&mut sink)
-                        .expect("Pre-checked buffer of sufficient length");
-
-                    Repr::Inline {
-                        bytes: buffer,
-                        len: len as u8,
-                        _marker: PhantomData,
-                    }
-                } else {
-                    // Here we assume that we can put something in the host.
-                    // If this actually returns an error from the BridgeStore,
-                    // we panic and let the host deal with it.
-                    let ident = store.put(&t).expect("BridgeStore should never fail");
-                    Repr::Ident { ident, store }
-                }
-
-            }
+        Repr::Value {
+            rc: Rc::new(t),
+            cached_ident: RefCell::new(None),
         }
     }
 
     /// Returns the value behind the `Repr`
     pub fn restore(&self) -> Result<T, CanonError> {
         match &self {
-            #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok((**rc).clone()),
             Repr::Ident { ident } => Store::get(ident),
-            Repr::Inline {
-                bytes: ident_bytes, ..
-            } => {
-                let mut source = Source::new(ident_bytes.as_ref());
-                Canon::read(&mut source)
-            }
         }
     }
 
     /// Retrieve the value behind this representation
     pub fn val(&self) -> Result<Val<T>, CanonError> {
         match self {
-            #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok(Val::Borrowed(&*rc)),
             Repr::Ident { ident } => {
                 let t = Store::get(ident)?;
-                Ok(Val::Owned(t))
-            }
-            Repr::Inline { bytes, .. } => {
-                let mut source = Source::new(bytes.as_ref());
-                let t = Canon::read(&mut source)?;
                 Ok(Val::Owned(t))
             }
         }
@@ -215,7 +120,6 @@ where
     /// Retrieve a mutable value behind this representation
     pub fn val_mut(&mut self) -> Result<ValMut<T>, CanonError> {
         match self {
-            #[cfg(feature = "host")]
             Repr::Value {
                 ref mut rc,
                 ref mut cached_ident,
@@ -231,38 +135,23 @@ where
                     writeback: self,
                 })
             }
-            Repr::Inline { bytes, .. } => {
-                let mut source = Source::new(bytes.as_ref());
-                let t = Canon::read(&mut source)?;
-                Ok(ValMut::Owned {
-                    value: Some(t),
-                    writeback: self,
-                })
-            }
         }
     }
 
     /// Unwrap or clone the contained item
     pub fn unwrap_or_clone(self) -> Result<T, CanonError> {
         match self {
-            #[cfg(feature = "host")]
             Repr::Value { rc, .. } => Ok(match Rc::try_unwrap(rc) {
                 Ok(t) => t,
                 Err(rc) => (*rc).clone(),
             }),
             Repr::Ident { ident } => Store::get(&ident),
-            Repr::Inline { bytes, .. } => {
-                let mut source = Source::new(bytes.as_ref());
-                let t = Canon::read(&mut source)?;
-                Ok(t)
-            }
         }
     }
 
     /// Get the identifier for the `Repr`
     pub fn get_id(&self) -> Id {
         match self {
-            #[cfg(feature = "host")]
             Repr::Value { cached_ident, rc } => {
                 let mut ident_cell = cached_ident.borrow_mut();
                 if let Some(ident) = &mut *ident_cell {
@@ -274,9 +163,6 @@ where
                 }
             }
             Repr::Ident { ident, .. } => *ident,
-            Repr::Inline { .. } => {
-                todo!();
-            }
         }
     }
 }
@@ -311,7 +197,7 @@ where
         if let Val::Owned(ref mut t) = self {
             t
         } else {
-            unreachable!("onkel")
+            unreachable!("")
         }
     }
 }

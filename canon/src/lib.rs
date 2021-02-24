@@ -9,6 +9,8 @@
 #![feature(never_type)]
 #![deny(missing_docs)]
 
+extern crate alloc;
+
 mod canon;
 mod debug;
 mod id;
