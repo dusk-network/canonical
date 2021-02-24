@@ -4,35 +4,71 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use cfg_if::cfg_if;
+
 use crate::{Canon, CanonError, Id, IdBuilder};
+
+cfg_if! {
+    if #[cfg(feature = "host")] {
+        mod host;
+    } else {
+        mod hosted;
+    }
+}
 
 /// The singleton used to access the current store
 pub struct Store;
 
 impl Store {
+    #[allow(unused)] // FIXME?
     /// Write bytes associated with `Ident` to provided buffer
-    pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
-        todo!()
+    pub(crate) fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
+        cfg_if! {
+            if #[cfg(feature = "host")] {
+                host::HostStore::fetch(id, into)
+            } else {
+                todo!("b")
+            }
+        }
     }
 
     /// Get a value from storage, given an identifier
-    pub(crate) fn get<T: Canon>(_id: &Id) -> Result<T, CanonError> {
-        todo!()
+    pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
+        cfg_if! {
+            if #[cfg(feature = "host")] {
+                host::HostStore::get(id)
+            } else {
+                todo!("b")
+            }
+        }
     }
 
     /// Encode a value into the store
-    pub(crate) fn put<T: Canon>(_t: &T) -> Id {
-        todo!()
+    pub fn put<T: Canon>(t: &T) -> Id {
+        cfg_if! {
+            if #[cfg(feature = "host")] {
+                host::HostStore::put(t)
+            } else {
+                todo!("b")
+            }
+        }
     }
 
+    #[allow(unused)] // FIXME?
     /// Put raw bytes in store
     pub(crate) fn put_raw(_bytes: &[u8]) -> Id {
         todo!()
     }
 
     /// Get the id of a type, without storing it
-    pub(crate) fn id<T: Canon>(_t: &T) -> Id {
-        todo!()
+    pub fn id<T: Canon>(t: &T) -> Id {
+        cfg_if! {
+            if #[cfg(feature = "host")] {
+                host::HostStore::id(t)
+            } else {
+                todo!("b")
+            }
+        }
     }
 }
 
@@ -45,7 +81,8 @@ pub struct Sink<'a> {
 
 impl<'a> Sink<'a> {
     /// Creates a new sink reading from bytes
-    pub(crate) fn new(bytes: &'a mut [u8]) -> Self {
+    #[allow(unused)] // FIXME
+    pub fn new(bytes: &'a mut [u8]) -> Self {
         Sink {
             bytes,
             offset: 0,
@@ -65,7 +102,9 @@ impl<'a> Sink<'a> {
         Store::put(t)
     }
 
-    pub(crate) fn fin(self) -> Id {
+    /// Finish up the sink and return the Id of the written data
+    #[allow(unused)] // FIXME
+    pub fn fin(self) -> Id {
         self.builder.fin()
     }
 }
@@ -77,8 +116,8 @@ pub struct Source<'a> {
 }
 
 impl<'a> Source<'a> {
-    /// Creates a new sink reading from bytes
-    pub(crate) fn new(bytes: &'a [u8]) -> Self {
+    /// Creates a new source reading from bytes
+    pub fn new(bytes: &'a [u8]) -> Self {
         Source { bytes, offset: 0 }
     }
 

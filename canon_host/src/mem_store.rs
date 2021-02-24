@@ -5,74 +5,22 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use canonical::{
-    ByteSink, Canon, DrySink, Id32, InvalidEncoding, Sink, Source, Store,
-};
-use canonical_derive::Canon;
+use canonical::{Canon, CanonError, Id, IdBuilder, Sink, Source};
 
 #[derive(Default, Debug)]
-struct MemStoreInner(HashMap<Id32, Vec<u8>>);
+struct MemStoreInner(HashMap<Id, Vec<u8>>);
 
 /// An in-memory store implemented with a hashmap
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct MemStore(Arc<RwLock<MemStoreInner>>);
 
 impl MemStore {
-    /// Create a new MemStore
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-struct MemSink<S> {
-    bytes: Vec<u8>,
-    store: S,
-}
-
-struct MemSource<'a, S> {
-    bytes: &'a [u8],
-    offset: usize,
-    store: S,
-}
-
-#[derive(Canon, Debug, Clone, PartialEq)]
-/// Errors that can happen using the MemStore.
-pub enum MemError {
-    /// Value missing in the store
-    MissingValue,
-    /// Invalid data
-    InvalidEncoding,
-}
-
-impl fmt::Display for MemError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::MissingValue => write!(f, "Missing Value"),
-            Self::InvalidEncoding => write!(f, "InvalidEncoding"),
-        }
-    }
-}
-
-impl From<InvalidEncoding> for MemError {
-    fn from(_: InvalidEncoding) -> Self {
-        MemError::InvalidEncoding
-    }
-}
-
-impl Store for MemStore {
-    type Ident = Id32;
-    type Error = MemError;
-
-    fn fetch(
-        &self,
-        id: &Self::Ident,
-        into: &mut [u8],
-    ) -> Result<(), Self::Error> {
+    #[allow(unused)] // FIXME
+    fn fetch(&self, id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         self.0
             .read()
             .0
@@ -82,74 +30,42 @@ impl Store for MemStore {
                 into[0..len].copy_from_slice(&bytes[..]);
                 Ok(())
             })
-            .unwrap_or(Err(MemError::MissingValue))
+            .unwrap_or(Err(CanonError::NotFound))
     }
 
-    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
+    #[allow(unused)] // FIXME
+    fn get<T: Canon>(&self, id: &Id) -> Result<T, CanonError> {
         self.0
             .read()
             .0
             .get(id)
             .map(|bytes| {
-                let mut source = MemSource {
-                    bytes,
-                    offset: 0,
-                    store: self.clone(),
-                };
+                let mut source = Source::new(bytes);
                 T::read(&mut source)
             })
-            .unwrap_or_else(|| Err(MemError::MissingValue))
+            .unwrap_or_else(|| Err(CanonError::NotFound))
     }
 
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
+    #[allow(unused)] // FIXME
+    fn put<T: Canon>(&self, t: &T) -> Result<Id, CanonError> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
         bytes.resize_with(len, || 0);
 
-        let mut sink = ByteSink::new(&mut bytes, self);
-        Canon::<Self>::write(t, &mut sink)?;
+        let mut sink = Sink::new(&mut bytes);
+        Canon::write(t, &mut sink);
         let ident = sink.fin();
 
         self.0.write().0.insert(ident, bytes);
         Ok(ident)
     }
 
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
-        let mut sink = DrySink::<Self>::new();
-        sink.copy_bytes(bytes);
-        let ident = sink.fin();
+    #[allow(unused)] // FIXME
+    fn put_raw(&self, bytes: &[u8]) -> Result<Id, CanonError> {
+        let mut builder = IdBuilder::new();
+        builder.write_bytes(bytes);
+        let ident = builder.fin();
         self.0.write().0.insert(ident, bytes.to_vec());
         Ok(ident)
-    }
-}
-
-impl<S: Store> Sink<S> for MemSink<S> {
-    fn copy_bytes(&mut self, bytes: &[u8]) {
-        let ofs = self.bytes.len();
-        self.bytes.resize_with(ofs + bytes.len(), || 0);
-        self.bytes[ofs..].clone_from_slice(bytes)
-    }
-
-    fn recur<T: Canon<S>>(&self, t: &T) -> Result<S::Ident, S::Error> {
-        self.store.put(t)
-    }
-
-    fn fin(self) -> S::Ident {
-        todo!("this is unreasonable")
-    }
-}
-
-impl<'a, S> Source<S> for MemSource<'a, S>
-where
-    S: Store,
-{
-    fn read_bytes(&mut self, n: usize) -> &[u8] {
-        let ofs = self.offset;
-        self.offset += n;
-        &self.bytes[ofs..self.offset]
-    }
-
-    fn store(&self) -> &S {
-        &self.store
     }
 }

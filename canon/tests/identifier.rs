@@ -5,17 +5,14 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use canonical::Store;
-use canonical_host::MemStore;
 
 #[test]
 fn identifier_u64() {
     let a: u64 = 328;
 
-    let id_a = <MemStore as Store>::ident(&a);
+    let id_a = Store::id(&a);
 
-    let store = MemStore::new();
-
-    let id_b = store.put(&a).unwrap();
+    let id_b = Store::put(&a);
 
     assert!(id_a == id_b);
 }

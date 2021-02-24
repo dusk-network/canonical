@@ -11,18 +11,21 @@ use crate::store::{Sink, Source};
 // We set the buffer size to 32kib for now, subject to change.
 const BUF_SIZE: usize = 1024 * 32;
 
+#[allow(unused)] // FIXME
 static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
 /// Store usable across ffi-boundraries
 #[derive(Clone, Copy, Default, Debug)]
-pub struct BridgeStore;
+struct BridgeStore;
 
 impl BridgeStore {
     /// Create a new bridge store
+    #[allow(unused)] // FIXME
     pub fn new() -> Self {
         BridgeStore
     }
 
+    #[allow(unused)] // FIXME
     fn fetch(&self, id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         unsafe {
             let slice = id.as_ref();
@@ -34,6 +37,7 @@ impl BridgeStore {
         }
     }
 
+    #[allow(unused)] // FIXME
     fn get<T: Canon>(&self, id: &Id) -> Result<T, CanonError> {
         unsafe {
             let slice = id.as_ref();
@@ -46,6 +50,7 @@ impl BridgeStore {
         }
     }
 
+    #[allow(unused)] // FIXME
     fn put<T: Canon>(&self, t: &T) -> Result<Id, CanonError> {
         unsafe {
             let len = t.encoded_len();
@@ -57,6 +62,7 @@ impl BridgeStore {
         }
     }
 
+    #[allow(unused)] // FIXME
     fn put_raw(&self, bytes: &[u8]) -> Result<Id, CanonError> {
         unsafe {
             let mut id = Id::default();

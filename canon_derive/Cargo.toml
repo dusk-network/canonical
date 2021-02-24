@@ -14,6 +14,11 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0" }
 canonical = "0.5"
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+arbitrary = { version = "0.3", features = ["derive"] }
+canonical_fuzz = { path = "../canon_fuzz", version = "0.5" }
 
 [lib]
 proc-macro = true

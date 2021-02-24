@@ -10,55 +10,69 @@ use crate::{Canon, CanonError, Sink, Source};
 
 /// A 32 byte Identifier based on the Blake2b hash algorithm
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
-pub struct Id([u8; 32]);
+pub struct Id {
+    bytes: [u8; 32],
+    len: u16,
+}
+
+impl Id {
+    fn len(&self) -> usize {
+        self.len as usize
+    }
+}
 
 /// Builder for Ids
-pub struct IdBuilder(Blake2bState);
+pub struct IdBuilder {
+    state: Blake2bState,
+    len: u16,
+}
 
 impl Canon for Id {
     fn write(&self, sink: &mut Sink) {
-        sink.copy_bytes(&self.0[..])
+        sink.copy_bytes(&self.bytes[..]);
+        self.len.write(sink);
     }
 
     fn read(source: &mut Source) -> Result<Self, CanonError> {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(source.read_bytes(32));
-        Ok(Id(bytes))
+        let len = u16::read(source)?;
+        Ok(Id { bytes, len })
     }
 
     fn encoded_len(&self) -> usize {
-        32
-    }
-}
-
-impl Id {
-    pub(crate) fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
+        34
     }
 }
 
 impl Default for IdBuilder {
     fn default() -> Self {
-        IdBuilder(Params::new().hash_length(32).to_state())
+        IdBuilder {
+            state: Params::new().hash_length(32).to_state(),
+            len: 0,
+        }
     }
 }
 
 impl IdBuilder {
+    /// Create an IdBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Write bytes into the Id hasher
     pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.0.update(bytes);
+        self.state.update(bytes);
+        self.len += bytes.len() as u16;
     }
 
     /// Build the Id from the accumulated bytes
     pub fn fin(mut self) -> Id {
         let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(self.0.finalize().as_ref());
-        Id(bytes)
-    }
-}
-
-impl AsRef<[u8]> for Id {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
+        bytes.copy_from_slice(self.state.finalize().as_ref());
+        Id {
+            bytes,
+            len: self.len,
+        }
     }
 }

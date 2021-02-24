@@ -7,15 +7,13 @@
 #![allow(clippy::unit_cmp)]
 
 use canonical::{Repr, Store};
-use canonical_host::MemStore;
 
 #[test]
 fn zero_sized_reprs() {
-    let store = MemStore::new();
     let repr = Repr::new(());
 
-    let id = store.put(&repr).unwrap();
+    let id = Store::put(&repr);
 
-    let restored = store.get(&id).unwrap();
+    let restored = Store::get(&id).unwrap();
     assert_eq!((), restored);
 }

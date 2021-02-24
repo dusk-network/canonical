@@ -17,8 +17,6 @@ mod passthrough {
 
             use canonical::Canon as _;
 
-            type BS = canonical::BridgeStore<canonical::Id32>;
-
             fn query(bytes: &mut [u8; 1024 * 64]) -> Result<(), <BS as canonical::Store>::Error> {
                 let store = BS::default();
                 let mut source = canonical::ByteSource::new(&bytes[..], store.clone());
