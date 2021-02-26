@@ -5,83 +5,67 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use core::cell::RefCell;
+use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
-#[cfg(feature = "host")]
-use arbitrary::{self, Arbitrary};
-
-use alloc::boxed::Box;
 use alloc::rc::Rc;
 
-use crate::{Canon, CanonError, Id, Sink, Source, Store};
+use crate::{Canon, CanonError, Id, Sink, Source};
 
-const ID_BYTES_LEN: usize = 32;
+#[derive(Clone, Debug)]
+enum ReprInner<T> {
+    Id(Id),
+    #[allow(unused)] // FIXME
+    IdValue(Id, Rc<T>),
+    Value(Rc<T>),
+    // Used for moving ReprInner out of the RefCell
+    Placeholder,
+}
 
 #[derive(Clone, Debug)]
 /// A Repr to a value that is either local or in storage behind an identifier
-pub enum Repr<T> {
-    /// Value is kept reference counted locally
-    Value { val: Rc<T>, id: RefCell<Option<Id>> },
-
-    /// Value is represented by its Identifier
-    Ident(Id),
-}
+pub struct Repr<T>(RefCell<ReprInner<T>>);
 
 impl<T> Canon for Repr<T>
 where
     T: Canon,
 {
     fn write(&self, sink: &mut Sink) {
-        match self {
-            Repr::Value { val, id } => {
-                let len = val.encoded_len();
-                (len as u16).write(sink);
-
-                if len <= ID_BYTES_LEN {
-                    // inline value
-                    val.write(sink);
-                } else {
-                    let ident = sink.recur(&**val);
-                    *id.borrow_mut() = Some(ident);
-                    ident.write(sink);
-                }
+        let new_id = match &*self.0.borrow() {
+            ReprInner::Id(id) | ReprInner::IdValue(id, _) => {
+                return id.write(sink)
             }
+            ReprInner::Value(rc) => sink.recur(&**rc),
+            ReprInner::Placeholder => unreachable!(),
+        };
 
-            Repr::Ident(id) => {
-                id.write(sink);
-            }
+        let mut borrow_mut = self.0.borrow_mut();
+        if let ReprInner::Value(rc) =
+            core::mem::replace(&mut *borrow_mut, ReprInner::Placeholder)
+        {
+            *borrow_mut = ReprInner::IdValue(new_id, rc)
+        } else {
+            unreachable!()
         }
     }
 
     fn read(source: &mut Source) -> Result<Self, CanonError> {
-        let len = u16::read(source)?;
-
-        if len >= 32 {
-            // ident tag, not a valid length
-            let mut ident = Id::default();
-            let slice = ident.as_mut();
-            let bytes = source.read_bytes(slice.len());
-            slice.copy_from_slice(bytes);
-            Ok(Repr::Ident { ident })
-        } else {
-            Ok(Repr::Value {
-                rc: Rc::new(T::read(source)?),
-                cached_ident: RefCell::new(None),
-            })
-        }
+        Ok(Repr(RefCell::new(ReprInner::Id(Id::read(source)?))))
     }
 
     fn encoded_len(&self) -> usize {
-        let ident_len = core::mem::size_of::<Id>();
-        debug_assert!(ident_len == 32);
-
-        match &self {
-            Repr::Value { rc, .. } => {
-                // If the encoded length is larger than `ident_len`,
-                // The value will not be inlined, and saved as tag + identifier
-                1 + core::cmp::min(rc.encoded_len() as usize, ident_len)
+        // The Repr always has the same length as the Id representing the value
+        match &*self.0.borrow() {
+            ReprInner::Id(id) | ReprInner::IdValue(id, _) => id.encoded_len(),
+            ReprInner::Value(rc) => {
+                let enc_len = (*rc).encoded_len();
+                if enc_len <= 32 {
+                    2 + enc_len
+                } else {
+                    34
+                }
             }
-            Repr::Ident { .. } => 1 + ident_len,
+            ReprInner::Placeholder => unreachable!(),
         }
     }
 }
@@ -92,132 +76,43 @@ where
 {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Self {
-        Repr::Value {
-            rc: Rc::new(t),
-            cached_ident: RefCell::new(None),
-        }
-    }
-
-    /// Returns the value behind the `Repr`
-    pub fn restore(&self) -> Result<T, CanonError> {
-        match &self {
-            Repr::Value { rc, .. } => Ok((**rc).clone()),
-            Repr::Ident { ident } => Store::get(ident),
-        }
+        Repr(RefCell::new(ReprInner::Value(Rc::new(t))))
     }
 
     /// Retrieve the value behind this representation
     pub fn val(&self) -> Result<Val<T>, CanonError> {
-        match self {
-            Repr::Value { rc, .. } => Ok(Val::Borrowed(&*rc)),
-            Repr::Ident { ident } => {
-                let t = Store::get(ident)?;
-                Ok(Val::Owned(t))
+        match &*self.0.borrow() {
+            ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => {
+                Ok(Val(rc.clone(), PhantomData))
             }
+            _ => todo!("FIXME"),
         }
     }
 
     /// Retrieve a mutable value behind this representation
     pub fn val_mut(&mut self) -> Result<ValMut<T>, CanonError> {
-        match self {
-            Repr::Value {
-                ref mut rc,
-                ref mut cached_ident,
-            } => {
-                // clear cache
-                *cached_ident = RefCell::new(None);
-                Ok(ValMut::Borrowed(Rc::make_mut(rc)))
-            }
-            Repr::Ident { ident } => {
-                let t = Store::get(ident)?;
-                Ok(ValMut::Owned {
-                    value: Some(t),
-                    writeback: self,
-                })
-            }
-        }
-    }
-
-    /// Unwrap or clone the contained item
-    pub fn unwrap_or_clone(self) -> Result<T, CanonError> {
-        match self {
-            Repr::Value { rc, .. } => Ok(match Rc::try_unwrap(rc) {
-                Ok(t) => t,
-                Err(rc) => (*rc).clone(),
-            }),
-            Repr::Ident { ident } => Store::get(&ident),
-        }
+        todo!("FIXME")
     }
 
     /// Get the identifier for the `Repr`
     pub fn get_id(&self) -> Id {
-        match self {
-            Repr::Value { cached_ident, rc } => {
-                let mut ident_cell = cached_ident.borrow_mut();
-                if let Some(ident) = &mut *ident_cell {
-                    *ident.clone()
-                } else {
-                    let ident = Store::id(&**rc);
-                    *ident_cell = Some(Box::new(ident));
-                    ident
-                }
-            }
-            Repr::Ident { ident, .. } => *ident,
-        }
+        todo!("FIXME")
     }
 }
 
-/// A reference to a value
-pub enum Val<'a, T> {
-    /// An owned instance of `T`
-    Owned(T),
-    /// A borrowed instance of `T`
-    Borrowed(&'a T),
-}
+/// A value retrieved from behind a Repr
+pub struct Val<'a, T>(Rc<T>, PhantomData<&'a T>);
 
 impl<'a, T> Deref for Val<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        match self {
-            Val::Borrowed(t) => t,
-            Val::Owned(t) => &t,
-        }
-    }
-}
-
-impl<'a, T> DerefMut for Val<'a, T>
-where
-    T: Clone,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        if let Val::Borrowed(t) = self {
-            *self = Val::Owned(t.clone())
-        }
-        if let Val::Owned(ref mut t) = self {
-            t
-        } else {
-            unreachable!("")
-        }
+        &*self.0
     }
 }
 
 /// A mutable value derived from a Repr
-pub enum ValMut<'a, T>
-where
-    T: Canon,
-{
-    /// An owned instance of `T`
-    Owned {
-        /// The owned value itself, wrapped in an option to be able to move
-        /// it on drop.
-        value: Option<T>,
-        /// Where to write back the changed value
-        writeback: &'a mut Repr<T>,
-    },
-    /// A borrowed instance of `T`
-    Borrowed(&'a mut T),
-}
+pub struct ValMut<'a, T>(&'a mut T);
 
 impl<'a, T> Deref for ValMut<'a, T>
 where
@@ -226,12 +121,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            ValMut::Borrowed(b) => b,
-            ValMut::Owned { value, .. } => {
-                value.as_ref().expect("Always Some until dropped")
-            }
-        }
+        self.0
     }
 }
 
@@ -240,60 +130,6 @@ where
     T: Canon,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            ValMut::Borrowed(b) => b,
-            ValMut::Owned { ref mut value, .. } => {
-                value.as_mut().expect("Always Some until dropped")
-            }
-        }
-    }
-}
-
-impl<'a, T> Drop for ValMut<'a, T>
-where
-    T: Canon,
-{
-    fn drop(&mut self) {
-        if let ValMut::Owned { value, writeback } = self {
-            let value = value.take().expect("Always Some until drop");
-            **writeback = Repr::<T>::new(value);
-        }
-    }
-}
-
-#[cfg(feature = "host")]
-impl<T> Arbitrary for Repr<T>
-where
-    T: 'static + Canon + Arbitrary,
-{
-    fn arbitrary(
-        u: &mut arbitrary::Unstructured<'_>,
-    ) -> arbitrary::Result<Self> {
-        #[derive(Arbitrary)]
-        enum Kind {
-            Value,
-            ValueCached,
-            Ident,
-        }
-
-        let t = T::arbitrary(u)?;
-
-        match Kind::arbitrary(u)? {
-            Kind::Value => Ok(Repr::Value {
-                rc: Rc::new(t),
-                cached_ident: RefCell::new(None),
-            }),
-            Kind::ValueCached => {
-                let ident = Store::put(&t);
-                Ok(Repr::Value {
-                    rc: Rc::new(t),
-                    cached_ident: RefCell::new(Some(Box::new(ident))),
-                })
-            }
-            Kind::Ident => {
-                let ident = Store::put(&t);
-                Ok(Repr::Ident { ident })
-            }
-        }
+        self.0
     }
 }

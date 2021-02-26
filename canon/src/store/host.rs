@@ -17,6 +17,7 @@ impl InMemoryMap {
         self.0.insert(id, bytes);
     }
 
+    #[allow(unused)] // FIXME
     fn get(&self, id: &Id) -> Option<&[u8]> {
         self.0.get(id).map(AsRef::as_ref)
     }
@@ -30,7 +31,7 @@ lazy_static! {
 pub(crate) struct HostStore;
 
 impl HostStore {
-    pub(crate) fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
+    pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
         todo!("a");
     }
 
@@ -55,6 +56,7 @@ impl HostStore {
         }
     }
 
+    #[allow(unused)] // FIXME
     pub(crate) fn id<T: Canon>(t: &T) -> Id {
         // Same as put, just don't storing anything
 

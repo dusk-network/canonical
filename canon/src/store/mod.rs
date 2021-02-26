@@ -27,7 +27,7 @@ impl Store {
             if #[cfg(feature = "host")] {
                 host::HostStore::fetch(id, into)
             } else {
-                todo!("b")
+                hosted::BridgeStore::fetch(id, into)
             }
         }
     }
@@ -38,7 +38,7 @@ impl Store {
             if #[cfg(feature = "host")] {
                 host::HostStore::get(id)
             } else {
-                todo!("b")
+                hosted::BridgeStore::get(id)
             }
         }
     }
@@ -49,15 +49,9 @@ impl Store {
             if #[cfg(feature = "host")] {
                 host::HostStore::put(t)
             } else {
-                todo!("b")
+                hosted::BridgeStore::put(t)
             }
         }
-    }
-
-    #[allow(unused)] // FIXME?
-    /// Put raw bytes in store
-    pub(crate) fn put_raw(_bytes: &[u8]) -> Id {
-        todo!()
     }
 
     /// Get the id of a type, without storing it
@@ -66,7 +60,7 @@ impl Store {
             if #[cfg(feature = "host")] {
                 host::HostStore::id(t)
             } else {
-                todo!("b")
+                hosted::BridgeStore::id(t)
             }
         }
     }
@@ -98,6 +92,7 @@ impl<'a> Sink<'a> {
         self.offset += len;
     }
 
+    #[allow(unused)] // FIXME
     pub(crate) fn recur<T: Canon>(&self, t: &T) -> Id {
         Store::put(t)
     }

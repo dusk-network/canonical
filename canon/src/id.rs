@@ -16,7 +16,21 @@ pub struct Id {
 }
 
 impl Id {
-    fn len(&self) -> usize {
+    /// The length of the data refered by the id
+    pub fn new(bytes: [u8; 32], len: usize) -> Self {
+        Id {
+            bytes,
+            len: len as u16,
+        }
+    }
+
+    /// Returns the bytes of the identifier
+    pub fn bytes(&self) -> &[u8; 32] {
+        &self.bytes
+    }
+
+    /// Returns the length of the represented data
+    pub fn len(&self) -> usize {
         self.len as usize
     }
 }
@@ -29,19 +43,32 @@ pub struct IdBuilder {
 
 impl Canon for Id {
     fn write(&self, sink: &mut Sink) {
-        sink.copy_bytes(&self.bytes[..]);
         self.len.write(sink);
+        // if the length of the encoded data fits into 32 bytes,
+        // we encode it directly.
+        if self.len <= 32 {
+            sink.copy_bytes(&self.bytes[0..self.len as usize]);
+        }
+        sink.copy_bytes(&self.bytes[..]);
     }
 
     fn read(source: &mut Source) -> Result<Self, CanonError> {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(source.read_bytes(32));
         let len = u16::read(source)?;
+        let mut bytes = [0u8; 32];
+        if len <= 32 {
+            bytes.copy_from_slice(source.read_bytes(len as usize));
+        } else {
+            bytes.copy_from_slice(source.read_bytes(32));
+        }
         Ok(Id { bytes, len })
     }
 
     fn encoded_len(&self) -> usize {
-        34
+        if self.len <= 32 {
+            2 + self.len as usize
+        } else {
+            34
+        }
     }
 }
 

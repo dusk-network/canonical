@@ -7,6 +7,7 @@
 //! Canonical, a no_std, host-allocating serialization library
 #![cfg_attr(not(feature = "host"), no_std)]
 #![feature(never_type)]
+#![feature(thread_local)]
 #![deny(missing_docs)]
 
 extern crate alloc;
@@ -17,8 +18,6 @@ mod id;
 mod implementations;
 mod repr;
 mod store;
-
-mod bridge;
 
 pub use canon::{Canon, CanonError};
 pub use debug::{DebugMsg, _debug};
