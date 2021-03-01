@@ -114,10 +114,7 @@ impl<'a, T> Deref for Val<'a, T> {
 /// A mutable value derived from a Repr
 pub struct ValMut<'a, T>(&'a mut T);
 
-impl<'a, T> Deref for ValMut<'a, T>
-where
-    T: Canon,
-{
+impl<'a, T> Deref for ValMut<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -125,10 +122,7 @@ where
     }
 }
 
-impl<'a, T> DerefMut for ValMut<'a, T>
-where
-    T: Canon,
-{
+impl<'a, T> DerefMut for ValMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
     }
