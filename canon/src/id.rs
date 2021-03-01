@@ -4,23 +4,39 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use blake2b_simd::{Params, State as Blake2bState};
+use crate::{Canon, CanonError, Sink, Source, Store};
 
-use crate::{Canon, CanonError, Sink, Source};
-
-/// A 32 byte Identifier based on the Blake2b hash algorithm
+/// A 32 byte + length Identifier based on the Blake2b hash algorithm
+/// FFI Safe
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
+#[repr(C)]
 pub struct Id {
     bytes: [u8; 32],
     len: u16,
 }
 
 impl Id {
-    /// The length of the data refered by the id
-    pub fn new(bytes: [u8; 32], len: usize) -> Self {
-        Id {
-            bytes,
-            len: len as u16,
+    /// Creates a new Id from bytes
+    pub fn new(bytes: &[u8]) -> Self {
+        let len = bytes.len();
+
+        if len > 32 {
+            // Hash data
+            let hash = Store::hash(&bytes[..]);
+
+            Id {
+                bytes: hash,
+                len: len as u16,
+            }
+        } else {
+            // Inline data
+            let mut inline_bytes = [0u8; 32];
+            inline_bytes[0..len].copy_from_slice(bytes);
+
+            Id {
+                bytes: inline_bytes,
+                len: len as u16,
+            }
         }
     }
 
@@ -29,16 +45,15 @@ impl Id {
         &self.bytes
     }
 
+    /// Consumes the Id and returns the hash bytes
+    pub fn into_bytes(self) -> [u8; 32] {
+        self.bytes
+    }
+
     /// Returns the length of the represented data
     pub fn len(&self) -> usize {
         self.len as usize
     }
-}
-
-/// Builder for Ids
-pub struct IdBuilder {
-    state: Blake2bState,
-    len: u16,
 }
 
 impl Canon for Id {
@@ -68,38 +83,6 @@ impl Canon for Id {
             2 + self.len as usize
         } else {
             34
-        }
-    }
-}
-
-impl Default for IdBuilder {
-    fn default() -> Self {
-        IdBuilder {
-            state: Params::new().hash_length(32).to_state(),
-            len: 0,
-        }
-    }
-}
-
-impl IdBuilder {
-    /// Create an IdBuilder
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Write bytes into the Id hasher
-    pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.state.update(bytes);
-        self.len += bytes.len() as u16;
-    }
-
-    /// Build the Id from the accumulated bytes
-    pub fn fin(mut self) -> Id {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(self.state.finalize().as_ref());
-        Id {
-            bytes,
-            len: self.len,
         }
     }
 }

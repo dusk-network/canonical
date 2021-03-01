@@ -27,7 +27,7 @@ impl BridgeStore {
             // NB: this might reallocate on growing, but never actually
             // shrinks the capacity of the buffer
             BUFFER.resize_with(len, || 0);
-            get(&id.bytes(), len as i32, &mut BUFFER[0]);
+            get(id, &mut BUFFER[0]);
             // get has now written the encoded bytes of T into the buffer
             let mut source = Source::new(&BUFFER[..]);
             T::read(&mut source)
@@ -42,9 +42,9 @@ impl BridgeStore {
 
             let mut sink = Sink::new(&mut BUFFER[..]);
             t.write(&mut sink);
-            let mut id_bytes = [0u8; 32];
-            put(&mut BUFFER[0], len as i32, &mut id_bytes);
-            Id::new(id_bytes, len)
+            let mut id = Id::default();
+            put(&mut BUFFER[0], len as i32, &mut id);
+            id
         }
     }
 
@@ -55,10 +55,18 @@ impl BridgeStore {
     pub(crate) fn id<T: Canon>(_t: &T) -> Id {
         todo!("FIXME")
     }
+
+    pub(crate) fn hash(bytes: &[u8]) -> [u8; 32] {
+        let mut buf = [0u8; 32];
+        //unsafe { hash(&bytes[0], bytes.len() as i32, &mut buf) }
+        todo!();
+        buf
+    }
 }
 
 #[link(wasm_import_module = "canon")]
 extern "C" {
-    pub fn put(buf: &mut u8, len: i32, ret_id_bytes: &mut [u8; 32]);
-    pub fn get(id_bytes: &[u8; 32], len: i32, buf: &mut u8);
+    pub fn put(buf: &mut u8, len: i32, ret_id: &mut Id);
+    pub fn get(id: &Id, buf: &mut u8);
+    //pub fn hash(bytes: &u8, len: i32, buf: &mut [u8; 32]);
 }

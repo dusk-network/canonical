@@ -21,8 +21,6 @@ const FIELD_NAMES: [&str; 16] = [
     "p",
 ];
 
-#[allow(unused)] // FIXME
-                 // Add a bound `X: Canon` to every type parameter X.
 fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
@@ -38,7 +36,9 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident.clone();
 
-    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+    let generics = add_trait_bounds(input.generics.clone());
+
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     let (read, write, length) = match input.data {
         Data::Struct(ref data) => match data.fields {
@@ -228,7 +228,7 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let output = quote! {
-        impl #ty_generics canonical::Canon for #name #ty_generics #where_clause {
+        impl #generics canonical::Canon for #name #ty_generics #where_clause {
             fn write(&self, sink: &mut canonical::Sink) {
                 #write
                 ;
@@ -244,8 +244,6 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     };
-
-    println!("{:?}", output.to_string());
 
     proc_macro::TokenStream::from(output)
 }

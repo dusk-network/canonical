@@ -8,8 +8,8 @@
 
 #![deny(missing_docs)]
 
-mod mem_store;
-pub use mem_store::MemStore;
+// mod mem_store;
+// pub use mem_store::MemStore;
 
 // mod disk_store;
 // pub use disk_store::DiskStore;

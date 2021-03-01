@@ -6,7 +6,9 @@
 
 use cfg_if::cfg_if;
 
-use crate::{Canon, CanonError, Id, IdBuilder};
+use crate::{Canon, CanonError, Id};
+
+use alloc::vec::Vec;
 
 cfg_if! {
     if #[cfg(feature = "host")] {
@@ -64,29 +66,44 @@ impl Store {
             }
         }
     }
+
+    /// Hash a slice of bytes
+    pub fn hash(bytes: &[u8]) -> [u8; 32] {
+        cfg_if! {
+            if #[cfg(feature = "host")] {
+                host::HostStore::hash(bytes)
+            } else {
+                hosted::BridgeStore::hash(bytes)
+            }
+        }
+    }
+
+    /// Hash a type implementing Canon.
+    pub fn canon_hash<T: Canon>(t: &T) -> [u8; 32] {
+        let len = t.encoded_len();
+        let mut buf = Vec::with_capacity(len);
+        buf.resize_with(len, || 0);
+        let mut sink = Sink::new(&mut buf[..]);
+        t.write(&mut sink);
+        Self::hash(&buf[..])
+    }
 }
 
 /// A sink over a slice of bytes
 pub struct Sink<'a> {
     bytes: &'a mut [u8],
     offset: usize,
-    builder: IdBuilder,
 }
 
 impl<'a> Sink<'a> {
     /// Creates a new sink reading from bytes
     #[allow(unused)] // FIXME
     pub fn new(bytes: &'a mut [u8]) -> Self {
-        Sink {
-            bytes,
-            offset: 0,
-            builder: Default::default(),
-        }
+        Sink { bytes, offset: 0 }
     }
 
     /// Copies bytes into the sink
     pub fn copy_bytes(&mut self, bytes: &[u8]) {
-        self.builder.write_bytes(bytes);
         let len = bytes.len();
         self.bytes[self.offset..self.offset + len].copy_from_slice(bytes);
         self.offset += len;
@@ -98,9 +115,8 @@ impl<'a> Sink<'a> {
     }
 
     /// Finish up the sink and return the Id of the written data
-    #[allow(unused)] // FIXME
     pub fn fin(self) -> Id {
-        self.builder.fin()
+        Id::new(&self.bytes[0..self.offset])
     }
 }
 
