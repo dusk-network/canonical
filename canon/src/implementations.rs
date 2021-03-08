@@ -298,7 +298,9 @@ mod alloc_impls {
 
     extern crate alloc;
 
+    use alloc::rc::Rc;
     use alloc::string::String;
+    use alloc::sync::Arc;
     use alloc::vec::Vec;
 
     impl<T: Canon> Canon for Vec<T> {
@@ -346,6 +348,40 @@ mod alloc_impls {
 
         fn encoded_len(&self) -> usize {
             Canon::encoded_len(&0u64) + self.as_bytes().len()
+        }
+    }
+
+    impl<T> Canon for Rc<T>
+    where
+        T: Canon,
+    {
+        fn write(&self, sink: &mut Sink) {
+            (**self).write(sink)
+        }
+
+        fn read(source: &mut Source) -> Result<Self, CanonError> {
+            T::read(source).map(Rc::new)
+        }
+
+        fn encoded_len(&self) -> usize {
+            (**self).encoded_len()
+        }
+    }
+
+    impl<T> Canon for Arc<T>
+    where
+        T: Canon,
+    {
+        fn write(&self, sink: &mut Sink) {
+            (**self).write(sink)
+        }
+
+        fn read(source: &mut Source) -> Result<Self, CanonError> {
+            T::read(source).map(Arc::new)
+        }
+
+        fn encoded_len(&self) -> usize {
+            (**self).encoded_len()
         }
     }
 }

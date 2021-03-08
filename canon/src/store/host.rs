@@ -1,3 +1,4 @@
+use blake2b_simd::Params;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 
@@ -67,5 +68,16 @@ impl HostStore {
         t.write(&mut sink);
         let id = sink.fin();
         id
+    }
+
+    pub fn hash(bytes: &[u8]) -> [u8; 32] {
+        println!("hashing {:?}", bytes);
+
+        let mut state = Params::new().hash_length(32).to_state();
+        state.update(&bytes[..]);
+
+        let mut buf = [0u8; 32];
+        buf.copy_from_slice(state.finalize().as_ref());
+        buf
     }
 }

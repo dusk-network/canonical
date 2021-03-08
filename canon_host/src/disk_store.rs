@@ -142,9 +142,7 @@ impl DiskStore {
 
     #[allow(unused)] // FIXME
     fn put_raw(&self, bytes: &[u8]) -> Result<Id, io::Error> {
-        let mut builder = IdBuilder::new();
-        builder.write_bytes(bytes);
-        let ident = builder.fin();
+        let ident = Id::new(bytes);
 
         if self
             .0
