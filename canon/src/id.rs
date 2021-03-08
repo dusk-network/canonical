@@ -11,8 +11,8 @@ use crate::{Canon, CanonError, Sink, Source, Store};
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
 #[repr(C)]
 pub struct Id {
-    bytes: [u8; 32],
     len: u16,
+    bytes: [u8; 32],
 }
 
 impl Id {

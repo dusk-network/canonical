@@ -22,5 +22,5 @@ mod store;
 pub use canon::{Canon, CanonError};
 pub use debug::{DebugMsg, _debug};
 pub use id::Id;
-pub use repr::{Repr, ValMut};
+pub use repr::{Repr, Val, ValMut};
 pub use store::{Sink, Source, Store};

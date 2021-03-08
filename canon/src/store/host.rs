@@ -71,8 +71,6 @@ impl HostStore {
     }
 
     pub fn hash(bytes: &[u8]) -> [u8; 32] {
-        println!("hashing {:?}", bytes);
-
         let mut state = Params::new().hash_length(32).to_state();
         state.update(&bytes[..]);
 

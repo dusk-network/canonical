@@ -4,17 +4,16 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use core::cell::RefCell;
+use core::cell::{Ref, RefCell, RefMut};
 use core::ops::{Deref, DerefMut};
 
 use alloc::rc::Rc;
 
-use crate::{Canon, CanonError, Id, Sink, Source};
+use crate::{Canon, CanonError, Id, Sink, Source, Store};
 
 #[derive(Debug)]
 enum ReprInner<T> {
     Id(Id),
-    #[allow(unused)] // FIXME
     IdValue(Id, Rc<T>),
     Value(Rc<T>),
     // Used for moving ReprInner out of the RefCell
@@ -88,6 +87,46 @@ where
     }
 }
 
+/// A reference to a value behind a `Repr`
+pub struct Val<'a, T>(Ref<'a, ReprInner<T>>);
+
+impl<'a, T> Deref for Val<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match &*self.0 {
+            ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => &*rc,
+            _ => unreachable!("Invalid typestate"),
+        }
+    }
+}
+
+/// A mutable reference to a value behind a `Repr`
+pub struct ValMut<'a, T>(RefMut<'a, ReprInner<T>>);
+
+impl<'a, T> Deref for ValMut<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        match &*self.0 {
+            ReprInner::Value(rc) => &*rc,
+            _ => panic!("Broken typestate guarantee"),
+        }
+    }
+}
+
+impl<'a, T> DerefMut for ValMut<'a, T>
+where
+    T: Clone,
+{
+    fn deref_mut(&mut self) -> &mut T {
+        match &mut *self.0 {
+            ReprInner::Value(ref mut rc) => Rc::make_mut(rc),
+            _ => panic!("Broken typestate guarantee"),
+        }
+    }
+}
+
 impl<T> Repr<T> {
     /// Construct a new `Repr` from value `t`
     pub fn new(t: T) -> Self {
@@ -95,37 +134,54 @@ impl<T> Repr<T> {
     }
 
     /// Retrieve the value behind this representation
-    pub fn val(&self) -> Result<Rc<T>, CanonError> {
-        match &*self.0.borrow() {
-            ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => Ok(rc.clone()),
-            _ => todo!("FIXME"),
-        }
+    pub fn val(&self) -> Result<Val<T>, CanonError>
+    where
+        T: Canon,
+    {
+        // move out of refcell
+        let mut borrow = self.0.borrow_mut();
+        // Assures that the Repr has its value loaded into memory
+        let result =
+            match core::mem::replace(&mut *borrow, ReprInner::Placeholder) {
+                loaded @ ReprInner::Value(_)
+                | loaded @ ReprInner::IdValue(_, _) => loaded,
+                ReprInner::Id(id) => {
+                    let t = Store::get(&id)?;
+                    ReprInner::IdValue(id, Rc::new(t))
+                }
+                ReprInner::Placeholder => unreachable!(),
+            };
+        *borrow = result;
+        // re-borrow immutable
+        Ok(Val(self.0.borrow()))
     }
 
     /// Retrieve a mutable value behind this representation
-    pub fn val_mut(&mut self) -> Result<ValMut<T>, CanonError> {
-        todo!("FIXME")
+    pub fn val_mut(&mut self) -> Result<ValMut<T>, CanonError>
+    where
+        T: Canon,
+    {
+        // move out of refcell
+        let mut borrow = self.0.borrow_mut();
+        // Assures that the Repr has its value loaded into memory, is mutable,
+        // and have no cached `Id`
+        let result =
+            match core::mem::replace(&mut *borrow, ReprInner::Placeholder) {
+                ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => {
+                    ReprInner::Value(rc)
+                }
+                ReprInner::Id(id) => {
+                    let t = Store::get(&id)?;
+                    ReprInner::Value(Rc::new(t))
+                }
+                ReprInner::Placeholder => unreachable!(),
+            };
+        *borrow = result;
+        Ok(ValMut(borrow))
     }
 
     /// Get the identifier for the `Repr`
     pub fn get_id(&self) -> Id {
         todo!("FIXME")
-    }
-}
-
-/// A mutable value derived from a Repr
-pub struct ValMut<'a, T>(&'a mut T);
-
-impl<'a, T> Deref for ValMut<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-impl<'a, T> DerefMut for ValMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0
     }
 }
