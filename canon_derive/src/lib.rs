@@ -54,14 +54,14 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let write = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     quote_spanned! { f.span() =>
-                                     Canon::write(&self . #name, sink);
+                                     canonical::Canon::write(&self . #name, sink);
                     }
                 });
 
                 let length = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     quote_spanned! { f.span() =>
-                                     + Canon::encoded_len(& self.#name)
+                                     + canonical::Canon::encoded_len(& self.#name)
                     }
                 });
 
@@ -82,14 +82,14 @@ pub fn canon_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let write = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let i = Literal::usize_unsuffixed(i);
                     quote_spanned! { f.span() =>
-                                     Canon::write(&self . #i, sink);
+                                     canonical::Canon::write(&self . #i, sink);
                     }
                 });
 
                 let length = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let i = Literal::usize_unsuffixed(i);
                     quote_spanned! { f.span() =>
-                                     + Canon::encoded_len(& self.#i)
+                                     + canonical::Canon::encoded_len(& self.#i)
                     }
                 });
 
