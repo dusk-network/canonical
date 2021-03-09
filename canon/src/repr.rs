@@ -140,7 +140,7 @@ impl<T> Repr<T> {
     {
         // move out of refcell
         let mut borrow = self.0.borrow_mut();
-        // Assures that the Repr has its value loaded into memory
+        // Assure that the Repr has its value loaded into memory
         let result =
             match core::mem::replace(&mut *borrow, ReprInner::Placeholder) {
                 loaded @ ReprInner::Value(_)
@@ -152,6 +152,8 @@ impl<T> Repr<T> {
                 ReprInner::Placeholder => unreachable!(),
             };
         *borrow = result;
+        // drop mutable borrow
+        drop(borrow);
         // re-borrow immutable
         Ok(Val(self.0.borrow()))
     }
