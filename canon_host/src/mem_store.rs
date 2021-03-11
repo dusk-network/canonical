@@ -19,7 +19,6 @@ struct MemStoreInner(HashMap<Id, Vec<u8>>);
 pub struct MemStore(Arc<RwLock<MemStoreInner>>);
 
 impl MemStore {
-    #[allow(unused)] // FIXME
     fn fetch(&self, id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         self.0
             .read()
@@ -33,7 +32,6 @@ impl MemStore {
             .unwrap_or(Err(CanonError::NotFound))
     }
 
-    #[allow(unused)] // FIXME
     fn get<T: Canon>(&self, id: &Id) -> Result<T, CanonError> {
         self.0
             .read()
@@ -46,7 +44,6 @@ impl MemStore {
             .unwrap_or_else(|| Err(CanonError::NotFound))
     }
 
-    #[allow(unused)] // FIXME
     fn put<T: Canon>(&self, t: &T) -> Result<Id, CanonError> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
@@ -60,7 +57,6 @@ impl MemStore {
         Ok(ident)
     }
 
-    #[allow(unused)] // FIXME
     fn put_raw(&self, bytes: &[u8]) -> Result<Id, CanonError> {
         let mut builder = IdBuilder::new();
         builder.write_bytes(bytes);

@@ -7,13 +7,11 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-#[allow(unused)] // FIXME
 use arbitrary::{Arbitrary, Unstructured};
 use canonical::{Canon, Sink, Store};
 
 const FUZZ_ITERATIONS: usize = 64;
 
-#[allow(unused)] // FIXME
 fn hash<T: Hash>(t: T) -> u64 {
     let mut hasher = DefaultHasher::new();
     t.hash(&mut hasher);
@@ -34,7 +32,6 @@ pub fn fuzz_canon_iterations<C>(iterations: usize)
 where
     C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
 {
-    // FIXME
     let mut entropy = 0;
     for _ in 0..iterations {
         let mut bytes = vec![];

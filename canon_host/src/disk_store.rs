@@ -17,13 +17,9 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 pub struct DiskStoreInner {
-    #[allow(unused)] // FIXME
     index: Index<Id, u64>,
-    #[allow(unused)] // FIXME
     data: File,
-    #[allow(unused)] // FIXME
     data_path: PathBuf,
-    #[allow(unused)] // FIXME
     data_offset: u64,
 }
 
@@ -72,7 +68,6 @@ impl DiskStoreInner {
 }
 
 impl DiskStore {
-    #[allow(unused)] // FIXME
     fn fetch(&self, id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         match self.0.read().index.get(id).map_err(CanonError::from_e)? {
             Some(offset) => {
@@ -87,30 +82,27 @@ impl DiskStore {
         }
     }
 
-    #[allow(unused)] // FIXME
-    fn get<T: Canon>(&self, _id: &Id) -> Result<T, io::Error> {
-        // match self.0.read().index.get(id).map_err(CanonError::from_e)? {
-        //     Some(offset) => {
-        //         let mut file = File::open(&self.0.read().data_path)
-        //             .map_err(CanonError::from_e)?;
-        //         file.seek(SeekFrom::Start(*offset))
-        //             .map_err(CanonError::from_e)?;
+    fn get<T: Canon>(&self, id: &Id) -> Result<T, io::Error> {
+        match self.0.read().index.get(id).map_err(CanonError::from_e)? {
+            Some(offset) => {
+                let mut file = File::open(&self.0.read().data_path)
+                    .map_err(CanonError::from_e)?;
+                file.seek(SeekFrom::Start(*offset))
+                    .map_err(CanonError::from_e)?;
 
-        //         let mut bytes = Vec::new();
-        //         file.read_to_end(&mut bytes).map_err(CanonError::from_e)?;
+                let mut bytes = Vec::new();
+                file.read_to_end(&mut bytes).map_err(CanonError::from_e)?;
 
-        //         let mut source = Source {
-        //             bytes: &bytes[..],
-        //             offset: *offset as usize,
-        //         };
-        //         Ok(T::read(&mut source).unwrap())
-        //     }
-        //     None => Err(CanonError::NotFound),
-        // }
-        todo!()
+                let mut source = Source {
+                    bytes: &bytes[..],
+                    offset: *offset as usize,
+                };
+                Ok(T::read(&mut source).unwrap())
+            }
+            None => Err(CanonError::NotFound),
+        }
     }
 
-    #[allow(unused)] // FIXME
     fn put<T: Canon>(&self, t: &T) -> Result<Id, io::Error> {
         let len = t.encoded_len();
         let mut bytes = Vec::with_capacity(len);
@@ -140,7 +132,6 @@ impl DiskStore {
         }
     }
 
-    #[allow(unused)] // FIXME
     fn put_raw(&self, bytes: &[u8]) -> Result<Id, io::Error> {
         let ident = Id::new(bytes);
 
