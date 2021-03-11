@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
 use blake2b_simd::Params;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
@@ -18,7 +24,6 @@ impl InMemoryMap {
         self.0.insert(id, bytes);
     }
 
-    #[allow(unused)] // FIXME
     fn get(&self, id: &Id) -> Option<&[u8]> {
         self.0.get(id).map(AsRef::as_ref)
     }
@@ -57,10 +62,8 @@ impl HostStore {
         }
     }
 
-    #[allow(unused)] // FIXME
     pub(crate) fn id<T: Canon>(t: &T) -> Id {
-        // Same as put, just don't storing anything
-
+        // Same as put, just not storing anything
         let len = t.encoded_len();
         let mut vec = Vec::with_capacity(len);
         vec.resize_with(len, || 0);

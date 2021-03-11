@@ -22,9 +22,8 @@ cfg_if! {
 pub struct Store;
 
 impl Store {
-    #[allow(unused)] // FIXME?
-    /// Write bytes associated with `Ident` to provided buffer
-    pub(crate) fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
+    /// Fetch bytes of an Id into the specified buffer
+    pub fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         cfg_if! {
             if #[cfg(feature = "host")] {
                 host::HostStore::fetch(id, into)
@@ -97,7 +96,6 @@ pub struct Sink<'a> {
 
 impl<'a> Sink<'a> {
     /// Creates a new sink reading from bytes
-    #[allow(unused)] // FIXME
     pub fn new(bytes: &'a mut [u8]) -> Self {
         Sink { bytes, offset: 0 }
     }
@@ -109,7 +107,6 @@ impl<'a> Sink<'a> {
         self.offset += len;
     }
 
-    #[allow(unused)] // FIXME
     pub(crate) fn recur<T: Canon>(&self, t: &T) -> Id {
         Store::put(t)
     }

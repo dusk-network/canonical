@@ -49,17 +49,16 @@ impl BridgeStore {
     }
 
     pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
-        todo!("FIXME")
+        todo!()
     }
 
     pub(crate) fn id<T: Canon>(_t: &T) -> Id {
-        todo!("FIXME")
+        todo!()
     }
 
     pub(crate) fn hash(bytes: &[u8]) -> [u8; 32] {
         let mut buf = [0u8; 32];
-        //unsafe { hash(&bytes[0], bytes.len() as i32, &mut buf) }
-        todo!();
+        unsafe { hash(&bytes[0], bytes.len() as i32, &mut buf) }
         buf
     }
 }
@@ -68,5 +67,5 @@ impl BridgeStore {
 extern "C" {
     pub fn put(buf: &mut u8, len: i32, ret_id: &mut Id);
     pub fn get(id: &Id, buf: &mut u8);
-    //pub fn hash(bytes: &u8, len: i32, buf: &mut [u8; 32]);
+    pub fn hash(bytes: &u8, len: i32, buf: &mut [u8; 32]);
 }
