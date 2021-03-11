@@ -20,6 +20,12 @@ enum ReprInner<T> {
     Placeholder,
 }
 
+impl<T> Default for ReprInner<T> {
+    fn default() -> Self {
+        ReprInner::Placeholder
+    }
+}
+
 impl<T> Clone for ReprInner<T> {
     fn clone(&self) -> Self {
         match self {
@@ -87,6 +93,7 @@ where
     }
 }
 
+#[derive(Debug)]
 /// A reference to a value behind a `Repr`
 pub struct Val<'a, T>(Ref<'a, ReprInner<T>>);
 
@@ -101,6 +108,7 @@ impl<'a, T> Deref for Val<'a, T> {
     }
 }
 
+#[derive(Debug)]
 /// A mutable reference to a value behind a `Repr`
 pub struct ValMut<'a, T>(RefMut<'a, ReprInner<T>>);
 
@@ -141,16 +149,15 @@ impl<T> Repr<T> {
         // move out of refcell
         let mut borrow = self.0.borrow_mut();
         // Assure that the Repr has its value loaded into memory
-        let result =
-            match core::mem::replace(&mut *borrow, ReprInner::Placeholder) {
-                loaded @ ReprInner::Value(_)
-                | loaded @ ReprInner::IdValue(_, _) => loaded,
-                ReprInner::Id(id) => {
-                    let t = Store::get(&id)?;
-                    ReprInner::IdValue(id, Rc::new(t))
-                }
-                ReprInner::Placeholder => unreachable!(),
-            };
+        let result = match core::mem::take(&mut *borrow) {
+            loaded @ ReprInner::Value(_)
+            | loaded @ ReprInner::IdValue(_, _) => loaded,
+            ReprInner::Id(id) => {
+                let t = Store::get(&id)?;
+                ReprInner::IdValue(id, Rc::new(t))
+            }
+            ReprInner::Placeholder => unreachable!(),
+        };
         *borrow = result;
         // drop mutable borrow
         drop(borrow);
@@ -167,23 +174,17 @@ impl<T> Repr<T> {
         let mut borrow = self.0.borrow_mut();
         // Assures that the Repr has its value loaded into memory, is mutable,
         // and have no cached `Id`
-        let result =
-            match core::mem::replace(&mut *borrow, ReprInner::Placeholder) {
-                ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => {
-                    ReprInner::Value(rc)
-                }
-                ReprInner::Id(id) => {
-                    let t = Store::get(&id)?;
-                    ReprInner::Value(Rc::new(t))
-                }
-                ReprInner::Placeholder => unreachable!(),
-            };
+        let result = match core::mem::take(&mut *borrow) {
+            ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => {
+                ReprInner::Value(rc)
+            }
+            ReprInner::Id(id) => {
+                let t = Store::get(&id)?;
+                ReprInner::Value(Rc::new(t))
+            }
+            ReprInner::Placeholder => unreachable!(),
+        };
         *borrow = result;
         Ok(ValMut(borrow))
-    }
-
-    /// Get the identifier for the `Repr`
-    pub fn get_id(&self) -> Id {
-        todo!("FIXME")
     }
 }
