@@ -83,7 +83,7 @@ impl Store {
         let mut buf = Vec::with_capacity(len);
         buf.resize_with(len, || 0);
         let mut sink = Sink::new(&mut buf[..]);
-        t.write(&mut sink);
+        t.encode(&mut sink);
         Self::hash(&buf[..])
     }
 }

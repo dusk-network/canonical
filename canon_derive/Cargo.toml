@@ -13,7 +13,7 @@ license = "MPL-2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0" }
-canonical = "0.5"
+canonical = { path = "../canon" }
 lazy_static = "1.4.0"
 
 [dev-dependencies]

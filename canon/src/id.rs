@@ -57,8 +57,8 @@ impl Id {
 }
 
 impl Canon for Id {
-    fn write(&self, sink: &mut Sink) {
-        self.len.write(sink);
+    fn encode(&self, sink: &mut Sink) {
+        self.len.encode(sink);
         // if the length of the encoded data fits into 32 bytes,
         // we encode it directly.
         if self.len <= 32 {
@@ -67,8 +67,8 @@ impl Canon for Id {
         sink.copy_bytes(&self.bytes[..]);
     }
 
-    fn read(source: &mut Source) -> Result<Self, CanonError> {
-        let len = u16::read(source)?;
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        let len = u16::decode(source)?;
         let mut bytes = [0u8; 32];
         if len <= 32 {
             bytes.copy_from_slice(source.read_bytes(len as usize));

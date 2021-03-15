@@ -53,10 +53,10 @@ impl<T> Canon for Repr<T>
 where
     T: Canon,
 {
-    fn write(&self, sink: &mut Sink) {
+    fn encode(&self, sink: &mut Sink) {
         let new_id = match &*self.0.borrow() {
             ReprInner::Id(id) | ReprInner::IdValue(id, _) => {
-                return id.write(sink)
+                return id.encode(sink)
             }
             ReprInner::Value(rc) => sink.recur(&**rc),
             ReprInner::Placeholder => unreachable!(),
@@ -72,8 +72,8 @@ where
         }
     }
 
-    fn read(source: &mut Source) -> Result<Self, CanonError> {
-        Ok(Repr(RefCell::new(ReprInner::Id(Id::read(source)?))))
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        Ok(Repr(RefCell::new(ReprInner::Id(Id::decode(source)?))))
     }
 
     fn encoded_len(&self) -> usize {
