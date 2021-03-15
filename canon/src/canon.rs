@@ -18,9 +18,9 @@ pub enum CanonError {
 /// Trait to read/write values as bytes
 pub trait Canon: Sized + Clone {
     /// Write the value as bytes to a `Sink`
-    fn write(&self, sink: &mut Sink);
+    fn encode(&self, sink: &mut Sink);
     /// Read the value from bytes in a `Source`
-    fn read(source: &mut Source) -> Result<Self, CanonError>;
+    fn decode(source: &mut Source) -> Result<Self, CanonError>;
     /// Returns the number of bytes needed to encode this value
     fn encoded_len(&self) -> usize;
 }

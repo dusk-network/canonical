@@ -12,11 +12,11 @@ use crate::{Canon, CanonError, Sink, Source};
 macro_rules! number {
     ($number:ty, $size:expr) => {
         impl Canon for $number {
-            fn write(&self, sink: &mut Sink) {
+            fn encode(&self, sink: &mut Sink) {
                 sink.copy_bytes(&self.to_be_bytes())
             }
 
-            fn read(source: &mut Source) -> Result<Self, $crate::CanonError> {
+            fn decode(source: &mut Source) -> Result<Self, $crate::CanonError> {
                 let mut bytes = [0u8; $size];
                 bytes.copy_from_slice(source.read_bytes($size));
                 Ok(<$number>::from_be_bytes(bytes))
@@ -45,14 +45,14 @@ number!(u128, 16);
 number!(i128, 16);
 
 impl Canon for bool {
-    fn write(&self, sink: &mut Sink) {
+    fn encode(&self, sink: &mut Sink) {
         match self {
             true => sink.copy_bytes(&[1]),
             false => sink.copy_bytes(&[0]),
         }
     }
 
-    fn read(source: &mut Source) -> Result<Self, CanonError> {
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
         match source.read_bytes(1) {
             [0] => Ok(false),
             [1] => Ok(true),
@@ -69,20 +69,20 @@ impl<T> Canon for Option<T>
 where
     T: Canon,
 {
-    fn write(&self, sink: &mut Sink) {
+    fn encode(&self, sink: &mut Sink) {
         match self {
             None => sink.copy_bytes(&[0]),
             Some(t) => {
                 sink.copy_bytes(&[1]);
-                t.write(sink);
+                t.encode(sink);
             }
         }
     }
 
-    fn read(source: &mut Source) -> Result<Self, CanonError> {
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
         match source.read_bytes(1) {
             [0] => Ok(None),
-            [1] => Ok(Some(T::read(source)?)),
+            [1] => Ok(Some(T::decode(source)?)),
             _ => Err(CanonError::InvalidEncoding),
         }
     }
@@ -100,23 +100,23 @@ where
     T: Canon,
     E: Canon,
 {
-    fn write(&self, sink: &mut Sink) {
+    fn encode(&self, sink: &mut Sink) {
         match self {
             Ok(t) => {
                 sink.copy_bytes(&[0]);
-                t.write(sink)
+                t.encode(sink)
             }
             Err(e) => {
                 sink.copy_bytes(&[1]);
-                e.write(sink)
+                e.encode(sink)
             }
         }
     }
 
-    fn read(source: &mut Source) -> Result<Self, CanonError> {
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
         match source.read_bytes(1) {
-            [0] => Ok(Ok(T::read(source)?)),
-            [1] => Ok(Err(E::read(source)?)),
+            [0] => Ok(Ok(T::decode(source)?)),
+            [1] => Ok(Err(E::decode(source)?)),
             _ => Err(CanonError::InvalidEncoding),
         }
     }
@@ -130,9 +130,9 @@ where
 }
 
 impl Canon for () {
-    fn write(&self, _: &mut Sink) {}
+    fn encode(&self, _: &mut Sink) {}
 
-    fn read(_: &mut Source) -> Result<Self, CanonError> {
+    fn decode(_: &mut Source) -> Result<Self, CanonError> {
         Ok(())
     }
 
@@ -142,9 +142,9 @@ impl Canon for () {
 }
 
 impl Canon for ! {
-    fn write(&self, _: &mut Sink) {}
+    fn encode(&self, _: &mut Sink) {}
 
-    fn read(_: &mut Source) -> Result<Self, CanonError> {
+    fn decode(_: &mut Source) -> Result<Self, CanonError> {
         loop {}
     }
 
@@ -154,9 +154,9 @@ impl Canon for ! {
 }
 
 impl<T> Canon for PhantomData<T> {
-    fn write(&self, _: &mut Sink) {}
+    fn encode(&self, _: &mut Sink) {}
 
-    fn read(_: &mut Source) -> Result<Self, CanonError> {
+    fn decode(_: &mut Source) -> Result<Self, CanonError> {
         Ok(PhantomData)
     }
 
@@ -169,13 +169,13 @@ macro_rules! tuple {
     ( $($name:ident)+) => (
         #[allow(non_snake_case)]
         impl<$($name,)+> Canon for ($($name,)+) where $($name: Canon,)+ {
-            fn write(&self, sink: &mut Sink) {
+            fn encode(&self, sink: &mut Sink) {
                 let ($(ref $name,)+) = *self;
-                $($name.write(sink);)+
+                $($name.encode(sink);)+
             }
 
-            fn read(source: &mut Source) -> Result<Self, CanonError> {
-                Ok(($($name::read(source)?,)+))
+            fn decode(source: &mut Source) -> Result<Self, CanonError> {
+                Ok(($($name::decode(source)?,)+))
             }
 
             fn encoded_len(&self) -> usize {
@@ -211,11 +211,11 @@ macro_rules! array {
             T: Canon + Sized,
             S: Store,
         {
-            fn write(&self, _sink: &mut Sink) -> Result<(), Invalid> {
+            fn encode(&self, _sink: &mut Sink) -> Result<(), Invalid> {
                 Ok(())
             }
 
-            fn read(_source: &mut Source) -> Result<Self, Invalid> {
+            fn decode(_source: &mut Source) -> Result<Self, Invalid> {
                 Ok(Self::default())
             }
 
@@ -230,17 +230,17 @@ macro_rules! array {
         where
             T: Canon + Sized,
         {
-            fn write(&self, sink: &mut Sink) {
+            fn encode(&self, sink: &mut Sink) {
                 for i in 0..$n {
-                    self[i].write(sink);
+                    self[i].encode(sink);
                 }
             }
 
-            fn read(source: &mut Source) -> Result<Self, CanonError> {
+            fn decode(source: &mut Source) -> Result<Self, CanonError> {
                 let mut array = arrayvec::ArrayVec::<[T; $n]>::new();
 
                 for _ in 0..$n {
-                    array.push(T::read(source)?);
+                    array.push(T::decode(source)?);
                 }
 
                 Ok(array
@@ -305,19 +305,19 @@ mod alloc_impls {
     use alloc::vec::Vec;
 
     impl<T: Canon> Canon for Vec<T> {
-        fn write(&self, sink: &mut Sink) {
+        fn encode(&self, sink: &mut Sink) {
             let len = self.len() as u64;
-            len.write(sink);
+            len.encode(sink);
             for t in self.iter() {
-                t.write(sink);
+                t.encode(sink);
             }
         }
 
-        fn read(source: &mut Source) -> Result<Self, CanonError> {
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
             let mut vec = Vec::new();
-            let len = u64::read(source)?;
+            let len = u64::decode(source)?;
             for _ in 0..len {
-                vec.push(T::read(source)?);
+                vec.push(T::decode(source)?);
             }
             Ok(vec)
         }
@@ -333,15 +333,15 @@ mod alloc_impls {
     }
 
     impl Canon for String {
-        fn write(&self, sink: &mut Sink) {
+        fn encode(&self, sink: &mut Sink) {
             let bytes = self.as_bytes();
             let len = bytes.len() as u64;
-            len.write(sink);
+            len.encode(sink);
             sink.copy_bytes(bytes);
         }
 
-        fn read(source: &mut Source) -> Result<Self, CanonError> {
-            let len = u64::read(source)?;
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
+            let len = u64::decode(source)?;
             let vec: Vec<u8> = source.read_bytes(len as usize).into();
             String::from_utf8(vec)
                 .map_err(|_| CanonError::InvalidEncoding.into())
@@ -356,12 +356,12 @@ mod alloc_impls {
     where
         T: Canon,
     {
-        fn write(&self, sink: &mut Sink) {
-            (**self).write(sink)
+        fn encode(&self, sink: &mut Sink) {
+            (**self).encode(sink)
         }
 
-        fn read(source: &mut Source) -> Result<Self, CanonError> {
-            T::read(source).map(Rc::new)
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
+            T::decode(source).map(Rc::new)
         }
 
         fn encoded_len(&self) -> usize {
@@ -373,12 +373,12 @@ mod alloc_impls {
     where
         T: Canon,
     {
-        fn write(&self, sink: &mut Sink) {
-            (**self).write(sink)
+        fn encode(&self, sink: &mut Sink) {
+            (**self).encode(sink)
         }
 
-        fn read(source: &mut Source) -> Result<Self, CanonError> {
-            T::read(source).map(Arc::new)
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
+            T::decode(source).map(Arc::new)
         }
 
         fn encoded_len(&self) -> usize {

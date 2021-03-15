@@ -60,8 +60,8 @@ where
         let mut sink_a = Sink::new(&mut buffer_a[..]);
         let mut sink_b = Sink::new(&mut buffer_b[..]);
 
-        Canon::write(&canon, &mut sink_a);
-        Canon::write(&canon, &mut sink_b);
+        canon.encode(&mut sink_a);
+        canon.encode(&mut sink_b);
 
         let mut valid = true;
 
@@ -102,8 +102,8 @@ where
     let mut sink_a = Sink::new(&mut buffer_a);
     let mut sink_b = Sink::new(&mut buffer_b);
 
-    Canon::write(canon, &mut sink_a);
-    Canon::write(canon, &mut sink_b);
+    canon.encode(&mut sink_a);
+    canon.encode(&mut sink_b);
 
     let mut len = 0;
     for i in 0..buffer_size {

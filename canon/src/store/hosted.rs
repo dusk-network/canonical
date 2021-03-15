@@ -30,7 +30,7 @@ impl BridgeStore {
             get(id, &mut BUFFER[0]);
             // get has now written the encoded bytes of T into the buffer
             let mut source = Source::new(&BUFFER[..]);
-            T::read(&mut source)
+            T::decode(&mut source)
         }
     }
 
@@ -41,7 +41,7 @@ impl BridgeStore {
             BUFFER.resize_with(len, || 0);
 
             let mut sink = Sink::new(&mut BUFFER[..]);
-            t.write(&mut sink);
+            t.encode(&mut sink);
             let mut id = Id::default();
             put(&mut BUFFER[0], len as i32, &mut id);
             id

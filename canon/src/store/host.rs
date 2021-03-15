@@ -46,7 +46,7 @@ impl HostStore {
         let mut vec = Vec::with_capacity(len);
         vec.resize_with(len, || 0);
         let mut sink = Sink::new(&mut vec[..]);
-        t.write(&mut sink);
+        t.encode(&mut sink);
         let id = sink.fin();
         STATIC_MAP.write().insert(id, vec);
         id
@@ -56,7 +56,7 @@ impl HostStore {
         match STATIC_MAP.read().get(id) {
             Some(bytes) => {
                 let mut source = Source::new(bytes);
-                T::read(&mut source)
+                T::decode(&mut source)
             }
             None => Err(CanonError::NotFound),
         }
@@ -68,7 +68,7 @@ impl HostStore {
         let mut vec = Vec::with_capacity(len);
         vec.resize_with(len, || 0);
         let mut sink = Sink::new(&mut vec[..]);
-        t.write(&mut sink);
+        t.encode(&mut sink);
         let id = sink.fin();
         id
     }
