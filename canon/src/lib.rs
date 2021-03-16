@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Canonical, a no_std, host-allocating serialization library
-#![cfg_attr(not(feature = "host"), no_std)]
+#![cfg_attr(feature = "bridge", no_std)]
 #![feature(never_type)]
 #![feature(thread_local)]
 #![deny(missing_docs)]
@@ -21,6 +21,6 @@ mod store;
 
 pub use canon::{Canon, CanonError};
 pub use debug::{DebugMsg, _debug};
-pub use id::Id;
+pub use id::{Id, PAYLOAD_BYTES};
 pub use repr::{Repr, Val, ValMut};
 pub use store::{Sink, Source, Store};

@@ -6,75 +6,60 @@
 
 use cfg_if::cfg_if;
 
-use crate::{Canon, CanonError, Id};
+use crate::{Canon, CanonError, Id, PAYLOAD_BYTES};
 
 use alloc::vec::Vec;
 
 cfg_if! {
     if #[cfg(feature = "host")] {
         mod host;
+        use host::HostStore as Inner;
+    } else if #[cfg(feature = "bridge")] {
+        mod bridge;
+        use bridge::Store as Inner;
     } else {
-        mod hosted;
+        mod void;
+        use void::Store as Inner;
     }
 }
 
-/// The singleton used to access the current store
+/// The main interface responsible for storing and retrieving values by id
 pub struct Store;
 
 impl Store {
     /// Fetch bytes of an Id into the specified buffer
     pub fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                host::HostStore::fetch(id, into)
-            } else {
-                hosted::BridgeStore::fetch(id, into)
-            }
-        }
+        Inner::fetch(id, into)
     }
 
     /// Get a value from storage, given an identifier
     pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                host::HostStore::get(id)
-            } else {
-                hosted::BridgeStore::get(id)
-            }
+        if id.size() > PAYLOAD_BYTES {
+            Inner::get::<T>(id)
+        } else {
+            let mut source = Source::new(id.payload());
+            T::decode(&mut source)
         }
     }
 
     /// Encode a value into the store
     pub fn put<T: Canon>(t: &T) -> Id {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                host::HostStore::put(t)
-            } else {
-                hosted::BridgeStore::put(t)
-            }
-        }
+        Inner::put::<T>(t)
+    }
+
+    /// Encode a value into the store
+    pub fn put_raw(bytes: &[u8]) -> Id {
+        Inner::put_raw(bytes)
     }
 
     /// Get the id of a type, without storing it
     pub fn id<T: Canon>(t: &T) -> Id {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                host::HostStore::id(t)
-            } else {
-                hosted::BridgeStore::id(t)
-            }
-        }
+        Inner::id::<T>(t)
     }
 
     /// Hash a slice of bytes
     pub fn hash(bytes: &[u8]) -> [u8; 32] {
-        cfg_if! {
-            if #[cfg(feature = "host")] {
-                host::HostStore::hash(bytes)
-            } else {
-                hosted::BridgeStore::hash(bytes)
-            }
-        }
+        Inner::hash(bytes)
     }
 
     /// Hash a type implementing Canon.
@@ -88,7 +73,7 @@ impl Store {
     }
 }
 
-/// A sink over a slice of bytes
+/// Struct used in `Canon::encode` to read bytes from a buffer
 pub struct Sink<'a> {
     bytes: &'a mut [u8],
     offset: usize,
@@ -117,7 +102,7 @@ impl<'a> Sink<'a> {
     }
 }
 
-/// A sink over a slice of bytes
+/// Struct used in `Canon::decode` to read bytes from a buffer
 pub struct Source<'a> {
     bytes: &'a [u8],
     offset: usize,

@@ -7,10 +7,10 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use arbitrary::{Arbitrary, Unstructured};
+pub use arbitrary::{Arbitrary, Error as ArbitraryError, Unstructured};
 use canonical::{Canon, Sink, Store};
 
-const FUZZ_ITERATIONS: usize = 64;
+const FUZZ_ITERATIONS: usize = 128;
 
 fn hash<T: Hash>(t: T) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -88,31 +88,4 @@ where
 
         assert!(canon == restored);
     }
-}
-
-pub fn canon_encoding<C>(canon: &C) -> usize
-where
-    C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
-{
-    let buffer_size = canon.encoded_len();
-
-    let mut buffer_a = vec![0xff; buffer_size];
-    let mut buffer_b = vec![0x00; buffer_size];
-
-    let mut sink_a = Sink::new(&mut buffer_a);
-    let mut sink_b = Sink::new(&mut buffer_b);
-
-    canon.encode(&mut sink_a);
-    canon.encode(&mut sink_b);
-
-    let mut len = 0;
-    for i in 0..buffer_size {
-        if buffer_a[i] != buffer_b[i] {
-            break;
-        } else {
-            len += 1;
-        }
-    }
-
-    len
 }
