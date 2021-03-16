@@ -17,10 +17,10 @@ static mut BUFFER: Vec<u8> = Vec::new();
 
 /// Store usable across ffi-boundraries
 #[derive(Clone, Copy, Default, Debug)]
-pub struct BridgeStore;
+pub struct Store;
 
-impl BridgeStore {
-    pub(crate) fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
+impl Store {
+    pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
         unsafe {
             let len = id.len();
             // ensure we have enough space in our buffer
@@ -34,7 +34,7 @@ impl BridgeStore {
         }
     }
 
-    pub(crate) fn put<T: Canon>(t: &T) -> Id {
+    pub fn put<T: Canon>(t: &T) -> Id {
         unsafe {
             let len = t.encoded_len();
             // ensure we have enough space in our buffer
@@ -48,15 +48,15 @@ impl BridgeStore {
         }
     }
 
-    pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
+    pub fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
         todo!()
     }
 
-    pub(crate) fn id<T: Canon>(_t: &T) -> Id {
+    pub fn id<T: Canon>(_t: &T) -> Id {
         todo!()
     }
 
-    pub(crate) fn hash(bytes: &[u8]) -> [u8; 32] {
+    pub fn hash(bytes: &[u8]) -> [u8; 32] {
         let mut buf = [0u8; 32];
         unsafe { hash(&bytes[0], bytes.len() as i32, &mut buf) }
         buf

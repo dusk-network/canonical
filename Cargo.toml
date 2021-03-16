@@ -4,7 +4,3 @@ members = [
     "canon_derive",
     "canon_fuzz",
 ]
-
-[patch.crates-io]
-canonical = { path = "canon" }
-canonical_derive = { path = "canon_derive" }

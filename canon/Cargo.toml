@@ -22,4 +22,7 @@ canonical_derive = { path = "../canon_derive", version = "0.5" }
 canonical_fuzz = { path = "../canon_fuzz", version = "0.5" }
 
 [features]
+bridge = []
 host = ["blake2b_simd/std", "arbitrary", "lazy_static", "parking_lot"]
+
+
