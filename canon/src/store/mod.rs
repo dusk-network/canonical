@@ -6,7 +6,7 @@
 
 use cfg_if::cfg_if;
 
-use crate::{Canon, CanonError, Id};
+use crate::{Canon, CanonError, Id, PAYLOAD_BYTES};
 
 use alloc::vec::Vec;
 
@@ -34,12 +34,22 @@ impl Store {
 
     /// Get a value from storage, given an identifier
     pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
-        Inner::get::<T>(id)
+        if id.size() > PAYLOAD_BYTES {
+            Inner::get::<T>(id)
+        } else {
+            let mut source = Source::new(id.payload());
+            T::decode(&mut source)
+        }
     }
 
     /// Encode a value into the store
     pub fn put<T: Canon>(t: &T) -> Id {
         Inner::put::<T>(t)
+    }
+
+    /// Encode a value into the store
+    pub fn put_raw(bytes: &[u8]) -> Id {
+        Inner::put_raw(bytes)
     }
 
     /// Get the id of a type, without storing it

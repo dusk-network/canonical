@@ -18,11 +18,9 @@ lazy_static = { version = "1.4", optional = true }
 parking_lot = { version = "0.11", optional = true }
 
 [dev-dependencies]
-canonical_derive = { path = "../canon_derive", version = "0.5" }
-canonical_fuzz = { path = "../canon_fuzz", version = "0.5" }
+canonical_derive = { path = "../canon_derive" }
+canonical_fuzz = { path = "../canon_fuzz" }
 
 [features]
 bridge = []
 host = ["blake2b_simd/std", "arbitrary", "lazy_static", "parking_lot"]
-
-

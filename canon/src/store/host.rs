@@ -52,6 +52,17 @@ impl HostStore {
         id
     }
 
+    pub(crate) fn put_raw(bytes: &[u8]) -> Id {
+        let len = bytes.len();
+        let mut vec = Vec::with_capacity(len);
+        vec.resize_with(len, || 0);
+        let mut sink = Sink::new(&mut vec[..]);
+        sink.copy_bytes(bytes);
+        let id = sink.fin();
+        STATIC_MAP.write().insert(id, vec);
+        id
+    }
+
     pub(crate) fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
         match STATIC_MAP.read().get(id) {
             Some(bytes) => {
