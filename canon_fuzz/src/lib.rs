@@ -8,7 +8,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 pub use arbitrary::{Arbitrary, Error as ArbitraryError, Unstructured};
-use canonical::{Canon, Sink, Store};
+use canonical::{Canon, Id, Sink};
 
 const FUZZ_ITERATIONS: usize = 128;
 
@@ -83,8 +83,8 @@ where
             }
         }
 
-        let id = Store::put(&canon);
-        let restored = Store::get(&id).unwrap();
+        let id = Id::new(&canon);
+        let restored = id.reify().unwrap();
 
         assert!(canon == restored);
     }

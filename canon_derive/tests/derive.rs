@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use arbitrary::Arbitrary;
-use canonical::{Canon, Store};
+use canonical::{Canon, Id};
 use canonical_derive::Canon;
 use canonical_fuzz::fuzz_canon_iterations;
 
@@ -73,9 +73,8 @@ struct MonsterStruct<T> {
 }
 
 fn serialize_deserialize<T: Canon + Clone + std::fmt::Debug + PartialEq>(t: T) {
-    let id = Store::put(&t);
-
-    let restored = Store::get(&id).unwrap();
+    let id = Id::new(&t);
+    let restored = id.reify().unwrap();
     assert_eq!(t, restored);
 }
 

@@ -6,84 +6,43 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
-
-use crate::canon::{Canon, CanonError};
-use crate::id::Id;
-use crate::store::{Sink, Source};
-
-#[thread_local]
-static mut BUFFER: Vec<u8> = Vec::new();
+use crate::canon::CanonError;
+use crate::id::IdHash;
 
 /// Store usable across ffi-boundraries
 #[derive(Clone, Copy, Default, Debug)]
-pub struct Store;
+pub struct BridgeStore;
 
-impl Store {
-    pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
+impl BridgeStore {
+    pub(crate) fn put(bytes: &[u8]) -> IdHash {
+        // we only put larger values here
+        debug_assert!(bytes.len() > core::mem::size_of::<IdHash>());
+        let mut idhash = IdHash::default();
         unsafe {
-            let len = id.size();
-            // ensure we have enough space in our buffer
-            // NB: this might reallocate on growing, but never actually
-            // shrinks the capacity of the buffer
-            BUFFER.resize_with(len, || 0);
-            if !get(id, &mut BUFFER[0]) {
-                return Err(CanonError::NotFound);
-            }
-            // get has now written the encoded bytes of T into the buffer
-            let mut source = Source::new(&BUFFER[..]);
-            T::decode(&mut source)
+            put(&bytes[0], bytes.len() as i32, &mut idhash);
         }
+        idhash
     }
 
-    pub fn put<T: Canon>(t: &T) -> Id {
-        unsafe {
-            let len = t.encoded_len();
-            // ensure we have enough space in our buffer
-            BUFFER.resize_with(len, || 0);
-
-            let mut sink = Sink::new(&mut BUFFER[..]);
-            t.encode(&mut sink);
-            let mut id = Id::default();
-            put(&mut BUFFER[0], len as i32, &mut id);
-            id
-        }
+    pub fn get(hash: &IdHash, into: &mut [u8]) -> Result<(), CanonError> {
+        // We assume this to always work for the bridge, by catching the error
+        // in the host and aborting before returning.
+        let len = into.len();
+        unsafe { Ok(get(&hash, &mut into[0], len as i32)) }
     }
 
-    pub(crate) fn put_raw(bytes: &[u8]) -> Id {
-        unsafe {
-            let mut id = Id::default();
-            let len = bytes.len();
-            BUFFER[0..len].copy_from_slice(bytes);
-            put(&mut BUFFER[0], len as i32, &mut id);
-            id
-        }
-    }
-
-    pub fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
-        unsafe {
-            if !get(&id, &mut into[0]) {
-                Err(CanonError::NotFound)
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    pub fn id<T: Canon>(_t: &T) -> Id {
-        todo!()
-    }
-
-    pub fn hash(bytes: &[u8]) -> [u8; 32] {
-        let mut buf = [0u8; 32];
-        unsafe { hash(&bytes[0], bytes.len() as i32, &mut buf) }
-        buf
+    pub fn hash(bytes: &[u8]) -> IdHash {
+        let len = bytes.len();
+        let ofs = &bytes[0];
+        let mut result = IdHash::default();
+        unsafe { hash(ofs, len as i32, &mut result) };
+        result
     }
 }
 
 #[link(wasm_import_module = "canon")]
 extern "C" {
-    pub fn put(buf: &mut u8, len: i32, ret_id: &mut Id);
-    pub fn get(id: &Id, buf: &mut u8) -> bool;
-    pub fn hash(bytes: &u8, len: i32, buf: &mut [u8; 32]);
+    pub fn put(buf: &u8, len: i32, ret_hash: &mut IdHash);
+    pub fn get(hash: &IdHash, buf: &mut u8, len: i32);
+    pub fn hash(ofs: &u8, len: i32, buf: &mut IdHash);
 }

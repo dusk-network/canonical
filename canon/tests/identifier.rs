@@ -4,15 +4,17 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::Store;
+use canonical::{Canon, Id, Sink, Source};
+use canonical_fuzz::fuzz_canon;
 
 #[test]
-fn identifier_u64() {
-    let a: u64 = 328;
+fn test_empty() {
+    let mut source = Source::new(&[0, 0, 0]);
+    let id = Id::decode(&mut source).unwrap();
+    assert_eq!(id, Id::default());
+}
 
-    let id_a = Store::id(&a);
-
-    let id_b = Store::put(&a);
-
-    assert!(id_a == id_b);
+#[test]
+fn fuzz_id() {
+    fuzz_canon::<Id>()
 }
