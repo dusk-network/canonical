@@ -6,9 +6,10 @@
 
 use cfg_if::cfg_if;
 
-use crate::{Canon, CanonError, Id, PAYLOAD_BYTES};
+use core::fmt;
 
-use alloc::vec::Vec;
+use crate::id::IdHash;
+use crate::CanonError;
 
 cfg_if! {
     if #[cfg(feature = "host")] {
@@ -16,60 +17,30 @@ cfg_if! {
         use host::HostStore as Inner;
     } else if #[cfg(feature = "bridge")] {
         mod bridge;
-        use bridge::Store as Inner;
+        use bridge::BridgeStore as Inner;
     } else {
         mod void;
-        use void::Store as Inner;
+        use void::VoidStore as Inner;
     }
 }
 
-/// The main interface responsible for storing and retrieving values by id
+/// Low-lever intefrace to the store logic.
 pub struct Store;
 
 impl Store {
-    /// Fetch bytes of an Id into the specified buffer
-    pub fn fetch(id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
-        Inner::fetch(id, into)
+    /// Write the bye slice into the store and return its hash
+    pub fn put(bytes: &[u8]) -> IdHash {
+        Inner::put(&bytes[..])
     }
 
-    /// Get a value from storage, given an identifier
-    pub fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
-        if id.size() > PAYLOAD_BYTES {
-            Inner::get::<T>(id)
-        } else {
-            let mut source = Source::new(id.payload());
-            T::decode(&mut source)
-        }
-    }
-
-    /// Encode a value into the store
-    pub fn put<T: Canon>(t: &T) -> Id {
-        Inner::put::<T>(t)
-    }
-
-    /// Encode a value into the store
-    pub fn put_raw(bytes: &[u8]) -> Id {
-        Inner::put_raw(bytes)
-    }
-
-    /// Get the id of a type, without storing it
-    pub fn id<T: Canon>(t: &T) -> Id {
-        Inner::id::<T>(t)
+    /// Get data with the corresponding hash and write it to a buffer
+    pub fn get(hash: &IdHash, write_to: &mut [u8]) -> Result<(), CanonError> {
+        Inner::get(hash, write_to)
     }
 
     /// Hash a slice of bytes
-    pub fn hash(bytes: &[u8]) -> [u8; 32] {
+    pub fn hash(bytes: &[u8]) -> IdHash {
         Inner::hash(bytes)
-    }
-
-    /// Hash a type implementing Canon.
-    pub fn canon_hash<T: Canon>(t: &T) -> [u8; 32] {
-        let len = t.encoded_len();
-        let mut buf = Vec::with_capacity(len);
-        buf.resize_with(len, || 0);
-        let mut sink = Sink::new(&mut buf[..]);
-        t.encode(&mut sink);
-        Self::hash(&buf[..])
     }
 }
 
@@ -77,6 +48,12 @@ impl Store {
 pub struct Sink<'a> {
     bytes: &'a mut [u8],
     offset: usize,
+}
+
+impl<'a> fmt::Debug for Sink<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Sink {:?}", &self.bytes[0..self.offset])
+    }
 }
 
 impl<'a> Sink<'a> {
@@ -90,15 +67,6 @@ impl<'a> Sink<'a> {
         let len = bytes.len();
         self.bytes[self.offset..self.offset + len].copy_from_slice(bytes);
         self.offset += len;
-    }
-
-    pub(crate) fn recur<T: Canon>(&self, t: &T) -> Id {
-        Store::put(t)
-    }
-
-    /// Finish up the sink and return the Id of the written data
-    pub fn fin(self) -> Id {
-        Id::new(&self.bytes[0..self.offset])
     }
 }
 

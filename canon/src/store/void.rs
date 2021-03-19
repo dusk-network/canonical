@@ -7,9 +7,9 @@
 use crate::{Canon, CanonError, Id};
 
 /// The singleton responsible for saving and restoring values
-pub struct Store;
+pub struct VoidStore;
 
-impl Store {
+impl VoidStore {
     pub(crate) fn get<T: Canon>(_id: &Id) -> Result<T, CanonError> {
         Err(CanonError::NotFound)
     }

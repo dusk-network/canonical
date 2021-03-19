@@ -9,7 +9,7 @@ use core::ops::{Deref, DerefMut};
 
 use alloc::rc::Rc;
 
-use crate::{Canon, CanonError, Id, Sink, Source, Store};
+use crate::{Canon, CanonError, Id, Sink, Source};
 
 #[derive(Debug)]
 enum ReprInner<T> {
@@ -54,22 +54,27 @@ where
     T: Canon,
 {
     fn encode(&self, sink: &mut Sink) {
-        let new_id = match &*self.0.borrow() {
-            ReprInner::Id(id) | ReprInner::IdValue(id, _) => {
-                return id.encode(sink)
+        // move out of refcell
+        let mut borrow = self.0.borrow_mut();
+        // Assure that the Repr has its Id loaded
+        let result = match core::mem::take(&mut *borrow) {
+            ReprInner::Id(id) => {
+                id.encode(sink);
+                ReprInner::Id(id)
             }
-            ReprInner::Value(rc) => sink.recur(&**rc),
+            ReprInner::IdValue(id, rc) => {
+                id.encode(sink);
+                ReprInner::IdValue(id, rc)
+            }
+            ReprInner::Value(rc) => {
+                let t: &T = &*rc;
+                let id = Id::new(t);
+                id.encode(sink);
+                ReprInner::IdValue(id, rc)
+            }
             ReprInner::Placeholder => unreachable!(),
         };
-
-        let mut borrow_mut = self.0.borrow_mut();
-        if let ReprInner::Value(rc) =
-            core::mem::replace(&mut *borrow_mut, ReprInner::Placeholder)
-        {
-            *borrow_mut = ReprInner::IdValue(new_id, rc)
-        } else {
-            unreachable!()
-        }
+        *borrow = result;
     }
 
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
@@ -82,11 +87,7 @@ where
             ReprInner::Id(id) | ReprInner::IdValue(id, _) => id.encoded_len(),
             ReprInner::Value(rc) => {
                 let enc_len = (*rc).encoded_len();
-                if enc_len <= 32 {
-                    2 + enc_len
-                } else {
-                    34
-                }
+                Id::encoded_len_for_payload_len(enc_len)
             }
             ReprInner::Placeholder => unreachable!(),
         }
@@ -152,10 +153,7 @@ impl<T> Repr<T> {
         let result = match core::mem::take(&mut *borrow) {
             loaded @ ReprInner::Value(_)
             | loaded @ ReprInner::IdValue(_, _) => loaded,
-            ReprInner::Id(id) => {
-                let t = Store::get(&id)?;
-                ReprInner::IdValue(id, Rc::new(t))
-            }
+            ReprInner::Id(id) => ReprInner::IdValue(id, Rc::new(id.reify()?)),
             ReprInner::Placeholder => unreachable!(),
         };
         *borrow = result;
@@ -178,10 +176,7 @@ impl<T> Repr<T> {
             ReprInner::Value(rc) | ReprInner::IdValue(_, rc) => {
                 ReprInner::Value(rc)
             }
-            ReprInner::Id(id) => {
-                let t = Store::get(&id)?;
-                ReprInner::Value(Rc::new(t))
-            }
+            ReprInner::Id(id) => ReprInner::Value(Rc::new(id.reify()?)),
             ReprInner::Placeholder => unreachable!(),
         };
         *borrow = result;

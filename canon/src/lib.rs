@@ -7,7 +7,6 @@
 //! Canonical, a no_std, host-allocating serialization library
 #![cfg_attr(feature = "bridge", no_std)]
 #![feature(never_type)]
-#![feature(thread_local)]
 #![deny(missing_docs)]
 
 extern crate alloc;
@@ -19,8 +18,8 @@ mod implementations;
 mod repr;
 mod store;
 
-pub use canon::{Canon, CanonError};
+pub use canon::{Canon, CanonError, EncodeToVec};
 pub use debug::{DebugMsg, _debug};
-pub use id::{Id, PAYLOAD_BYTES};
+pub use id::{Id, IdHash};
 pub use repr::{Repr, Val, ValMut};
 pub use store::{Sink, Source, Store};

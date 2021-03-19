@@ -6,14 +6,14 @@
 
 #![allow(clippy::unit_cmp)]
 
-use canonical::{Repr, Store};
+use canonical::{Id, Repr};
 
 #[test]
 fn zero_sized_reprs() {
     let repr = Repr::new(());
 
-    let id = Store::put(&repr);
+    let id = Id::new(&repr);
 
-    let restored = Store::get(&id).unwrap();
+    let restored = id.reify().unwrap();
     assert_eq!((), restored);
 }

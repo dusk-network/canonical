@@ -11,80 +11,44 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{Canon, CanonError, Id, Sink, Source};
-
-struct InMemoryMap(HashMap<Id, Vec<u8>>);
-
-impl InMemoryMap {
-    fn new() -> Self {
-        InMemoryMap(HashMap::new())
-    }
-
-    fn insert(&mut self, id: Id, bytes: Vec<u8>) {
-        self.0.insert(id, bytes);
-    }
-
-    fn get(&self, id: &Id) -> Option<&[u8]> {
-        self.0.get(id).map(AsRef::as_ref)
-    }
-}
+use crate::id::IdHash;
+use crate::CanonError;
 
 lazy_static! {
-    static ref STATIC_MAP: Arc<RwLock<InMemoryMap>> =
-        Arc::new(RwLock::new(InMemoryMap::new()));
+    static ref STATIC_MAP: Arc<RwLock<HashMap<IdHash, Vec<u8>>>> =
+        Arc::new(RwLock::new(HashMap::new()));
 }
 
 pub(crate) struct HostStore;
 
 impl HostStore {
-    pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
-        todo!("a");
-    }
-
-    pub(crate) fn put<T: Canon>(t: &T) -> Id {
-        let len = t.encoded_len();
-        let mut vec = Vec::with_capacity(len);
-        vec.resize_with(len, || 0);
-        let mut sink = Sink::new(&mut vec[..]);
-        t.encode(&mut sink);
-        let id = sink.fin();
-        STATIC_MAP.write().insert(id, vec);
-        id
-    }
-
-    pub(crate) fn put_raw(bytes: &[u8]) -> Id {
-        let len = bytes.len();
-        let mut vec = Vec::with_capacity(len);
-        vec.resize_with(len, || 0);
-        let mut sink = Sink::new(&mut vec[..]);
-        sink.copy_bytes(bytes);
-        let id = sink.fin();
-        STATIC_MAP.write().insert(id, vec);
-        id
-    }
-
-    pub(crate) fn get<T: Canon>(id: &Id) -> Result<T, CanonError> {
-        match STATIC_MAP.read().get(id) {
-            Some(bytes) => {
-                let mut source = Source::new(bytes);
-                T::decode(&mut source)
-            }
+    pub(crate) fn get(
+        hash: &IdHash,
+        into: &mut [u8],
+    ) -> Result<(), CanonError> {
+        println!(
+            "Getting hash {:?} in host, into goal length buffer {:?}",
+            &hash,
+            into.len()
+        );
+        match STATIC_MAP
+            .read()
+            .get(hash)
+            .map(|vec| into.copy_from_slice(&vec))
+        {
+            Some(()) => Ok(()),
             None => Err(CanonError::NotFound),
         }
     }
 
-    pub(crate) fn id<T: Canon>(t: &T) -> Id {
-        // Same as put, just not storing anything
-        let len = t.encoded_len();
-        let mut vec = Vec::with_capacity(len);
-        vec.resize_with(len, || 0);
-        let mut sink = Sink::new(&mut vec[..]);
-        t.encode(&mut sink);
-        let id = sink.fin();
-        id
+    pub(crate) fn put(bytes: &[u8]) -> IdHash {
+        debug_assert!(bytes.len() > core::mem::size_of::<IdHash>());
+        let hash = Self::hash(bytes);
+        STATIC_MAP.write().insert(hash, Vec::from(bytes));
+        hash
     }
 
-    pub fn hash(bytes: &[u8]) -> [u8; 32] {
+    pub fn hash(bytes: &[u8]) -> IdHash {
         let mut state = Params::new().hash_length(32).to_state();
         state.update(&bytes[..]);
 
