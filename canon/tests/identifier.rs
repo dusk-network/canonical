@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use canonical::{Canon, Id, Sink, Source};
+use canonical::{Canon, Id, Source};
 use canonical_fuzz::fuzz_canon;
 
 #[test]

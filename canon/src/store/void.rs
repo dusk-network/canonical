@@ -4,29 +4,24 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Canon, CanonError, Id};
+use crate::{CanonError, IdHash};
 
 /// The singleton responsible for saving and restoring values
 pub struct VoidStore;
 
 impl VoidStore {
-    pub(crate) fn get<T: Canon>(_id: &Id) -> Result<T, CanonError> {
-        Err(CanonError::NotFound)
-    }
-
-    pub(crate) fn put<T: Canon>(_t: &T) -> Id {
+    pub(crate) fn get(
+        _hash: &IdHash,
+        _into: &mut [u8],
+    ) -> Result<(), CanonError> {
         panic!("No store feature selected")
     }
 
-    pub(crate) fn fetch(_id: &Id, _into: &mut [u8]) -> Result<(), CanonError> {
-        Err(CanonError::NotFound)
-    }
-
-    pub(crate) fn id<T: Canon>(_t: &T) -> Id {
+    pub(crate) fn put(_bytes: &[u8]) -> IdHash {
         panic!("No store feature selected")
     }
 
-    pub(crate) fn hash(_bytes: &[u8]) -> [u8; 32] {
+    pub(crate) fn hash(_bytes: &[u8]) -> IdHash {
         panic!("No store feature selected")
     }
 }
