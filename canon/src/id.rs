@@ -181,8 +181,6 @@ mod impl_arbitrary {
                 bytevec.extend_from_slice(&junk);
             }
 
-            println!("{:?}", &bytevec);
-
             Ok(Id::new(&bytevec))
         }
     }

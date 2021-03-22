@@ -26,11 +26,6 @@ impl HostStore {
         hash: &IdHash,
         into: &mut [u8],
     ) -> Result<(), CanonError> {
-        println!(
-            "Getting hash {:?} in host, into goal length buffer {:?}",
-            &hash,
-            into.len()
-        );
         match STATIC_MAP
             .read()
             .get(hash)
