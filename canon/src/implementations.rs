@@ -343,8 +343,7 @@ mod alloc_impls {
         fn decode(source: &mut Source) -> Result<Self, CanonError> {
             let len = u64::decode(source)?;
             let vec: Vec<u8> = source.read_bytes(len as usize).into();
-            String::from_utf8(vec)
-                .map_err(|_| CanonError::InvalidEncoding.into())
+            String::from_utf8(vec).map_err(|_| CanonError::InvalidEncoding)
         }
 
         fn encoded_len(&self) -> usize {

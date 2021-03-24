@@ -4,6 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+/// This file is a workaround to allow for use of the types in Canonical
+/// without having to either use the BridgeStore (with associated extern
+/// linking points) or the std.
 use crate::{CanonError, IdHash};
 
 /// The singleton responsible for saving and restoring values
