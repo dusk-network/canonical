@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "README.md"
