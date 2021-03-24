@@ -120,9 +120,11 @@ impl Id {
         T::decode(&mut source)
     }
 
+    // This is a conveniance function to be called from Repr, in order not to
+    // have to construct an Id to get the encoded_len correctly.
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
         let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
-        // version, length and..
+        // version, length and the actual payload length
         1 + 2 + actual_payload
     }
 }
@@ -158,9 +160,8 @@ impl Canon for Id {
     }
 
     fn encoded_len(&self) -> usize {
-        let len = self.len as usize;
-        let payload_size = core::cmp::min(len, PAYLOAD_BYTES);
-        1 + 2 + payload_size
+        let payload_len = core::cmp::min(self.len as usize, PAYLOAD_BYTES);
+        Self::encoded_len_for_payload_len(payload_len)
     }
 }
 
