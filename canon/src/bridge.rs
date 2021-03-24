@@ -4,10 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use core::marker::PhantomData;
-
-use crate::canon::{Canon, InvalidEncoding};
-use crate::store::{ByteSink, ByteSource, Ident, Sink, Source, Store};
+use crate::canon::{Canon, CanonError};
+use crate::id::Id;
+use crate::store::{Sink, Source};
 
 // We set the buffer size to 32kib for now, subject to change.
 const BUF_SIZE: usize = 1024 * 32;
@@ -16,59 +15,15 @@ static mut BUF: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
 /// Store usable across ffi-boundraries
 #[derive(Clone, Copy, Default, Debug)]
-pub struct BridgeStore<I> {
-    _marker: PhantomData<I>,
-}
+pub struct BridgeStore;
 
-impl<I> BridgeStore<I>
-where
-    I: Ident,
-{
+impl BridgeStore {
     /// Create a new bridge store
     pub fn new() -> Self {
-        BridgeStore {
-            _marker: PhantomData,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum BridgeStoreError {
-    InvalidEncoding,
-}
-
-impl<S: Store> Canon<S> for BridgeStoreError {
-    fn write(&self, _sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        Ok(())
+        BridgeStore
     }
 
-    fn read(_source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        Ok(BridgeStoreError::InvalidEncoding)
-    }
-
-    fn encoded_len(&self) -> usize {
-        0
-    }
-}
-
-impl From<InvalidEncoding> for BridgeStoreError {
-    fn from(_: InvalidEncoding) -> Self {
-        BridgeStoreError::InvalidEncoding
-    }
-}
-
-impl<I> Store for BridgeStore<I>
-where
-    I: 'static + Ident,
-{
-    type Ident = I;
-    type Error = InvalidEncoding;
-
-    fn fetch(
-        &self,
-        id: &Self::Ident,
-        into: &mut [u8],
-    ) -> Result<(), Self::Error> {
+    fn fetch(&self, id: &Id, into: &mut [u8]) -> Result<(), CanonError> {
         unsafe {
             let slice = id.as_ref();
             let id_len = slice.len();
@@ -79,32 +34,32 @@ where
         }
     }
 
-    fn get<T: Canon<Self>>(&self, id: &Self::Ident) -> Result<T, Self::Error> {
+    fn get<T: Canon>(&self, id: &Id) -> Result<T, CanonError> {
         unsafe {
             let slice = id.as_ref();
             let id_len = slice.len();
             BUF[0..id_len].copy_from_slice(slice);
             get(&mut BUF[0]);
             // get has written T into the buffer
-            let mut source = ByteSource::new(&BUF[..], self);
-            Canon::<Self>::read(&mut source)
+            let mut source = Source::new(&BUF[..]);
+            Canon::read(&mut source)
         }
     }
 
-    fn put<T: Canon<Self>>(&self, t: &T) -> Result<Self::Ident, Self::Error> {
+    fn put<T: Canon>(&self, t: &T) -> Result<Id, CanonError> {
         unsafe {
             let len = t.encoded_len();
-            let mut sink = ByteSink::new(&mut BUF, self);
-            Canon::<Self>::write(t, &mut sink)?;
-            let mut id = Self::Ident::default();
+            let mut sink = Sink::new(&mut BUF);
+            Canon::write(t, &mut sink);
+            let mut id = Id::default();
             put(&mut BUF[0], len, &mut id.as_mut()[0]);
             Ok(id)
         }
     }
 
-    fn put_raw(&self, bytes: &[u8]) -> Result<Self::Ident, Self::Error> {
+    fn put_raw(&self, bytes: &[u8]) -> Result<Id, CanonError> {
         unsafe {
-            let mut id = Self::Ident::default();
+            let mut id = Id::default();
             let len = bytes.len();
             BUF[0..len].copy_from_slice(bytes);
             put(&mut BUF[0], len, &mut id.as_mut()[0]);
