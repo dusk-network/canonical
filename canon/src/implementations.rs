@@ -180,7 +180,6 @@ macro_rules! tuple {
 
             fn encoded_len(&self) -> usize {
                 let ($(ref $name,)+) = *self;
-                // 0 $( + self.$idx.encoded_len())*
                 0 $(+ $name.encoded_len())*
             }
 
