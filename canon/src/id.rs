@@ -94,7 +94,7 @@ impl Id {
     }
 
     /// Returns the length of the represented data
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.len as usize
     }
 
@@ -109,7 +109,6 @@ impl Id {
 
         let mut source = if len > PAYLOAD_BYTES {
             // allocation happens here
-            buf.reserve(len);
             buf.resize_with(len, || 0);
 
             Store::get(&self.payload, &mut buf)?;
@@ -132,8 +131,7 @@ impl Canon for Id {
     fn encode(&self, sink: &mut Sink) {
         self.version.encode(sink);
         self.len.encode(sink);
-        let payload_size = core::cmp::min(self.len as usize, PAYLOAD_BYTES);
-
+        let payload_size = core::cmp::min(self.size(), PAYLOAD_BYTES);
         sink.copy_bytes(&self.payload[..payload_size]);
     }
 
