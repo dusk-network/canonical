@@ -7,10 +7,10 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use arbitrary::{Arbitrary, Unstructured};
-use canonical::{ByteSink, Canon, Store};
+pub use arbitrary::{Arbitrary, Error as ArbitraryError, Unstructured};
+use canonical::{Canon, Id, Sink};
 
-const FUZZ_ITERATIONS: usize = 64;
+const FUZZ_ITERATIONS: usize = 128;
 
 fn hash<T: Hash>(t: T) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -20,19 +20,17 @@ fn hash<T: Hash>(t: T) -> u64 {
 
 /// Fuzzes a type with regards to its Canon implementation.
 /// making sure every serialization produces an Equal result when deserialized
-pub fn fuzz_canon<C, S>(store: S)
+pub fn fuzz_canon<C>()
 where
-    C: Canon<S> + Arbitrary + PartialEq + std::fmt::Debug,
-    S: Store,
+    C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
 {
-    fuzz_canon_iterations::<C, S>(FUZZ_ITERATIONS, store)
+    fuzz_canon_iterations::<C>(FUZZ_ITERATIONS)
 }
 
 /// Fuzzes for a set number of iterations
-pub fn fuzz_canon_iterations<C, S>(iterations: usize, store: S)
+pub fn fuzz_canon_iterations<C>(iterations: usize)
 where
-    C: Canon<S> + Arbitrary + PartialEq + std::fmt::Debug,
-    S: Store,
+    C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
 {
     let mut entropy = 0;
     for _ in 0..iterations {
@@ -44,6 +42,7 @@ where
                     Ok(t) => break t,
                     Err(_) => {
                         entropy += 1;
+
                         bytes.extend_from_slice(&hash(entropy).to_be_bytes());
                     }
                 }
@@ -58,11 +57,11 @@ where
         let mut buffer_b = vec![];
         buffer_b.resize_with(claimed_len + 1, || 0x00);
 
-        let mut sink_a = ByteSink::new(&mut buffer_a[..], &store);
-        let mut sink_b = ByteSink::new(&mut buffer_b[..], &store);
+        let mut sink_a = Sink::new(&mut buffer_a[..]);
+        let mut sink_b = Sink::new(&mut buffer_b[..]);
 
-        Canon::write(&canon, &mut sink_a).unwrap();
-        Canon::write(&canon, &mut sink_b).unwrap();
+        canon.encode(&mut sink_a);
+        canon.encode(&mut sink_b);
 
         let mut valid = true;
 
@@ -84,38 +83,9 @@ where
             }
         }
 
-        let id = store.put(&canon).unwrap();
-        let restored = store.get(&id).unwrap();
+        let id = Id::new(&canon);
+        let restored = id.reify().unwrap();
 
         assert!(canon == restored);
     }
-}
-
-pub fn canon_encoding<C, S>(canon: &C) -> usize
-where
-    C: Canon<S> + Arbitrary + PartialEq + std::fmt::Debug,
-    S: Store,
-{
-    let store = S::default();
-    let buffer_size = canon.encoded_len();
-
-    let mut buffer_a = vec![0xff; buffer_size];
-    let mut buffer_b = vec![0x00; buffer_size];
-
-    let mut sink_a = ByteSink::new(&mut buffer_a, &store);
-    let mut sink_b = ByteSink::new(&mut buffer_b, &store);
-
-    Canon::write(canon, &mut sink_a).unwrap();
-    Canon::write(canon, &mut sink_b).unwrap();
-
-    let mut len = 0;
-    for i in 0..buffer_size {
-        if buffer_a[i] != buffer_b[i] {
-            break;
-        } else {
-            len += 1;
-        }
-    }
-
-    len
 }

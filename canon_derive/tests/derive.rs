@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use arbitrary::Arbitrary;
-use canonical::{Canon, Store};
+use canonical::{Canon, Id};
 use canonical_derive::Canon;
-use canonical_fuzz::{fuzz_canon, fuzz_canon_iterations};
-use canonical_host::MemStore;
+use canonical_fuzz::fuzz_canon_iterations;
 
 #[derive(Clone, Canon, PartialEq, Debug, Arbitrary)]
 struct A {
@@ -73,60 +72,10 @@ struct MonsterStruct<T> {
     j: J,
 }
 
-#[derive(Clone, Canon, Debug, Arbitrary)]
-struct StoreIncludedA<S: Store> {
-    junk: u32,
-    store: S,
-}
-
-#[derive(Clone, Canon, Debug, Arbitrary)]
-struct StoreIncludedB<S>
-where
-    S: Store,
-{
-    junk: u32,
-    store: S,
-}
-
-#[derive(Clone, Canon, Debug, Arbitrary, PartialEq)]
-struct ConstGenerics<const N: isize> {
-    test: u32,
-}
-
-//////////////
-
-fn serialize_deserialize<
-    T: Canon<MemStore> + Clone + std::fmt::Debug + PartialEq,
->(
-    t: T,
-) {
-    let store = MemStore::new();
-
-    let id = store.put(&t).unwrap();
-
-    let restored = store.get(&id).unwrap();
+fn serialize_deserialize<T: Canon + Clone + std::fmt::Debug + PartialEq>(t: T) {
+    let id = Id::new(&t);
+    let restored = id.reify().unwrap();
     assert_eq!(t, restored);
-}
-
-#[test]
-fn store_included() {
-    let store = MemStore::new();
-
-    let thing_a = StoreIncludedA {
-        junk: 32,
-        store: store.clone(),
-    };
-
-    let id_a = store.put(&thing_a).unwrap();
-
-    let thing_b = StoreIncludedB {
-        junk: 32,
-        store: store.clone(),
-    };
-
-    let id_b = store.put(&thing_b).unwrap();
-
-    assert_eq!(id_a, id_b);
 }
 
 #[test]
@@ -164,15 +113,6 @@ fn derives() {
 }
 
 #[test]
-fn const_generics() {
-    let a: ConstGenerics<-1> = ConstGenerics { test: 3 };
-    serialize_deserialize(a);
-}
-
-#[test]
 fn fuzzing() {
-    let store = MemStore::new();
-
-    fuzz_canon::<A, _>(store.clone());
-    fuzz_canon_iterations::<MonsterStruct<Option<u32>>, _>(32, store);
+    fuzz_canon_iterations::<MonsterStruct<Option<u32>>>(32);
 }
