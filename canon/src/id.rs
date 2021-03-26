@@ -77,7 +77,7 @@ impl Id {
     pub fn hash(&self) -> IdHash {
         let len = self.size();
         if len > PAYLOAD_BYTES {
-            self.payload.clone()
+            self.payload
         } else {
             Store::hash(&self.payload[0..len])
         }
@@ -165,7 +165,7 @@ impl Canon for Id {
     }
 }
 
-#[cfg(feature = "host")]
+#[cfg(not(target_arch = "wasm32"))]
 mod impl_arbitrary {
     use super::*;
     use arbitrary::{Arbitrary, Result, Unstructured};

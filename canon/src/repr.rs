@@ -29,10 +29,8 @@ impl<T> Default for ReprInner<T> {
 impl<T> Clone for ReprInner<T> {
     fn clone(&self) -> Self {
         match self {
-            ReprInner::Id(id) => ReprInner::Id(id.clone()),
-            ReprInner::IdValue(id, val) => {
-                ReprInner::IdValue(id.clone(), val.clone())
-            }
+            ReprInner::Id(id) => ReprInner::Id(*id),
+            ReprInner::IdValue(id, val) => ReprInner::IdValue(*id, val.clone()),
             ReprInner::Value(val) => ReprInner::Value(val.clone()),
             _ => unreachable!(),
         }
