@@ -8,5 +8,5 @@ description = "Fuzzing helpers for Canonical encodings"
 license = "MPL-2.0"
 
 [dependencies]
-canonical = { path = "../canon", features = ["host"] }
+canonical = { path = "../canon" }
 arbitrary = { version = "0.3" }

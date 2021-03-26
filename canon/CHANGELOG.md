@@ -2,33 +2,41 @@
 
 ## [unreleased]
 
-### Removed
+### Added
 
-- Remove the `Store` trait
+- Add target architecture `wasm32` to conditional compile the `Store` backend
 
 ### Changed
 
 - Change trait `Canon<S>` to `Canon`
-
-- Change the names of `Canon::{read,write}` to `{encode, decode}`  not to confuse them with `std::io::{Read, Write}`
+- Change `Canon::{read,write}` to `Canon::{encode, decode}` not avoid confusion with `std::io::{Read, Write}`
 
 ### Removed
 
-- Remove Result on Canon `write`/`encode`, is assumed to always succeed.
-
+- Remove the `Store` trait
+- Remove Result on Canon `write`/`encode`, is assumed to always succeed
 - Remove page size limitation removed on encoding/decoding
+- Remove all features
+- Remove legacy `debug` module
+
+### Fixed
+
+- Fix various Clippy hints
 
 ## [0.5.3] 2021-03-04
 
 ### Changed
+
 - Change page size to 32k
 
 ## [0.5.2] 2021-02-23
 
 ### Changed
+
 - Change page size to be larger
 
 ### Removed
+
 - Remove #[no_mangle] from extern 'C' functions
 
 ## [0.5.1] 2021-02-25
@@ -41,22 +49,22 @@
 
 ### Changed
 
-- Change ByteSink/ByteSource to no longer require cloning the store reference
+- Change `ByteSink` / `ByteSource` to no longer require cloning the store reference
 
 ### Removed
 
-- Remove wasmi integration, moved to dusk-vm where it belongs
+- Remove wasmi integration, moved to `dusk-abi` where it belongs
 
 ## [0.4.4] 2020-12-22
 
 ### Added
 
-- Add support for arrays of 33 elements.
-- Add example module using `nstack`.
+- Add support for arrays of 33 elements
+- Add example module using `nstack`
 
 ## [0.4.1] 2020-11-06
 
-### Added 
+### Added
 
 - Add catching of panics and propagating of them to the host
 
@@ -77,13 +85,11 @@
 ### Added
 
 - Add fuzzing tests for the `Repr` type
-
 - Add `Canon` implementation for `String`
 
 ### Removed
 
 - Remove `hosted` feature
-
 - Remove Const generics
 
 ## [0.1.0] 2020-10-06
