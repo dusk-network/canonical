@@ -24,16 +24,18 @@ cfg_if! {
     }
 }
 
-/// Low-lever intefrace to the store logic.
+/// Low-level intefrace to the store logic.
 pub struct Store;
 
 impl Store {
-    /// Write the bye slice into the store and return its hash
+    /// Write the byte slice into the store and return its hash
     pub fn put(bytes: &[u8]) -> IdHash {
         Inner::put(&bytes[..])
     }
 
     /// Get data with the corresponding hash and write it to a buffer
+    ///
+    /// Note that the buffer must be of the right length to accept the data
     pub fn get(hash: &IdHash, write_to: &mut [u8]) -> Result<(), CanonError> {
         Inner::get(hash, write_to)
     }
