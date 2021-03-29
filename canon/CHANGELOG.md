@@ -4,28 +4,28 @@
 
 ### Removed
 
-- Remove the `Store` trait.
+- Remove the `Store` trait
 
-### Changes
+### Changed
 
-- The trait `Canon<S>` becomes `Canon`.
+- The trait `Canon<S>` becomes `Canon`
 
 - `Canon::<S>::write(&type, &mut Sink<S>)?;` becomes `type.encode(&mut sink);`
 
-- Writes are assumed to always succeed.
+- Writes are assumed to always succeed
 
-- The names encode/decode is choosen not to confuse them with `std::io::{Read, Write}`.
+- The names encode/decode is choosen not to confuse them with `std::io::{Read, Write}`
 
 - Page size limitation removed on encoding/decoding
 
 ## [0.5.3] 2021-03-04
 
-### Changes
+### Changed
 - Page size to 32k
 
 ## [0.5.2] 2021-02-23
 
-### Changes
+### Changed
 - Page size increase
 
 ### Removed
@@ -41,7 +41,7 @@
 
 ### Changed
 
-- ByteSink/ByteSource no longer needs to clone the store reference.
+- ByteSink/ByteSource no longer needs to clone the store reference
 
 ### Removed
 
@@ -82,9 +82,9 @@
 
 ### Removed
 
-- Remove `hosted` feature.
+- Remove `hosted` feature
 
-- Const generics.
+- Const generics
 
 ## [0.1.0] 2020-10-06
 
