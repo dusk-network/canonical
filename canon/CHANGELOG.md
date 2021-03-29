@@ -8,25 +8,25 @@
 
 ### Changed
 
-- The trait `Canon<S>` becomes `Canon`
+- Change trait `Canon<S>` to `Canon`
 
-- `Canon::<S>::write(&type, &mut Sink<S>)?;` becomes `type.encode(&mut sink);`
+- Change the names of `Canon::{read,write}` to `{encode, decode}`  not to confuse them with `std::io::{Read, Write}`
 
-- Writes are assumed to always succeed
+### Removed
 
-- The names encode/decode is choosen not to confuse them with `std::io::{Read, Write}`
+- Remove Result on Canon `write`/`encode`, is assumed to always succeed.
 
-- Page size limitation removed on encoding/decoding
+- Remove page size limitation removed on encoding/decoding
 
 ## [0.5.3] 2021-03-04
 
 ### Changed
-- Page size to 32k
+- Change page size to 32k
 
 ## [0.5.2] 2021-02-23
 
 ### Changed
-- Page size increase
+- Change page size to be larger
 
 ### Removed
 - Remove #[no_mangle] from extern 'C' functions
@@ -35,30 +35,30 @@
 
 ### Added
 
-- Implement `Canon` for `Vec`
+- Add an implementation of `Canon` for `Vec`
 
 ## [0.5.0] 2021-01-19
 
 ### Changed
 
-- ByteSink/ByteSource no longer needs to clone the store reference
+- Change ByteSink/ByteSource to no longer require cloning the store reference
 
 ### Removed
 
-- Wasmi integration, moved to dusk-vm where it belongs
+- Remove wasmi integration, moved to dusk-vm where it belongs
 
 ## [0.4.4] 2020-12-22
 
 ### Added
 
-- Support for arrays of 33 elements.
-- Example module using `nstack`.
+- Add support for arrays of 33 elements.
+- Add example module using `nstack`.
 
 ## [0.4.1] 2020-11-06
 
 ### Added 
 
-- Catching of panics and propagating of them to the host
+- Add catching of panics and propagating of them to the host
 
 ## [0.4.0] 2020-10-21
 
@@ -76,15 +76,15 @@
 
 ### Added
 
-- Fuzzing tests for the `Repr` type
+- Add fuzzing tests for the `Repr` type
 
-- `Canon` implementation for `String`
+- Add `Canon` implementation for `String`
 
 ### Removed
 
 - Remove `hosted` feature
 
-- Const generics
+- Remove Const generics
 
 ## [0.1.0] 2020-10-06
 
