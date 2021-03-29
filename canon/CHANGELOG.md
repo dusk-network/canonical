@@ -1,84 +1,91 @@
-# 0.6.0
+# Changelog
 
-## Changed
+## [Unreleased]
 
-Deprecate the usage of the `Store` trait.
+### Removed
 
-the trait `Canon<S>` becomes `Canon`.
+- Remove the `Store` trait.
 
-`Canon::<S>::write(&type, &mut Sink<S>)?;` becomes `type.encode(&mut sink);`
+### Changes
 
-Writes are assumed to always succeed, analgous to how a push to a `Vec` in rust can only panic with out of memory exceptions, but is assumed to be failsafe.
+- The trait `Canon<S>` becomes `Canon`.
 
-The names encode/decode is choosen not to confuse them with `std::io::{Read, Write}`.
+- `Canon::<S>::write(&type, &mut Sink<S>)?;` becomes `type.encode(&mut sink);`
 
-# 0.5.3 a9b53e4e0ebe96fa7bd90ce2ce03875d5e21124a
+- Writes are assumed to always succeed.
 
-# Removed
+- The names encode/decode is choosen not to confuse them with `std::io::{Read, Write}`.
 
-Page size limitation removed on encoding/decoding
+- Page size limitation removed on encoding/decoding
 
-## Changes
-page size to 32k
+## [0.5.3] 2021-03-04
 
-# 0.5.2 81eadfa974f17362c223af11fd1d4765a14a1b51
+### Changes
+- Page size to 32k
 
-## Changes
-page size increase
+## [0.5.2] 2021-02-23
 
-# 0.5.1 21e85f6ec78e96cd438d078b47b9739d5917759f
+### Changes
+- Page size increase
 
-REVERTED
+### Removed
+- Remove #[no_mangle] from extern 'C' functions
 
-# 0.5.0 12062d2c91c4dd48337d8630cb0e200290a4c422
+## [0.5.1] 2021-02-25
 
-## Changed
+### Added
 
-ByteSink/ByteSource no longer needs to clone the store reference.
+- Implement `Canon` for `Vec`
 
-## Added
+## [0.5.0] 2021-01-19
 
-Implement `Canon` for `Vec`
+### Changed
 
-## Removed
+- ByteSink/ByteSource no longer needs to clone the store reference.
 
-Wasmi integration, moved to dusk-vm where it belongs
+### Removed
 
-# 0.4.4 2b661ddd1249185f45e5731f5699fd50e6a63624
+- Wasmi integration, moved to dusk-vm where it belongs
 
-## Added
+## [0.4.4] 2020-12-22
 
-Support arrays of 33 elements.
+### Added
 
-# 0.4.1 1d7d6422088709d0363054276a47a20f7b034b01
+- Support for arrays of 33 elements.
+- Example module using `nstack`.
 
-## Added 
+## [0.4.1] 2020-11-06
 
-Catching of panics and propagating of them to the host
+### Added 
 
-# 0.4.0 ee0e5104a260793f0d32066c3bc80fcfca70420e
+- Catching of panics and propagating of them to the host
 
-Changes in deprecated repos
+## [0.4.0] 2020-10-21
 
-# 0.3.0 b25b7b2466eaba2061cacd092ac4eba3eb643aef
+- Changes in workspace dependencies
 
-Changes in deprecated repos
+## [0.3.0] 2020-10-20
 
-# 0.2.1 85db137857c3cda61a8ffd2e10b345eeadd40027
+- Changes in workspace dependencies
 
-Changes in deprecated repos
+## [0.2.1] 2020-10-16
 
-# 0.2.0 3d331c887a7b6da2d4d044ab38196c14f64d974f
+- Changes in workspace dependencies
 
-## Added
+## [0.2.0] 2020-10-15
 
-Fuzzing tests for the `Repr` type
+### Added
 
-`Canon` implementation for `String`
+- Fuzzing tests for the `Repr` type
 
-## Removed
+- `Canon` implementation for `String`
 
-Remove `hosted` feature.
+### Removed
 
-Const generics.
+- Remove `hosted` feature.
 
+- Const generics.
+
+## [0.1.0] 2020-10-06
+
+Initial release
