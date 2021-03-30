@@ -1,5 +1,9 @@
 # Canonical
 
+![Build Status](https://github.com/dusk-network/canonical/workflows/Continuous%20integration/badge.svg)
+[![Repository](https://img.shields.io/badge/github-canonical-blueviolet?logo=github)](https://github.com/dusk-network/canonical)
+[![Documentation](https://img.shields.io/badge/docs-canonical-blue?logo=rust)](https://docs.rs/canonical/)
+
 Canonical is a specialized serialization library built for merkle trees and suitable for wasm environments.
 
 Its main component is the `Canon` trait, which specifies how the type is encoded to/read from bytes.
