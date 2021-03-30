@@ -4,7 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Canonical, a no_std, host-allocating serialization library
+//! ![Build Status](https://github.com/dusk-network/canonical/workflows/Continuous%20integration/badge.svg)
+//! [![Repository](https://img.shields.io/badge/github-canonical-blueviolet?logo=github)](https://github.com/dusk-network/canonical)
+//! [![Documentation](https://img.shields.io/badge/docs-canonical-blue?logo=rust)](https://docs.rs/canonical/)
+
+//! # Canonical
+//!
+//! A no_std, host-allocating serialization library
+
 #![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(never_type)]
 #![deny(missing_docs)]
