@@ -1,6 +1,6 @@
 # Changelog
 
-## [unreleased]
+## [0.6.0]
 
 ### Added
 
@@ -96,7 +96,7 @@
 
 Initial release
 
-[unreleased]: https://github.com/dusk-network/canonicalical/compare/canonical-0.5.3...HEAD
+[0.6.0]: https://github.com/dusk-network/canonicalical/compare/canonical-0.5.3...canonical-0.6.0
 [0.5.3]: https://github.com/dusk-network/canonicalical/compare/canonical-0.5.2...canonical-0.5.3
 [0.5.2]: https://github.com/dusk-network/canonicalical/compare/canonical-0.5.1...canonical-0.5.2
 [0.5.1]: https://github.com/dusk-network/canonicalical/compare/canonical-0.5.0...canonical-0.5.1
