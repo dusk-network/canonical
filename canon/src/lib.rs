@@ -4,26 +4,27 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Canonical, a no_std, host-allocating serialization library
-#![cfg_attr(not(feature = "host"), no_std)]
+//! ![Build Status](https://github.com/dusk-network/canonical/workflows/Continuous%20integration/badge.svg)
+//! [![Repository](https://img.shields.io/badge/github-canonical-blueviolet?logo=github)](https://github.com/dusk-network/canonical)
+//! [![Documentation](https://img.shields.io/badge/docs-canonical-blue?logo=rust)](https://docs.rs/canonical/)
+
+//! # Canonical
+//!
+//! A no_std, host-allocating serialization library
+
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(never_type)]
 #![deny(missing_docs)]
 
+extern crate alloc;
+
 mod canon;
-mod debug;
-mod dry_sink;
 mod id;
 mod implementations;
 mod repr;
 mod store;
 
-mod bridge;
-
-pub use bridge::BridgeStore;
-
-pub use canon::{Canon, InvalidEncoding};
-pub use debug::{DebugMsg, _debug};
-pub use dry_sink::DrySink;
-pub use id::Id32;
+pub use canon::{Canon, CanonError, EncodeToVec};
+pub use id::{Id, IdHash};
 pub use repr::{Repr, Val, ValMut};
-pub use store::{ByteSink, ByteSource, IdBuilder, Ident, Sink, Source, Store};
+pub use store::{Sink, Source, Store};

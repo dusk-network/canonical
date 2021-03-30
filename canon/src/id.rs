@@ -4,65 +4,183 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use blake2b_simd::{Params, State as Blake2bState};
+use alloc::vec::Vec;
 
-use crate::{Canon, IdBuilder, Ident, Sink, Source, Store};
+use crate::canon::{Canon, CanonError, EncodeToVec};
+use crate::store::{Sink, Source, Store};
 
-/// A 32 byte Identifier based on the Blake2b hash algorithm
+const VERSION: u8 = 0;
+
+/// The size of the Id payload, used to store cryptographic hashes or inlined
+/// values
+pub const PAYLOAD_BYTES: usize = 32;
+
+// We alias Hash and Inlined versions of Payload to be able to use them
+// interchangeably but with some type documentation
+
+/// Type alias for an arbitrary Id payload, either a hash or an inlined value
+pub type Payload = [u8; PAYLOAD_BYTES];
+/// Type alias for a payload that is used as a hash
+pub type IdHash = Payload;
+/// Type alias for a payload that is used as an inlined value
+pub type Inlined = Payload;
+
+/// This is the Id type, that uniquely identifies slices of bytes,
+/// in rust equivalent to `&[u8]`. As in the case with `&[u8]` the length is
+/// also encoded in the type, making it a kind of a fat-pointer for content
+/// adressed byteslices.
+///
+/// The length of the corresponding bytestring is encoed in the first two bytes
+/// in big endian.
+///
+/// If the length of the byteslice is less than or equal to 32 bytes, the bytes
+/// are stored directly inline in the `bytes` field.
+///
+/// Proposal: The trailing bytes in an inlined value MUST be set to zero
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
-pub struct Id32([u8; 32]);
+pub struct Id {
+    version: u8,
+    len: u16,
+    payload: Payload,
+}
 
-pub struct Id32Builder(Blake2bState);
+impl Id {
+    /// Creates a new Id from a type
+    pub fn new<T>(t: &T) -> Self
+    where
+        T: Canon,
+    {
+        let len = t.encoded_len();
+        let payload = if len > PAYLOAD_BYTES {
+            Store::put(&t.encode_to_vec())
+        } else {
+            let mut stack_buf = Inlined::default();
+            let mut sink = Sink::new(&mut stack_buf[..len]);
+            t.encode(&mut sink);
+            stack_buf
+        };
 
-impl<S> Canon<S> for Id32
-where
-    S: Store,
-{
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        sink.copy_bytes(&self.0[..]);
-        Ok(())
+        Id {
+            version: VERSION,
+            len: (len as u16),
+            payload,
+        }
     }
-    /// Read the value from bytes in a `Source`
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(source.read_bytes(32));
-        Ok(Id32(bytes))
+
+    /// Returns the computed hash of the value.
+    ///
+    /// Note that this is different from the payload itself in case of an
+    /// inlined value, that normally does not get hashed.
+    ///
+    /// Useful for giving a well-distributed unique id for all `Canon` types,
+    /// for use in hash maps for example.
+    pub fn hash(&self) -> IdHash {
+        let len = self.size();
+        if len > PAYLOAD_BYTES {
+            self.payload
+        } else {
+            Store::hash(&self.payload[0..len])
+        }
     }
+
+    /// Returns the bytes of the identifier
+    pub fn payload(&self) -> &Payload {
+        &self.payload
+    }
+
+    /// Consumes the Id and returns the payload bytes
+    pub fn into_payload(self) -> [u8; PAYLOAD_BYTES] {
+        self.payload
+    }
+
+    /// Returns the length of the represented data
+    pub const fn size(&self) -> usize {
+        self.len as usize
+    }
+
+    /// Attempts to reify the Id as an instance of type `T`
+    pub fn reify<T>(&self) -> Result<T, CanonError>
+    where
+        T: Canon,
+    {
+        let len = self.size();
+        // this does not yet allocate
+        let mut buf = Vec::new();
+
+        let mut source = if len > PAYLOAD_BYTES {
+            // allocation happens here
+            buf.resize_with(len, || 0);
+
+            Store::get(&self.payload, &mut buf)?;
+            Source::new(&buf)
+        } else {
+            Source::new(&self.payload[..len])
+        };
+
+        T::decode(&mut source)
+    }
+
+    // This is a conveniance function to be called from Repr, in order not to
+    // have to construct an Id to get the encoded_len correctly.
+    pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
+        let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
+        // version, length and the actual payload length
+        1 + 2 + actual_payload
+    }
+}
+
+impl Canon for Id {
+    fn encode(&self, sink: &mut Sink) {
+        self.version.encode(sink);
+        self.len.encode(sink);
+        let payload_size = core::cmp::min(self.size(), PAYLOAD_BYTES);
+        sink.copy_bytes(&self.payload[..payload_size]);
+    }
+
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        let version = u8::decode(source)?;
+
+        if version != 0 {
+            return Err(CanonError::InvalidEncoding);
+        }
+
+        let len = u16::decode(source)?;
+        let mut payload = [0u8; PAYLOAD_BYTES];
+
+        let payload_size = core::cmp::min(len as usize, PAYLOAD_BYTES);
+
+        payload[..payload_size]
+            .copy_from_slice(source.read_bytes(payload_size));
+
+        Ok(Id {
+            version,
+            len,
+            payload,
+        })
+    }
+
     fn encoded_len(&self) -> usize {
-        32
+        let payload_len = core::cmp::min(self.len as usize, PAYLOAD_BYTES);
+        Self::encoded_len_for_payload_len(payload_len)
     }
 }
 
-impl Default for Id32Builder {
-    fn default() -> Self {
-        Id32Builder(Params::new().hash_length(32).to_state())
-    }
-}
+#[cfg(not(target_arch = "wasm32"))]
+mod impl_arbitrary {
+    use super::*;
+    use arbitrary::{Arbitrary, Result, Unstructured};
 
-impl IdBuilder<Id32> for Id32Builder {
-    fn write_bytes(&mut self, bytes: &[u8]) {
-        self.0.update(bytes);
-    }
+    impl Arbitrary for Id {
+        fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+            let mut bytevec = Vec::arbitrary(u)?;
 
-    fn fin(mut self) -> Id32 {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(self.0.finalize().as_ref());
-        Id32(bytes)
-    }
-}
+            // randomly extend by a hash length, to overflow inlined
+            if bool::arbitrary(u)? {
+                let junk = Store::hash(&bytevec[..]);
+                bytevec.extend_from_slice(&junk);
+            }
 
-impl Ident for Id32 {
-    type Builder = Id32Builder;
-}
-
-impl AsRef<[u8]> for Id32 {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl AsMut<[u8]> for Id32 {
-    fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
+            Ok(Id::new(&bytevec))
+        }
     }
 }

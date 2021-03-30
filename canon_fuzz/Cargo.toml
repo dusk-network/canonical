@@ -1,6 +1,6 @@
 [package]
 name = "canonical_fuzz"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 repository = "https://github.com/dusk-network/canonical/canon_fuzz"
@@ -8,6 +8,5 @@ description = "Fuzzing helpers for Canonical encodings"
 license = "MPL-2.0"
 
 [dependencies]
-canonical = { path = "../canon", features = ["host"], version = "0.5" }
-canonical_host = { path = "../canon_host", version = "0.5" }
+canonical = { path = "../canon", version = "0.6.0" }
 arbitrary = { version = "0.3" }
