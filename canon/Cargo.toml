@@ -3,7 +3,7 @@ name = "canonical"
 version = "0.6.0"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
-readme = "README.md"
+readme = "../README.md"
 repository = "https://github.com/dusk-network/canonical"
 keywords = ["canon", "serialisation", "no_std", "ffi", "database"]
 description = "A serialization library built for no_std environments where you want to deal with recursive datastructures."
@@ -15,8 +15,8 @@ arrayvec = { version = "0.5", default-features = false, features = ["array-sizes
 cfg-if = "1.0.0"
 
 [dev-dependencies]
-canonical_derive = { path = "../canon_derive" }
-canonical_fuzz = { path = "../canon_fuzz" }
+canonical_derive = { path = "../canon_derive", version = "0.6" }
+canonical_fuzz = { path = "../canon_fuzz", version = "0.6" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 blake2b_simd = "0.3"
