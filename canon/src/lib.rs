@@ -5,21 +5,19 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Canonical, a no_std, host-allocating serialization library
-#![cfg_attr(feature = "bridge", no_std)]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![feature(never_type)]
 #![deny(missing_docs)]
 
 extern crate alloc;
 
 mod canon;
-mod debug;
 mod id;
 mod implementations;
 mod repr;
 mod store;
 
 pub use canon::{Canon, CanonError, EncodeToVec};
-pub use debug::{DebugMsg, _debug};
 pub use id::{Id, IdHash};
 pub use repr::{Repr, Val, ValMut};
 pub use store::{Sink, Source, Store};

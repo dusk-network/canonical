@@ -12,15 +12,12 @@ use crate::id::IdHash;
 use crate::CanonError;
 
 cfg_if! {
-    if #[cfg(feature = "host")] {
-        mod host;
-        use host::HostStore as Inner;
-    } else if #[cfg(feature = "bridge")] {
+    if #[cfg(target_arch = "wasm32")] {
         mod bridge;
         use bridge::BridgeStore as Inner;
     } else {
-        mod void;
-        use void::VoidStore as Inner;
+        mod host;
+        use host::HostStore as Inner;
     }
 }
 
@@ -30,7 +27,7 @@ pub struct Store;
 impl Store {
     /// Write the byte slice into the store and return its hash
     pub fn put(bytes: &[u8]) -> IdHash {
-        Inner::put(&bytes[..])
+        Inner::put(bytes)
     }
 
     /// Get data with the corresponding hash and write it to a buffer
