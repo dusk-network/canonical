@@ -21,5 +21,3 @@ canonical_fuzz = { path = "../canon_fuzz", version = "0.6" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 blake2b_simd = "0.3"
 arbitrary = "0.3"
-lazy_static = "1.4"
-parking_lot = "0.11"
