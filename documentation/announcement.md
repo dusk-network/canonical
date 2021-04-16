@@ -1,6 +1,6 @@
 # canonical 0.6
 
-Canonical is serialization library specialized for merkle-trees.
+Canonical is a serialization library specialized for merkle-trees.
 
 ## Serialization and FFI
 
@@ -28,9 +28,9 @@ Given a hash length of 32 bytes, the Payload is also 32 bytes long. If the lengt
 
 So, with the Repr and the Id we can create datastructures that get resolved or `reified` into their concrete type instances.
 
-In the case of a wasm contract executing, a call to refiy will be a host call, asking the host to fill in the correct bytes and parse them into a value.
+In the case of a wasm contract executing, a call to reify will be a host call, asking the host to fill in the correct bytes and parse them into a value.
 
-On tho host side, a lookup is performed in the current runtime memory storage of the host.
+On the host side, a lookup is performed in the current runtime memory storage of the host.
 
 This distinction is invisible to the developer of contracts, and allows us to use the same datastructures and queries both on the host side to save performance, and on the wasm side for trustless contract execution.
 
