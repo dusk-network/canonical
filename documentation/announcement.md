@@ -1,4 +1,4 @@
-# canonical 0.6
+# Announcing canonical 0.6
 
 Canonical is a serialization library specialized for merkle-trees.
 
