@@ -22,7 +22,7 @@ pub struct Id {
 }
 ```
 
-Given a hash length of 32 bytes, the Payload is also 32 bytes long. If the length of the data represented by the Id is larger than 32 bytes.
+Given a hash length of 32 bytes, the Payload is also 32 bytes long. If the length of the data represented by the Id is larger than 32 bytes, the payload is instead the hash of the data for lookup in the storage.
 
 ## Host and wasm differences
 
