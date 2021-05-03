@@ -203,95 +203,22 @@ tuple! { A B C D E F G H I J K L M N }
 tuple! { A B C D E F G H I J K L M N O }
 tuple! { A B C D E F G H I J K L M N O P }
 
-macro_rules! array {
-    (0) => {
-        impl<T, S> Canon for [T; 0]
-        where
-            T: Canon + Sized,
-            S: Store,
-        {
-            fn encode(&self, _sink: &mut Sink) -> Result<(), Invalid> {
-                Ok(())
-            }
+impl<T, const N: usize> Canon for [T; N]
+where
+    T: Canon + Sized,
+{
+    fn encode(&self, sink: &mut Sink) {
+        self.iter().for_each(|item| item.encode(sink));
+    }
 
-            fn decode(_source: &mut Source) -> Result<Self, Invalid> {
-                Ok(Self::default())
-            }
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        array_init::try_array_init(|_| T::decode(source))
+    }
 
-            fn encoded_len(&self) -> usize {
-                0
-            }
-        }
-    };
-
-    ($n:expr) => {
-        impl<T> Canon for [T; $n]
-        where
-            T: Canon + Sized,
-        {
-            fn encode(&self, sink: &mut Sink) {
-                for i in 0..$n {
-                    self[i].encode(sink);
-                }
-            }
-
-            fn decode(source: &mut Source) -> Result<Self, CanonError> {
-                let mut array = arrayvec::ArrayVec::<[T; $n]>::new();
-
-                for _ in 0..$n {
-                    array.push(T::decode(source)?);
-                }
-
-                Ok(array
-                    .into_inner()
-                    .map_err(|_| ())
-                    .expect("Array not full after N pushes"))
-            }
-
-            fn encoded_len(&self) -> usize {
-                let mut len = 0;
-                for i in 0..$n {
-                    len += self[i].encoded_len();
-                }
-                len
-            }
-        }
-    };
+    fn encoded_len(&self) -> usize {
+        self.iter().fold(0, |len, item| len + item.encoded_len())
+    }
 }
-
-array!(1);
-array!(2);
-array!(3);
-array!(4);
-array!(5);
-array!(6);
-array!(7);
-array!(8);
-array!(9);
-array!(10);
-array!(11);
-array!(12);
-array!(13);
-array!(14);
-array!(15);
-array!(16);
-array!(17);
-array!(18);
-array!(19);
-array!(20);
-array!(21);
-array!(22);
-array!(23);
-array!(24);
-array!(25);
-array!(26);
-array!(27);
-array!(28);
-array!(29);
-array!(30);
-array!(31);
-array!(32);
-array!(33);
 
 mod alloc_impls {
     use super::*;
