@@ -120,6 +120,11 @@ impl Id {
         T::decode(&mut source)
     }
 
+    /// Takes the bytes corresponding to this id out of the underlying store.
+    pub fn promote_bytes(&self) -> Result<Vec<u8>, CanonError> {
+        Store::promote_bytes(self)
+    }
+
     // This is a conveniance function to be called from Repr, in order not to
     // have to construct an Id to get the encoded_len correctly.
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {

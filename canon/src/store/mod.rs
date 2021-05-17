@@ -8,7 +8,7 @@ use cfg_if::cfg_if;
 
 use core::fmt;
 
-use crate::id::IdHash;
+use crate::id::{Id, IdHash};
 use crate::CanonError;
 
 cfg_if! {
@@ -40,6 +40,10 @@ impl Store {
     /// Hash a slice of bytes
     pub fn hash(bytes: &[u8]) -> IdHash {
         Inner::hash(bytes)
+    }
+
+    pub(crate) fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        Inner::promote_bytes(id)
     }
 }
 

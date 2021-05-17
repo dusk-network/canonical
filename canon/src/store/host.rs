@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::canon::CanonError;
-use crate::id::IdHash;
+use crate::id::{Id, IdHash};
 
 thread_local! {
     pub static STATIC_MAP: RefCell<HashMap<IdHash, Vec<u8>>> =
@@ -39,12 +39,26 @@ impl HostStore {
         hash
     }
 
-    pub fn hash(bytes: &[u8]) -> IdHash {
+    pub(crate) fn hash(bytes: &[u8]) -> IdHash {
         let mut state = Params::new().hash_length(32).to_state();
         state.update(bytes);
 
         let mut buf = [0u8; 32];
         buf.copy_from_slice(state.finalize().as_ref());
         buf
+    }
+
+    pub(crate) fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        STATIC_MAP.with(|m| {
+            if let Some(vec) = m.borrow_mut().remove(&id.hash()) {
+                if id.size() == vec.len() {
+                    Ok(vec)
+                } else {
+                    Err(CanonError::InvalidEncoding)
+                }
+            } else {
+                Err(CanonError::NotFound)
+            }
+        })
     }
 }

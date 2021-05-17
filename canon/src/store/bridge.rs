@@ -38,6 +38,15 @@ impl BridgeStore {
         unsafe { hash(ofs, len as i32, &mut result) };
         result
     }
+
+    pub fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        // No-op in bridge version
+        let len = id.size();
+        let mut buf = Vec::with_capacity(len);
+        buf.resize_with(len, || 0);
+        Self::get(&id.hash(), &mut buf[..])?;
+        Ok(vec)
+    }
 }
 
 #[link(wasm_import_module = "canon")]
