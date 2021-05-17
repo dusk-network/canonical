@@ -125,7 +125,7 @@ impl Id {
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
         let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
         // version, length and the actual payload length
-        1 + 2 + actual_payload
+        1 + (payload_len as u64).encoded_len() + actual_payload
     }
 }
 

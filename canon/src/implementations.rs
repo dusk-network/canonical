@@ -6,6 +6,8 @@
 
 #![allow(clippy::empty_loop)]
 use core::marker::PhantomData;
+use core::mem;
+use integer_encoding::VarInt;
 
 use crate::{Canon, CanonError, Sink, Source};
 
@@ -32,17 +34,52 @@ macro_rules! number {
 number!(u8, 1);
 number!(i8, 1);
 
-number!(u16, 2);
-number!(i16, 2);
-
-number!(u32, 4);
-number!(i32, 4);
-
-number!(u64, 8);
-number!(i64, 8);
-
 number!(u128, 16);
 number!(i128, 16);
+
+macro_rules! varint {
+    ($varint:ty) => {
+        impl Canon for $varint {
+            fn encode(&self, sink: &mut Sink) {
+                // Varint uses 7 bits per byte to encode a value.
+                // So, to encode for example a `u64`, we would need:
+                // 64 / 7 = 9.14 bytes
+                // ==> For `u64` we need a buffer of 10 bytes.
+                const BUFSIZE: usize = mem::size_of::<$varint>() * 8 / 7 + 1;
+                let mut buf = [0u8; BUFSIZE];
+                let len = self.encoded_len();
+                self.encode_var(&mut buf);
+                sink.copy_bytes(&buf[..len]);
+            }
+
+            fn decode(source: &mut Source) -> Result<Self, $crate::CanonError> {
+                const MSB: u8 = 0b1000_0000;
+                let varint_len = source.bytes[source.offset..]
+                    .iter()
+                    .take_while(|b| *b & MSB != 0)
+                    .count()
+                    + 1;
+                VarInt::decode_var(source.read_bytes(varint_len))
+                    .map_or(Err(CanonError::InvalidEncoding), |(number, _)| {
+                        Ok(number)
+                    })
+            }
+
+            fn encoded_len(&self) -> usize {
+                self.required_space()
+            }
+        }
+    };
+}
+
+varint!(u16);
+varint!(i16);
+
+varint!(u32);
+varint!(i32);
+
+varint!(u64);
+varint!(i64);
 
 impl Canon for bool {
     fn encode(&self, sink: &mut Sink) {
@@ -250,7 +287,7 @@ mod alloc_impls {
 
         fn encoded_len(&self) -> usize {
             // length of length
-            let mut len = Canon::encoded_len(&0u64);
+            let mut len = (self.len() as u64).encoded_len();
             for t in self.iter() {
                 len += t.encoded_len()
             }
@@ -273,7 +310,8 @@ mod alloc_impls {
         }
 
         fn encoded_len(&self) -> usize {
-            Canon::encoded_len(&0u64) + self.as_bytes().len()
+            let len = self.len() as u64;
+            len.encoded_len() + self.as_bytes().len()
         }
     }
 
