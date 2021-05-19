@@ -39,7 +39,7 @@ impl BridgeStore {
         result
     }
 
-    pub fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+    pub fn take_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
         // No-op in bridge version
         let len = id.size();
         let mut buf = Vec::with_capacity(len);

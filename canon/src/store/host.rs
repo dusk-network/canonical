@@ -48,17 +48,11 @@ impl HostStore {
         buf
     }
 
-    pub(crate) fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
-        STATIC_MAP.with(|m| {
-            if let Some(vec) = m.borrow_mut().remove(&id.hash()) {
-                if id.size() == vec.len() {
-                    Ok(vec)
-                } else {
-                    Err(CanonError::InvalidEncoding)
-                }
-            } else {
-                Err(CanonError::NotFound)
-            }
+    pub(crate) fn take_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        STATIC_MAP.with(|m| match m.borrow_mut().remove(&id.hash()) {
+            Some(vec) if id.size() == vec.len() => Ok(vec),
+            Some(_) => Err(CanonError::InvalidEncoding),
+            None => Err(CanonError::NotFound),
         })
     }
 }

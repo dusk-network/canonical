@@ -123,11 +123,11 @@ impl Id {
     /// Takes the bytes corresponding to this id out of the underlying store.
     ///
     /// If the Id is inlined, this is a no-op and returns Ok(None)
-    pub fn promote_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
+    pub fn take_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
         if self.size() <= PAYLOAD_BYTES {
             Ok(None)
         } else {
-            Ok(Some(Store::promote_bytes(self)?))
+            Ok(Some(Store::take_bytes(self)?))
         }
     }
 

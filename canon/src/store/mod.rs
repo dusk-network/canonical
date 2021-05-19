@@ -42,8 +42,8 @@ impl Store {
         Inner::hash(bytes)
     }
 
-    pub(crate) fn promote_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
-        Inner::promote_bytes(id)
+    pub(crate) fn take_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        Inner::take_bytes(id)
     }
 }
 
