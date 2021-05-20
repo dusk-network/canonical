@@ -71,8 +71,8 @@ impl<'a> Sink<'a> {
 
 /// Struct used in `Canon::decode` to read bytes from a buffer
 pub struct Source<'a> {
-    bytes: &'a [u8],
-    offset: usize,
+    pub(crate) bytes: &'a [u8],
+    pub(crate) offset: usize,
 }
 
 impl<'a> Source<'a> {

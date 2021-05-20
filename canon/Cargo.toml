@@ -13,6 +13,7 @@ license = "MPL-2.0"
 blake2b_simd = { version = "0.3", default-features = false }
 cfg-if = "1.0.0"
 array-init = "2.0"
+integer-encoding = "3.0"
 
 [dev-dependencies]
 canonical_derive = { path = "../canon_derive", version = "0.6" }
