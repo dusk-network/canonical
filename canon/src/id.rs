@@ -121,8 +121,14 @@ impl Id {
     }
 
     /// Takes the bytes corresponding to this id out of the underlying store.
-    pub fn promote_bytes(&self) -> Result<Vec<u8>, CanonError> {
-        Store::promote_bytes(self)
+    ///
+    /// If the Id is inlined, this is a no-op and returns Ok(None)
+    pub fn promote_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
+        if self.size() <= PAYLOAD_BYTES {
+            Ok(None)
+        } else {
+            Ok(Some(Store::promote_bytes(self)?))
+        }
     }
 
     // This is a conveniance function to be called from Repr, in order not to
@@ -175,8 +181,8 @@ mod impl_arbitrary {
     use super::*;
     use arbitrary::{Arbitrary, Result, Unstructured};
 
-    impl Arbitrary for Id {
-        fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+    impl<'a> Arbitrary<'a> for Id {
+        fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
             let mut bytevec = Vec::arbitrary(u)?;
 
             // randomly extend by a hash length, to overflow inlined
