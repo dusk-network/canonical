@@ -15,7 +15,7 @@ const VERSION: u8 = 0;
 /// values
 pub const PAYLOAD_BYTES: usize = 32;
 
-// We alias Hash and Inlined versions of Payload to be able to use them
+// We alias `IdHash` and `Inlined` versions of `Payload` to be able to use them
 // interchangeably but with some type documentation
 
 /// Type alias for an arbitrary Id payload, either a hash or an inlined value
@@ -28,10 +28,10 @@ pub type Inlined = Payload;
 /// This is the Id type, that uniquely identifies slices of bytes,
 /// in rust equivalent to `&[u8]`. As in the case with `&[u8]` the length is
 /// also encoded in the type, making it a kind of a fat-pointer for content
-/// adressed byteslices.
+/// addressed byte-slices.
 ///
-/// The length of the corresponding bytestring is encoed in the first two bytes
-/// in big endian.
+/// The length of the corresponding byte-string is encoded in the first two
+/// bytes in big endian.
 ///
 /// If the length of the byteslice is less than or equal to 32 bytes, the bytes
 /// are stored directly inline in the `bytes` field.
@@ -124,7 +124,7 @@ impl Id {
 
     /// Takes the bytes corresponding to this id out of the underlying store.
     ///
-    /// If the Id is inlined, this is a no-op and returns Ok(None)
+    /// If the Id is inlined, this is a no-op and returns `Ok(None)`
     pub fn take_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
         if self.size() <= PAYLOAD_BYTES {
             Ok(None)

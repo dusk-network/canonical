@@ -43,7 +43,7 @@ impl<T> Clone for ReprInner<T> {
     note = "Please use the Link in `microkelvin` instead"
 )]
 #[derive(Debug)]
-/// A Repr to a value that is either local or in storage behind an identifier
+/// A `Repr` to a value that is either local or in storage behind an identifier
 pub struct Repr<T>(RefCell<ReprInner<T>>);
 
 impl<T> Clone for Repr<T> {

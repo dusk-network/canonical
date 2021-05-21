@@ -10,13 +10,13 @@ use crate::canon::CanonError;
 use crate::id::{Id, IdHash};
 use alloc::vec::Vec;
 
-/// Store usable across ffi-boundraries
+/// Store usable across ffi-boundaries
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BridgeStore;
 
 impl BridgeStore {
     pub(crate) fn put(bytes: &[u8]) -> IdHash {
-        // we only put larger values here
+        // We only put larger values here
         debug_assert!(bytes.len() > core::mem::size_of::<IdHash>());
         let mut idhash = IdHash::default();
         unsafe {
