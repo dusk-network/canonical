@@ -120,6 +120,17 @@ impl Id {
         T::decode(&mut source)
     }
 
+    /// Takes the bytes corresponding to this id out of the underlying store.
+    ///
+    /// If the Id is inlined, this is a no-op and returns Ok(None)
+    pub fn take_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
+        if self.size() <= PAYLOAD_BYTES {
+            Ok(None)
+        } else {
+            Ok(Some(Store::take_bytes(self)?))
+        }
+    }
+
     // This is a conveniance function to be called from Repr, in order not to
     // have to construct an Id to get the encoded_len correctly.
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
@@ -170,8 +181,8 @@ mod impl_arbitrary {
     use super::*;
     use arbitrary::{Arbitrary, Result, Unstructured};
 
-    impl Arbitrary for Id {
-        fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+    impl<'a> Arbitrary<'a> for Id {
+        fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
             let mut bytevec = Vec::arbitrary(u)?;
 
             // randomly extend by a hash length, to overflow inlined

@@ -4,50 +4,32 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
 pub use arbitrary::{Arbitrary, Error as ArbitraryError, Unstructured};
 use canonical::{Canon, Id, Sink};
 
 const FUZZ_ITERATIONS: usize = 128;
 
-fn hash<T: Hash>(t: T) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    t.hash(&mut hasher);
-    hasher.finish()
+fn raw_data<'a>() -> Unstructured<'a> {
+    Unstructured::new(include_bytes!("noise.bin"))
 }
 
 /// Fuzzes a type with regards to its Canon implementation.
 /// making sure every serialization produces an Equal result when deserialized
-pub fn fuzz_canon<C>()
+pub fn fuzz_canon<'a, C>()
 where
-    C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
+    C: Canon + Arbitrary<'a> + PartialEq + std::fmt::Debug,
 {
     fuzz_canon_iterations::<C>(FUZZ_ITERATIONS)
 }
 
 /// Fuzzes for a set number of iterations
-pub fn fuzz_canon_iterations<C>(iterations: usize)
+pub fn fuzz_canon_iterations<'a, C>(iterations: usize)
 where
-    C: Canon + Arbitrary + PartialEq + std::fmt::Debug,
+    C: Canon + Arbitrary<'a> + PartialEq + std::fmt::Debug,
 {
-    let mut entropy = 0;
+    let data = &mut raw_data::<'a>();
     for _ in 0..iterations {
-        let mut bytes = vec![];
-
-        let canon = {
-            loop {
-                match C::arbitrary(&mut Unstructured::new(&bytes)) {
-                    Ok(t) => break t,
-                    Err(_) => {
-                        entropy += 1;
-
-                        bytes.extend_from_slice(&hash(entropy).to_be_bytes());
-                    }
-                }
-            }
-        };
+        let canon: C = Arbitrary::arbitrary(data).unwrap();
 
         let claimed_len = canon.encoded_len();
 
@@ -78,7 +60,12 @@ where
         if !valid {
             for i in 0..claimed_len {
                 if buffer_a[i] != buffer_b[i] {
-                    panic!("claimed {}, wrote {}", claimed_len, i - 1)
+                    panic!(
+                        "{:?}\n\nclaimed {}, wrote {}",
+                        canon,
+                        claimed_len,
+                        i - 1
+                    );
                 }
             }
         }
