@@ -6,6 +6,8 @@
 
 ### Changed
 - Change `Store` to be thread local
+- Change the payload length in `Id` to u32
+- Change encoding of integers to use varints
 
 ### Added
 - Add method `take_bytes` to `Id`
