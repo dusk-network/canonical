@@ -40,7 +40,7 @@ pub type Inlined = Payload;
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct Id {
     version: u8,
-    len: u16,
+    len: u32,
     payload: Payload,
 }
 
@@ -60,9 +60,11 @@ impl Id {
             stack_buf
         };
 
+        assert!(len <= u32::MAX as usize, "Payload length overflow");
+
         Id {
             version: VERSION,
-            len: (len as u16),
+            len: (len as u32),
             payload,
         }
     }
@@ -120,12 +122,23 @@ impl Id {
         T::decode(&mut source)
     }
 
+    /// Takes the bytes corresponding to this id out of the underlying store.
+    ///
+    /// If the Id is inlined, this is a no-op and returns Ok(None)
+    pub fn take_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
+        if self.size() <= PAYLOAD_BYTES {
+            Ok(None)
+        } else {
+            Ok(Some(Store::take_bytes(self)?))
+        }
+    }
+
     // This is a conveniance function to be called from Repr, in order not to
     // have to construct an Id to get the encoded_len correctly.
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
         let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
         // version, length and the actual payload length
-        1 + 2 + actual_payload
+        1 + (payload_len as u32).encoded_len() + actual_payload
     }
 }
 
@@ -144,7 +157,7 @@ impl Canon for Id {
             return Err(CanonError::InvalidEncoding);
         }
 
-        let len = u16::decode(source)?;
+        let len = u32::decode(source)?;
         let mut payload = [0u8; PAYLOAD_BYTES];
 
         let payload_size = core::cmp::min(len as usize, PAYLOAD_BYTES);
@@ -170,8 +183,8 @@ mod impl_arbitrary {
     use super::*;
     use arbitrary::{Arbitrary, Result, Unstructured};
 
-    impl Arbitrary for Id {
-        fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+    impl<'a> Arbitrary<'a> for Id {
+        fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
             let mut bytevec = Vec::arbitrary(u)?;
 
             // randomly extend by a hash length, to overflow inlined

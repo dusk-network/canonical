@@ -39,3 +39,5 @@ struct A2 {
 # canonical_fuzz
 
 A simple fuzzer built on top of the `arbitrary` crate. Allows you to fuzz the canon encoding for types, helpful if you choose to implement custom encodings.
+
+The fuzzer also checks that the reported length of the value is correct with what is being written.

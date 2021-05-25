@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.6.2] 2021-05-20
+
+### Added
+- Add method `take_bytes` to `Id`
+
+### Changed
+
+- Change `Store` to be thread local
+- Change the payload length in `Id` to u32
+- Change encoding of integers to use varints
+
 ## [0.6.1] 2021-05-03
 
 ### Changed
@@ -104,7 +115,8 @@
 
 Initial release
 
-[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.1...HEAD
+[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.2...HEAD
+[0.6.2]: https://github.com/dusk-network/canonical/compare/canonical-0.6.1...canonical-0.6.2
 [0.6.1]: https://github.com/dusk-network/canonical/compare/canonical-0.6.0...canonical-0.6.1
 [0.6.0]: https://github.com/dusk-network/canonical/compare/canonical-0.5.3...canonical-0.6.0
 [0.5.3]: https://github.com/dusk-network/canonical/compare/canonical-0.5.2...canonical-0.5.3
@@ -118,4 +130,3 @@ Initial release
 [0.2.1]: https://github.com/dusk-network/canonical/compare/canonical-0.2.0...canonical-0.2.1
 [0.2.0]: https://github.com/dusk-network/canonical/compare/canonical-0.1.0...canonical-0.2.0
 [0.1.0]: https://github.com/dusk-network/canonical/releases/tag/canonical-0.1.0
-

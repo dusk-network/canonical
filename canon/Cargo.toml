@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "../README.md"
@@ -13,6 +13,7 @@ license = "MPL-2.0"
 blake2b_simd = { version = "0.3", default-features = false }
 cfg-if = "1.0.0"
 array-init = "2.0"
+integer-encoding = "3.0"
 
 [dev-dependencies]
 canonical_derive = { path = "../canon_derive", version = "0.6" }
@@ -20,6 +21,4 @@ canonical_fuzz = { path = "../canon_fuzz", version = "0.6" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 blake2b_simd = "0.3"
-arbitrary = "0.3"
-lazy_static = "1.4"
-parking_lot = "0.11"
+arbitrary = "1.0"

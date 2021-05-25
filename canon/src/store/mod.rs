@@ -8,7 +8,7 @@ use cfg_if::cfg_if;
 
 use core::fmt;
 
-use crate::id::IdHash;
+use crate::id::{Id, IdHash};
 use crate::CanonError;
 
 cfg_if! {
@@ -41,6 +41,10 @@ impl Store {
     pub fn hash(bytes: &[u8]) -> IdHash {
         Inner::hash(bytes)
     }
+
+    pub(crate) fn take_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
+        Inner::take_bytes(id)
+    }
 }
 
 /// Struct used in `Canon::encode` to read bytes from a buffer
@@ -71,8 +75,8 @@ impl<'a> Sink<'a> {
 
 /// Struct used in `Canon::decode` to read bytes from a buffer
 pub struct Source<'a> {
-    bytes: &'a [u8],
-    offset: usize,
+    pub(crate) bytes: &'a [u8],
+    pub(crate) offset: usize,
 }
 
 impl<'a> Source<'a> {
