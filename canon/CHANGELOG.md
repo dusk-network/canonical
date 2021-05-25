@@ -4,11 +4,14 @@
 
 ## [0.6.2] 2021-05-20
 
-### Changed
-- Change `Store` to be thread local
-
 ### Added
 - Add method `take_bytes` to `Id`
+
+### Changed
+
+- Change `Store` to be thread local
+- Change the payload length in `Id` to u32
+- Change encoding of integers to use varints
 
 ## [0.6.1] 2021-05-03
 

@@ -40,7 +40,7 @@ pub type Inlined = Payload;
 #[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct Id {
     version: u8,
-    len: u16,
+    len: u32,
     payload: Payload,
 }
 
@@ -60,9 +60,11 @@ impl Id {
             stack_buf
         };
 
+        assert!(len <= u32::MAX as usize, "Payload length overflow");
+
         Id {
             version: VERSION,
-            len: (len as u16),
+            len: (len as u32),
             payload,
         }
     }
@@ -136,7 +138,7 @@ impl Id {
     pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
         let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
         // version, length and the actual payload length
-        1 + (payload_len as u64).encoded_len() + actual_payload
+        1 + (payload_len as u32).encoded_len() + actual_payload
     }
 }
 
@@ -155,7 +157,7 @@ impl Canon for Id {
             return Err(CanonError::InvalidEncoding);
         }
 
-        let len = u16::decode(source)?;
+        let len = u32::decode(source)?;
         let mut payload = [0u8; PAYLOAD_BYTES];
 
         let payload_size = core::cmp::min(len as usize, PAYLOAD_BYTES);
