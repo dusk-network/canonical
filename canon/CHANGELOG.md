@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.6.3] 2021-05-26
+
+### Added
+- Add varint support for `u128` and `i128` by converting them to two `u64`s
+- Add encoding/decoding tests for all integer types
+
+### Changed
+- Change library `integer-encoding` to `dusk-varint`
+
 ## [0.6.2] 2021-05-20
 
 ### Added
@@ -115,7 +124,8 @@
 
 Initial release
 
-[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.2...HEAD
+[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.3...HEAD
+[0.6.3]: https://github.com/dusk-network/canonical/compare/canonical-0.6.2...canonical-0.6.3
 [0.6.2]: https://github.com/dusk-network/canonical/compare/canonical-0.6.1...canonical-0.6.2
 [0.6.1]: https://github.com/dusk-network/canonical/compare/canonical-0.6.0...canonical-0.6.1
 [0.6.0]: https://github.com/dusk-network/canonical/compare/canonical-0.5.3...canonical-0.6.0

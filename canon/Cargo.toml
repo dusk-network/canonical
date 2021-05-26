@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.6.2"
+version = "0.6.3"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "../README.md"
@@ -13,7 +13,7 @@ license = "MPL-2.0"
 blake2b_simd = { version = "0.3", default-features = false }
 cfg-if = "1.0.0"
 array-init = "2.0"
-integer-encoding = "3.0"
+dusk-varint = "0.1"
 
 [dev-dependencies]
 canonical_derive = { path = "../canon_derive", version = "0.6" }
