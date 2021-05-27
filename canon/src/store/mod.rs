@@ -10,6 +10,7 @@ use core::fmt;
 
 use crate::id::{Id, IdHash};
 use crate::CanonError;
+use alloc::vec::Vec;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {

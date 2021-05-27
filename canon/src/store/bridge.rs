@@ -7,7 +7,8 @@
 extern crate alloc;
 
 use crate::canon::CanonError;
-use crate::id::IdHash;
+use crate::id::{Id, IdHash};
+use alloc::vec::Vec;
 
 /// Store usable across ffi-boundraries
 #[derive(Clone, Copy, Default, Debug)]
@@ -45,7 +46,7 @@ impl BridgeStore {
         let mut buf = Vec::with_capacity(len);
         buf.resize_with(len, || 0);
         Self::get(&id.hash(), &mut buf[..])?;
-        Ok(vec)
+        Ok(buf)
     }
 }
 

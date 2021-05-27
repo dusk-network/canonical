@@ -7,35 +7,25 @@
 #![allow(clippy::empty_loop)]
 use core::marker::PhantomData;
 use core::mem;
-use integer_encoding::VarInt;
+use dusk_varint::VarInt;
 
 use crate::{Canon, CanonError, Sink, Source};
 
-macro_rules! number {
-    ($number:ty, $size:expr) => {
-        impl Canon for $number {
-            fn encode(&self, sink: &mut Sink) {
-                sink.copy_bytes(&self.to_be_bytes())
-            }
+impl Canon for u8 {
+    fn encode(&self, sink: &mut Sink) {
+        sink.copy_bytes(&self.to_be_bytes())
+    }
 
-            fn decode(source: &mut Source) -> Result<Self, $crate::CanonError> {
-                let mut bytes = [0u8; $size];
-                bytes.copy_from_slice(source.read_bytes($size));
-                Ok(<$number>::from_be_bytes(bytes))
-            }
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        let mut bytes = [0u8; 1];
+        bytes.copy_from_slice(source.read_bytes(1));
+        Ok(u8::from_be_bytes(bytes))
+    }
 
-            fn encoded_len(&self) -> usize {
-                $size
-            }
-        }
-    };
+    fn encoded_len(&self) -> usize {
+        1
+    }
 }
-
-number!(u8, 1);
-number!(i8, 1);
-
-number!(u128, 16);
-number!(i128, 16);
 
 macro_rules! varint {
     ($varint:ty) => {
@@ -80,6 +70,53 @@ varint!(i32);
 
 varint!(u64);
 varint!(i64);
+
+impl Canon for u128 {
+    fn encode(&self, sink: &mut Sink) {
+        let high: u64 = (self >> 64) as u64;
+        let low: u64 = *self as u64;
+
+        high.encode(sink);
+        low.encode(sink);
+    }
+
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        let high = u64::decode(source)?;
+        let low = u64::decode(source)?;
+
+        Ok((low as u128) + ((high as u128) << 64))
+    }
+
+    fn encoded_len(&self) -> usize {
+        let high: u64 = (self >> 64) as u64;
+        let low: u64 = *self as u64;
+        high.encoded_len() + low.encoded_len()
+    }
+}
+
+#[inline]
+fn zigzag_encode(from: i128) -> u128 {
+    ((from << 1) ^ (from >> 127)) as u128
+}
+
+#[inline]
+fn zigzag_decode(from: u128) -> i128 {
+    ((from >> 1) ^ (-((from & 1) as i128)) as u128) as i128
+}
+
+impl Canon for i128 {
+    fn encode(&self, sink: &mut Sink) {
+        zigzag_encode(*self).encode(sink)
+    }
+
+    fn decode(source: &mut Source) -> Result<Self, CanonError> {
+        Ok(zigzag_decode(u128::decode(source)?))
+    }
+
+    fn encoded_len(&self) -> usize {
+        zigzag_encode(*self).encoded_len()
+    }
+}
 
 impl Canon for bool {
     fn encode(&self, sink: &mut Sink) {
