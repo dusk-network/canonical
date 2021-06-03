@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.6.4] 2021-06-04
+
+### Changed
+- Change `Id::encoded_len` to a correct implementation
+
+### Removed
+- Remove `Repr`
+
 ## [0.6.3] 2021-05-26
 
 ### Added
