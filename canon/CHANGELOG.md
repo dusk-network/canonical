@@ -7,8 +7,9 @@
 ### Changed
 - Change `Id::encoded_len` to a correct implementation
 
-### Removed
-- Remove `Repr`
+### Deprecated
+
+- Deprecate `Repr`
 
 ## [0.6.3] 2021-05-26
 
