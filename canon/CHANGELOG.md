@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.5] 2021-06-04
+
+### Added
+- Add back public exports of Val and ValMut
+
 ## [0.6.4] 2021-06-04
 
 ### Changed
@@ -133,7 +138,9 @@
 
 Initial release
 
-[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.3...HEAD
+[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.5...HEAD
+[0.6.5]: https://github.com/dusk-network/canonical/compare/canonical-0.6.4...canonical-0.6.5
+[0.6.4]: https://github.com/dusk-network/canonical/compare/canonical-0.6.3...canonical-0.6.4
 [0.6.3]: https://github.com/dusk-network/canonical/compare/canonical-0.6.2...canonical-0.6.3
 [0.6.2]: https://github.com/dusk-network/canonical/compare/canonical-0.6.1...canonical-0.6.2
 [0.6.1]: https://github.com/dusk-network/canonical/compare/canonical-0.6.0...canonical-0.6.1
