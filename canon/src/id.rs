@@ -132,14 +132,6 @@ impl Id {
             Ok(Some(Store::take_bytes(self)?))
         }
     }
-
-    // This is a conveniance function to be called from Repr, in order not to
-    // have to construct an Id to get the encoded_len correctly.
-    pub(crate) fn encoded_len_for_payload_len(payload_len: usize) -> usize {
-        let actual_payload = core::cmp::min(payload_len, PAYLOAD_BYTES);
-        // version, length and the actual payload length
-        1 + (payload_len as u32).encoded_len() + actual_payload
-    }
 }
 
 impl Canon for Id {
@@ -174,7 +166,7 @@ impl Canon for Id {
 
     fn encoded_len(&self) -> usize {
         let payload_len = core::cmp::min(self.len as usize, PAYLOAD_BYTES);
-        Self::encoded_len_for_payload_len(payload_len)
+        1 + self.len.encoded_len() + payload_len
     }
 }
 

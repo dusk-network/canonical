@@ -9,6 +9,7 @@ use core::ops::{Deref, DerefMut};
 
 use alloc::rc::Rc;
 
+use crate::id;
 use crate::{Canon, CanonError, Id, Sink, Source};
 
 #[derive(Debug)]
@@ -37,6 +38,10 @@ impl<T> Clone for ReprInner<T> {
     }
 }
 
+#[deprecated(
+    since = "0.6.4",
+    note = "Please use the Link in `microkelvin` instead"
+)]
 #[derive(Debug)]
 /// A Repr to a value that is either local or in storage behind an identifier
 pub struct Repr<T>(RefCell<ReprInner<T>>);
@@ -85,7 +90,9 @@ where
             ReprInner::Id(id) | ReprInner::IdValue(id, _) => id.encoded_len(),
             ReprInner::Value(rc) => {
                 let enc_len = (*rc).encoded_len();
-                Id::encoded_len_for_payload_len(enc_len)
+                let payload_len =
+                    core::cmp::min(enc_len as usize, id::PAYLOAD_BYTES);
+                1 + (enc_len as u32).encoded_len() + payload_len
             }
             ReprInner::Placeholder => unreachable!(),
         }

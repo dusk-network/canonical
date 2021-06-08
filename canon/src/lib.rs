@@ -26,5 +26,5 @@ mod store;
 
 pub use canon::{Canon, CanonError, EncodeToVec};
 pub use id::{Id, IdHash};
-pub use repr::{Repr, Val, ValMut};
+pub use repr::Repr;
 pub use store::{Sink, Source, Store};
