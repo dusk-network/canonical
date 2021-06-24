@@ -39,7 +39,7 @@ impl Canon for CanonError {
     }
 }
 
-/// Helper trait to encode Canon types into byte vectors.
+/// Helper trait to encode Canon types into byte vectors
 pub trait EncodeToVec {
     /// Encode `Self` into a buffer
     fn encode_to_vec(&self) -> Vec<u8>;
@@ -61,9 +61,9 @@ where
 
 /// Trait to read/write values as bytes
 pub trait Canon: Sized + Clone {
-    /// Write the value as bytes to a `Sink`
+    /// Write the encoded value as bytes to a `Sink`
     fn encode(&self, sink: &mut Sink);
-    /// Read the value from bytes in a `Source`
+    /// Return the decoded value from bytes in a `Source`
     fn decode(source: &mut Source) -> Result<Self, CanonError>;
     /// Returns the number of bytes needed to encode this value
     fn encoded_len(&self) -> usize;

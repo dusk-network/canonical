@@ -22,7 +22,7 @@ cfg_if! {
     }
 }
 
-/// Low-level intefrace to the store logic.
+/// Low-level interface to the store logic
 pub struct Store;
 
 impl Store {
@@ -48,7 +48,7 @@ impl Store {
     }
 }
 
-/// Struct used in `Canon::encode` to read bytes from a buffer
+/// Struct for saving encoded data
 pub struct Sink<'a> {
     bytes: &'a mut [u8],
     offset: usize,
@@ -61,7 +61,7 @@ impl<'a> fmt::Debug for Sink<'a> {
 }
 
 impl<'a> Sink<'a> {
-    /// Creates a new sink reading from bytes
+    /// Creates a new sink with a reference to `bytes`
     pub fn new(bytes: &'a mut [u8]) -> Self {
         Sink { bytes, offset: 0 }
     }
@@ -74,14 +74,14 @@ impl<'a> Sink<'a> {
     }
 }
 
-/// Struct used in `Canon::decode` to read bytes from a buffer
+/// Struct holding encoded data to be decoded into its initial value
 pub struct Source<'a> {
     pub(crate) bytes: &'a [u8],
     pub(crate) offset: usize,
 }
 
 impl<'a> Source<'a> {
-    /// Creates a new source reading from bytes
+    /// Creates a new source with a reference to `bytes`
     pub fn new(bytes: &'a [u8]) -> Self {
         Source { bytes, offset: 0 }
     }
