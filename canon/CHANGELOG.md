@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.6] 2022-02-02
+
+### Changed
+- Change thread_local to a lazy_static RwLock
+
 ## [0.6.5] 2021-06-04
 
 ### Added
@@ -138,7 +143,8 @@
 
 Initial release
 
-[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.5...HEAD
+[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.6...HEAD
+[0.6.6]: https://github.com/dusk-network/canonical/compare/canonical-0.6.5...canonical-0.6.6
 [0.6.5]: https://github.com/dusk-network/canonical/compare/canonical-0.6.4...canonical-0.6.5
 [0.6.4]: https://github.com/dusk-network/canonical/compare/canonical-0.6.3...canonical-0.6.4
 [0.6.3]: https://github.com/dusk-network/canonical/compare/canonical-0.6.2...canonical-0.6.3

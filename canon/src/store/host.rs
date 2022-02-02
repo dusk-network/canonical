@@ -6,15 +6,16 @@
 
 use blake2b_simd::Params;
 
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+
+use parking_lot::RwLock;
 
 use crate::canon::CanonError;
 use crate::id::{Id, IdHash};
 
-thread_local! {
-    pub static STATIC_MAP: RefCell<HashMap<IdHash, Vec<u8>>> =
-    RefCell::new(HashMap::new())
+lazy_static::lazy_static! {
+    pub static ref STATIC_MAP: RwLock<BTreeMap<IdHash, Vec<u8>>> =
+        RwLock::new(BTreeMap::new());
 }
 
 pub(crate) struct HostStore;
@@ -24,18 +25,21 @@ impl HostStore {
         hash: &IdHash,
         into: &mut [u8],
     ) -> Result<(), CanonError> {
-        match STATIC_MAP.with(|m| {
-            m.borrow().get(hash).map(|vec| into.copy_from_slice(&vec))
-        }) {
+        match STATIC_MAP
+            .read()
+            .get(hash)
+            .map(|vec| into.copy_from_slice(&vec))
+        {
             Some(()) => Ok(()),
             None => Err(CanonError::NotFound),
         }
     }
 
     pub(crate) fn put(bytes: &[u8]) -> IdHash {
+        // If length is less than that of a hash, this should have been inlined.
         debug_assert!(bytes.len() > core::mem::size_of::<IdHash>());
         let hash = Self::hash(bytes);
-        STATIC_MAP.with(|m| m.borrow_mut().insert(hash, Vec::from(bytes)));
+        STATIC_MAP.write().insert(hash, Vec::from(bytes));
         hash
     }
 
@@ -49,10 +53,10 @@ impl HostStore {
     }
 
     pub(crate) fn take_bytes(id: &Id) -> Result<Vec<u8>, CanonError> {
-        STATIC_MAP.with(|m| match m.borrow_mut().remove(&id.hash()) {
+        match STATIC_MAP.write().remove(&id.hash()) {
             Some(vec) if id.size() == vec.len() => Ok(vec),
             Some(_) => Err(CanonError::InvalidEncoding),
             None => Err(CanonError::NotFound),
-        })
+        }
     }
 }
