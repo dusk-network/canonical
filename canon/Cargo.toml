@@ -1,6 +1,6 @@
 [package]
 name = "canonical"
-version = "0.6.5"
+version = "0.6.6"
 authors = ["Kristoffer Ström <kristoffer@dusk.network>"]
 edition = "2018"
 readme = "../README.md"
@@ -14,6 +14,7 @@ blake2b_simd = { version = "0.3", default-features = false }
 cfg-if = "1.0.0"
 array-init = "2.0"
 dusk-varint = "0.1"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 canonical_derive = { path = "../canon_derive", version = "0.6" }
@@ -22,3 +23,5 @@ canonical_fuzz = { path = "../canon_fuzz", version = "0.6" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 blake2b_simd = "0.3"
 arbitrary = "1.0"
+parking_lot = "0.12.0"
+lazy_static = "1.4.0"
