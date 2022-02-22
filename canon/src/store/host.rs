@@ -28,7 +28,7 @@ impl HostStore {
         match STATIC_MAP
             .read()
             .get(hash)
-            .map(|vec| into.copy_from_slice(&vec))
+            .map(|vec| into.copy_from_slice(vec))
         {
             Some(()) => Ok(()),
             None => Err(CanonError::NotFound),
@@ -36,8 +36,6 @@ impl HostStore {
     }
 
     pub(crate) fn put(bytes: &[u8]) -> IdHash {
-        // If length is less than that of a hash, this should have been inlined.
-        debug_assert!(bytes.len() > core::mem::size_of::<IdHash>());
         let hash = Self::hash(bytes);
         STATIC_MAP.write().insert(hash, Vec::from(bytes));
         hash
