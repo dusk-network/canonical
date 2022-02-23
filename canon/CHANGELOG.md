@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.6.7] 2022-02-23
+## [0.7.0] 2022-02-23
 
 # Added
 
@@ -155,8 +155,8 @@
 
 Initial release
 
-[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.6.7...HEAD
-[0.6.7]: https://github.com/dusk-network/canonical/compare/canonical-0.6.6...canonical-0.6.7
+[Unreleased]: https://github.com/dusk-network/canonical/compare/canonical-0.7.0...HEAD
+[0.7.0]: https://github.com/dusk-network/canonical/compare/canonical-0.6.6...canonical-0.7.0
 [0.6.6]: https://github.com/dusk-network/canonical/compare/canonical-0.6.5...canonical-0.6.6
 [0.6.5]: https://github.com/dusk-network/canonical/compare/canonical-0.6.4...canonical-0.6.5
 [0.6.4]: https://github.com/dusk-network/canonical/compare/canonical-0.6.3...canonical-0.6.4
