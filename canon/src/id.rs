@@ -11,19 +11,11 @@ use crate::store::{Sink, Source, Store};
 
 const VERSION: u8 = 0;
 
-/// The size of the Id payload, used to store cryptographic hashes or inlined
 /// values
-pub const PAYLOAD_BYTES: usize = 32;
+pub const HASH_BYTES: usize = 32;
 
-// We alias `IdHash` and `Inlined` versions of `Payload` to be able to use them
-// interchangeably but with some type documentation
-
-/// Type alias for an arbitrary Id payload, either a hash or an inlined value
-pub type Payload = [u8; PAYLOAD_BYTES];
-/// Type alias for a payload that is used as a hash
-pub type IdHash = Payload;
-/// Type alias for a payload that is used as an inlined value
-pub type Inlined = Payload;
+/// A hash identifiying some data
+pub type IdHash = [u8; 32];
 
 /// This is the Id type, that uniquely identifies slices of bytes,
 /// in rust equivalent to `&[u8]`. As in the case with `&[u8]` the length is
@@ -37,11 +29,21 @@ pub type Inlined = Payload;
 /// are stored directly inline in the `bytes` field.
 ///
 /// Proposal: The trailing bytes in an inlined value MUST be set to zero
-#[derive(Hash, PartialEq, Eq, Default, Clone, Copy, Debug, PartialOrd, Ord)]
+#[derive(Hash, PartialEq, Eq, Default, Clone, Copy, PartialOrd, Ord)]
 pub struct Id {
     version: u8,
     len: u32,
-    payload: Payload,
+    hash: IdHash,
+}
+
+impl core::fmt::Debug for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Id(")?;
+        for byte in self.hash {
+            write!(f, "{:02x}", byte)?;
+        }
+        write!(f, ", {})", self.len)
+    }
 }
 
 impl Id {
@@ -50,22 +52,23 @@ impl Id {
     where
         T: Canon,
     {
-        let len = t.encoded_len();
-        let payload = if len > PAYLOAD_BYTES {
-            Store::put(&t.encode_to_vec())
-        } else {
-            let mut stack_buf = Inlined::default();
-            let mut sink = Sink::new(&mut stack_buf[..len]);
-            t.encode(&mut sink);
-            stack_buf
-        };
-
-        assert!(len <= u32::MAX as usize, "Payload length overflow");
+        let bytes = t.encode_to_vec();
+        let len = bytes.len();
+        let hash = Store::put(&bytes);
 
         Id {
             version: VERSION,
             len: (len as u32),
-            payload,
+            hash,
+        }
+    }
+
+    /// Creates a new Id from raw data
+    pub fn raw(hash: [u8; 32], len: u32) -> Self {
+        Id {
+            version: VERSION,
+            len: (len as u32),
+            hash,
         }
     }
 
@@ -77,22 +80,7 @@ impl Id {
     /// Useful for giving a well-distributed unique id for all `Canon` types,
     /// for use in hash maps for example.
     pub fn hash(&self) -> IdHash {
-        let len = self.size();
-        if len > PAYLOAD_BYTES {
-            self.payload
-        } else {
-            Store::hash(&self.payload[0..len])
-        }
-    }
-
-    /// Returns the bytes of the identifier
-    pub fn payload(&self) -> &Payload {
-        &self.payload
-    }
-
-    /// Consumes the Id and returns the payload bytes
-    pub fn into_payload(self) -> [u8; PAYLOAD_BYTES] {
-        self.payload
+        self.hash
     }
 
     /// Returns the length of the represented data
@@ -106,18 +94,13 @@ impl Id {
         T: Canon,
     {
         let len = self.size();
-        // this does not yet allocate
+
         let mut buf = Vec::new();
 
-        let mut source = if len > PAYLOAD_BYTES {
-            // allocation happens here
-            buf.resize_with(len, || 0);
+        buf.resize_with(len, || 0);
 
-            Store::get(&self.payload, &mut buf)?;
-            Source::new(&buf)
-        } else {
-            Source::new(&self.payload[..len])
-        };
+        Store::get(&self.hash(), &mut buf)?;
+        let mut source = Source::new(&buf);
 
         T::decode(&mut source)
     }
@@ -126,11 +109,7 @@ impl Id {
     ///
     /// If the Id is inlined, this is a no-op and returns `Ok(None)`
     pub fn take_bytes(&self) -> Result<Option<Vec<u8>>, CanonError> {
-        if self.size() <= PAYLOAD_BYTES {
-            Ok(None)
-        } else {
-            Ok(Some(Store::take_bytes(self)?))
-        }
+        Ok(Some(Store::take_bytes(self)?))
     }
 }
 
@@ -138,8 +117,7 @@ impl Canon for Id {
     fn encode(&self, sink: &mut Sink) {
         self.version.encode(sink);
         self.len.encode(sink);
-        let payload_size = core::cmp::min(self.size(), PAYLOAD_BYTES);
-        sink.copy_bytes(&self.payload[..payload_size]);
+        sink.copy_bytes(&self.hash());
     }
 
     fn decode(source: &mut Source) -> Result<Self, CanonError> {
@@ -150,23 +128,15 @@ impl Canon for Id {
         }
 
         let len = u32::decode(source)?;
-        let mut payload = [0u8; PAYLOAD_BYTES];
+        let mut hash = [0u8; HASH_BYTES];
 
-        let payload_size = core::cmp::min(len as usize, PAYLOAD_BYTES);
+        hash[..].copy_from_slice(source.read_bytes(HASH_BYTES));
 
-        payload[..payload_size]
-            .copy_from_slice(source.read_bytes(payload_size));
-
-        Ok(Id {
-            version,
-            len,
-            payload,
-        })
+        Ok(Id { version, len, hash })
     }
 
     fn encoded_len(&self) -> usize {
-        let payload_len = core::cmp::min(self.len as usize, PAYLOAD_BYTES);
-        1 + self.len.encoded_len() + payload_len
+        1 + self.len.encoded_len() + HASH_BYTES
     }
 }
 
