@@ -299,6 +299,7 @@ mod alloc_impls {
 
     extern crate alloc;
 
+    use alloc::collections::{BTreeMap, BTreeSet};
     use alloc::rc::Rc;
     use alloc::string::String;
     use alloc::sync::Arc;
@@ -329,6 +330,61 @@ mod alloc_impls {
                 len += t.encoded_len()
             }
             len
+        }
+    }
+
+    impl<T: Ord + Canon> Canon for BTreeSet<T> {
+        fn encode(&self, sink: &mut Sink) {
+            let len = self.len() as u64;
+            len.encode(sink);
+            self.iter().for_each(|item| item.encode(sink));
+        }
+
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
+            let len = u64::decode(source)?;
+            let mut set = BTreeSet::new();
+            for _ in 0..len {
+                set.insert(T::decode(source)?);
+            }
+            Ok(set)
+        }
+
+        fn encoded_len(&self) -> usize {
+            let len = (self.len() as u64).encoded_len();
+            self.iter().fold(len, |len, item| len + item.encoded_len())
+        }
+    }
+
+    impl<K, V> Canon for BTreeMap<K, V>
+    where
+        K: Ord + Canon,
+        V: Canon,
+    {
+        fn encode(&self, sink: &mut Sink) {
+            let len = self.len() as u64;
+            len.encode(sink);
+            self.iter().for_each(|(k, v)| {
+                k.encode(sink);
+                v.encode(sink);
+            });
+        }
+
+        fn decode(source: &mut Source) -> Result<Self, CanonError> {
+            let len = u64::decode(source)?;
+            let mut map = BTreeMap::new();
+            for _ in 0..len {
+                let key = K::decode(source)?;
+                let value = V::decode(source)?;
+                map.insert(key, value);
+            }
+            Ok(map)
+        }
+
+        fn encoded_len(&self) -> usize {
+            let len = (self.len() as u64).encoded_len();
+            self.iter().fold(len, |len, (k, v)| {
+                len + k.encoded_len() + v.encoded_len()
+            })
         }
     }
 
